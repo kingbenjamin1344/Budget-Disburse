@@ -179,10 +179,10 @@ export default function DashboardLayout({ children }) {
 
         {/* MAIN CONTENT */}
         <main className="flex-1 p-6 overflow-y-auto flex flex-col">
-          <div className="bg-white rounded-xl shadow-md p-8 w-full flex-1 flex flex-col justify-center items-center">
+          <div className="bg-white rounded-xl shadow-md p-8 w-full flex-1">
             {children}
           </div>
-        </main>
+                  </main>
       </div>
     </div>
   );
