@@ -1,7 +1,8 @@
-// /src/components/DashboardLayout.jsx
 "use client";
+
 import Image from "next/image";
 import { useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Menu,
@@ -12,19 +13,27 @@ import {
   Tickets,
   UserStar,
   LogOut,
+  CirclePlus
 } from "lucide-react";
 
 export default function DashboardLayout({ children }) {
+  const router = useRouter();
+  const pathname = usePathname();
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarMini, setSidebarMini] = useState(false);
-  const [activeLink, setActiveLink] = useState("Dashboard");
+  const [adminOpen, setAdminOpen] = useState(false);
 
   const links = [
-    { name: "Admin", icon: <UserStar size={20} /> },
-    { name: "Dashboard", icon: <LayoutDashboard size={20} /> },
-    { name: "Add Budget", icon: <HandCoins size={20} /> },
-    { name: "Disbursement", icon: <Tickets size={20} /> },
-    { name: "SOE", icon: <AppWindowMac size={20} /> },
+    { name: "Dashboard", icon: <LayoutDashboard size={20} />, path: "/Dashboard" },
+    { name: "Add Budget", icon: <HandCoins size={20} />, path: "/Addbudget" },
+    { name: "Disbursement", icon: <Tickets size={20} />, path: "/Disbursement" },
+    { name: "SOE", icon: <AppWindowMac size={20} />, path: "/Soe" },
+  ];
+
+  const adminLinks = [
+    { name: "Add Office", icon: <CirclePlus size={20} />, path: "/Admin/Addoffice" },
+    { name: "Add Expense", icon: <CirclePlus size={20} />, path: "/Admin/Addexpense" },
   ];
 
   return (
@@ -59,20 +68,18 @@ export default function DashboardLayout({ children }) {
         {/* SIDEBAR */}
         <aside
           className={`relative fixed md:static z-20 top-16 left-0 h-full bg-white shadow-md p-4 flex flex-col justify-between transition-all duration-300
-            ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
-            ${sidebarMini ? "w-20" : "w-64"}`}
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+          ${sidebarMini ? "w-20" : "w-64"}`}
         >
           <nav className="flex-1 space-y-1">
-            {/* Admin dropdown */}
+            {/* ADMIN DROPDOWN */}
             <div className="flex flex-col">
               <button
-                onClick={() =>
-                  setActiveLink(activeLink === "Admin" ? "" : "Admin")
-                }
-                className={`flex items-center justify-between px-3 py-2 rounded-md w-full transition-all ${
-                  sidebarMini ? "justify-center" : ""
-                } ${
-                  activeLink === "Admin"
+                onClick={() => setAdminOpen(!adminOpen)}
+                className={`flex items-center justify-between px-3 py-2 rounded-md w-full transition-all
+                ${sidebarMini ? "justify-center" : ""}
+                ${
+                  pathname.startsWith("/Admin")
                     ? "bg-blue-500 text-white"
                     : "text-gray-700 hover:bg-gray-200"
                 }`}
@@ -81,53 +88,59 @@ export default function DashboardLayout({ children }) {
                   <UserStar size={20} />
                   {!sidebarMini && <span>Admin</span>}
                 </div>
+
                 {!sidebarMini && (
                   <ChevronRight
                     size={18}
                     className={`transition-transform duration-200 ${
-                      activeLink === "Admin" ? "rotate-90" : ""
+                      adminOpen ? "rotate-90" : ""
                     }`}
                   />
                 )}
               </button>
 
-              {/* Dropdown */}
-              {!sidebarMini && activeLink === "Admin" && (
-                <div className="flex flex-col mt-1 space-y-1 ml-2">
-                  <button className="flex items-center space-x-3 px-3 py-2 rounded-md w-full text-left transition-all text-gray-600 hover:bg-gray-200">
-                    <HandCoins size={20} />
-                    <span>Add Office</span>
-                  </button>
-                  <button className="flex items-center space-x-3 px-3 py-2 rounded-md w-full text-left transition-all text-gray-600 hover:bg-gray-200">
-                    <Tickets size={20} />
-                    <span>Add Expense</span>
-                  </button>
+              {/* Admin Dropdown Links */}
+              {!sidebarMini && adminOpen && (
+                <div className="flex flex-col mt-1 space-y-1 ml-3">
+                  {adminLinks.map((sub) => (
+                    <button
+                      key={sub.name}
+                      onClick={() => router.push(sub.path)}
+                      className={`flex items-center space-x-3 px-3 py-2 rounded-md w-full text-left transition-all
+                      ${
+                        pathname === sub.path
+                          ? "bg-blue-500 text-white"
+                          : "text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      {sub.icon}
+                      <span>{sub.name}</span>
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
 
-            {/* Other links */}
-            {links
-              .filter((link) => link.name !== "Admin")
-              .map((link) => (
-                <button
-                  key={link.name}
-                  onClick={() => setActiveLink(link.name)}
-                  className={`flex items-center space-x-3 px-3 py-2 rounded-md w-full text-left transition-all ${
-                    sidebarMini ? "justify-center" : ""
-                  } ${
-                    activeLink === link.name
-                      ? "bg-blue-500 text-white"
-                      : "text-gray-700 hover:bg-gray-200"
-                  }`}
-                >
-                  {link.icon}
-                  {!sidebarMini && <span>{link.name}</span>}
-                </button>
-              ))}
+            {/* Other sidebar links */}
+            {links.map((link) => (
+              <button
+                key={link.name}
+                onClick={() => router.push(link.path)}
+                className={`flex items-center space-x-3 px-3 py-2 rounded-md w-full text-left transition-all
+                ${sidebarMini ? "justify-center" : ""}
+                ${
+                  pathname === link.path
+                    ? "bg-blue-500 text-white"
+                    : "text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                {link.icon}
+                {!sidebarMini && <span>{link.name}</span>}
+              </button>
+            ))}
           </nav>
 
-          {/* Bottom Logo */}
+          {/* BOTTOM LOGO */}
           <div className="mt-auto mb-6 flex flex-col items-center">
             <Image
               src="/img/logo.png"
@@ -143,7 +156,7 @@ export default function DashboardLayout({ children }) {
             )}
           </div>
 
-          {/* Toggle Button */}
+          {/* TOGGLE BUTTON */}
           <div className="absolute top-[15rem] -right-4">
             <div className="relative w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center shadow-inner">
               <button
@@ -156,7 +169,15 @@ export default function DashboardLayout({ children }) {
           </div>
         </aside>
 
-        {/* Main Content */}
+        {/* OVERLAY */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-30 z-10 md:hidden"
+            onClick={() => setSidebarOpen(false)}
+          ></div>
+        )}
+
+        {/* MAIN CONTENT */}
         <main className="flex-1 p-6 overflow-y-auto flex flex-col">
           <div className="bg-white rounded-xl shadow-md p-8 w-full flex-1 flex flex-col justify-center items-center">
             {children}
