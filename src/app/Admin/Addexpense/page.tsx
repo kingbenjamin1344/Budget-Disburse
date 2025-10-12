@@ -9,6 +9,11 @@ export default function AddExpensePage() {
   const [category, setCategory] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // For editing
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editType, setEditType] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+
   // Fetch expenses
   const fetchExpenses = async () => {
     const res = await fetch("/api/expenses");
@@ -53,6 +58,41 @@ export default function AddExpensePage() {
       body: JSON.stringify({ id }),
     });
     fetchExpenses();
+  };
+
+  // Start editing
+  const handleEdit = (expense: any) => {
+    setEditingId(expense.id);
+    setEditType(expense.type);
+    setEditCategory(expense.category);
+  };
+
+  // Cancel editing
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditType("");
+    setEditCategory("");
+  };
+
+  // Save edit
+  const handleSaveEdit = async (id: number) => {
+    if (!editType.trim() || !editCategory.trim()) {
+      alert("Please fill in both fields");
+      return;
+    }
+
+    const res = await fetch("/api/expenses", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, type: editType, category: editCategory }),
+    });
+
+    if (res.ok) {
+      setEditingId(null);
+      fetchExpenses();
+    } else {
+      alert("Failed to update expense");
+    }
   };
 
   return (
@@ -133,18 +173,63 @@ export default function AddExpensePage() {
                 )
                 .map((expense) => (
                   <tr key={expense.id} className="border-b">
-                    <td className="px-6 py-3 text-gray-700">{expense.type}</td>
-                    <td className="px-6 py-3 text-gray-700">{expense.category}</td>
+                    <td className="px-6 py-3 text-gray-700">
+                      {editingId === expense.id ? (
+                        <input
+                          value={editType}
+                          onChange={(e) => setEditType(e.target.value)}
+                          className="border px-2 py-1 rounded-md w-full"
+                        />
+                      ) : (
+                        expense.type
+                      )}
+                    </td>
+                    <td className="px-6 py-3 text-gray-700">
+                      {editingId === expense.id ? (
+                        <input
+                          value={editCategory}
+                          onChange={(e) => setEditCategory(e.target.value)}
+                          className="border px-2 py-1 rounded-md w-full"
+                        />
+                      ) : (
+                        expense.category
+                      )}
+                    </td>
                     <td className="px-6 py-3 text-gray-700">
                       {new Date(expense.dateCreated).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-3 text-center text-gray-700">
-                      <button
-                        onClick={() => handleDelete(expense.id)}
-                        className="text-red-500 hover:underline"
-                      >
-                        Delete
-                      </button>
+                    <td className="px-6 py-3 text-center text-gray-700 space-x-2">
+                      {editingId === expense.id ? (
+                        <>
+                          <button
+                            onClick={() => handleSaveEdit(expense.id)}
+                            className="text-green-600 hover:underline"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={handleCancelEdit}
+                            className="text-gray-500 hover:underline"
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => handleEdit(expense)}
+                            className="text-blue-500 hover:underline"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(expense.id)}
+                            className="text-red-500 hover:underline"
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))
