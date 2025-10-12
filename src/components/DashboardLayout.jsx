@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
+
 import {
   LayoutDashboard,
   Menu,
@@ -19,6 +20,8 @@ import {
 export default function DashboardLayout({ children }) {
   const router = useRouter();
   const pathname = usePathname();
+  const [isFullScreen, setIsFullScreen] = useState(false);
+
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarMini, setSidebarMini] = useState(false);
@@ -37,9 +40,10 @@ export default function DashboardLayout({ children }) {
   ];
 
   return (
-    <div className="flex flex-col h-screen bg-gray-100">
+      <div id="dashboard-layout" className="flex flex-col h-screen bg-gray-100">
       {/* HEADER */}
       <header
+       id="navbar"  
         className="bg-white shadow-md h-16 flex items-center justify-between px-6 bg-cover bg-center"
         style={{ backgroundImage: "url('/img/site.jpg')" }}
       >
@@ -61,12 +65,15 @@ export default function DashboardLayout({ children }) {
             <LogOut size={20} className="text-white" />
           </button>
         </div>
+
+        
       </header>
 
       {/* MAIN */}
       <div className="flex flex-1 overflow-hidden">
         {/* SIDEBAR */}
         <aside
+          id="sidebar" 
           className={`relative fixed md:static z-20 top-16 left-0 h-full bg-white shadow-md p-4 flex flex-col justify-between transition-all duration-300
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
           ${sidebarMini ? "w-20" : "w-64"}`}
@@ -178,8 +185,12 @@ export default function DashboardLayout({ children }) {
         )}
 
         {/* MAIN CONTENT */}
-        <main className="flex-1 p-6 overflow-y-auto flex flex-col">
-          <div className="bg-white rounded-xl shadow-md p-8 w-full flex-1">
+        <main id="main-content" className="flex-1 p-6 overflow-y-auto flex flex-col">
+  <div
+    id="content-card"   // 👈 ADD THIS
+    className="bg-white rounded-xl shadow-md p-8 w-full flex-1"
+  >
+
             {children}
           </div>
                   </main>

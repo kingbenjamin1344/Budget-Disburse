@@ -9,6 +9,9 @@ export default function AddOfficePage() {
   // For future use: totalPages can be dynamic once you fetch data
   const totalPages = 3;
 
+  // Sample static data for demonstration (can be replaced with fetched data later)
+  const offices = []; // Example: [{ name: "HR Office", dateCreated: "2025-10-11" }]
+
   return (
     <div className="w-full">
       {/* Header Section */}
@@ -45,18 +48,34 @@ export default function AddOfficePage() {
               <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">
                 List of Office
               </th>
+              <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">
+                Date Created
+              </th>
               <th className="px-6 py-3 text-center font-semibold border-b border-gray-300">
                 Action
               </th>
             </tr>
           </thead>
           <tbody>
-            {/* Empty Table Message */}
-            <tr>
-              <td colSpan={2} className="text-center py-6 text-gray-500 italic">
-                No offices found.
-              </td>
-            </tr>
+            {offices.length === 0 ? (
+              <tr>
+                <td colSpan={3} className="text-center py-6 text-gray-500 italic">
+                  No offices found.
+                </td>
+              </tr>
+            ) : (
+              offices.map((office, index) => (
+                <tr key={index} className="border-b">
+                  <td className="px-6 py-3 text-gray-700">{office.name}</td>
+                  <td className="px-6 py-3 text-gray-700">{office.dateCreated}</td>
+                  <td className="px-6 py-3 text-center text-gray-700">
+                    <button className="text-blue-500 hover:underline">Edit</button>
+                    <span className="mx-2">|</span>
+                    <button className="text-red-500 hover:underline">Delete</button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
