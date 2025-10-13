@@ -11,6 +11,13 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+type Expense = {
+  id: number;
+  type: string;
+  category: "PS" | "MOOE" | "CO";
+  dateCreated: string;
+};
+
 export default function DashboardPage() {
   // ---- DYNAMIC STATES ----
   const [stats, setStats] = useState({
@@ -26,14 +33,60 @@ export default function DashboardPage() {
     { name: "Variance", value: 0 },
   ]);
 
-  // ---- READY FOR FUTURE FETCH ----
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+
+  // ---- FETCH DATA ----
+  const fetchOffices = async () => {
+    try {
+      const res = await fetch("/api/offices");
+      const data = await res.json();
+      setStats((prev) => ({ ...prev, offices: data.length }));
+    } catch (error) {
+      console.error("Failed to fetch offices:", error);
+    }
+  };
+
+  const fetchExpenses = async () => {
+    try {
+      const res = await fetch("/api/expenses");
+      const data: Expense[] = await res.json();
+      setExpenses(data);
+
+      // Count expense types
+      const psCount = data.filter((e) => e.category === "PS").length;
+      const mooeCount = data.filter((e) => e.category === "MOOE").length;
+      const coCount = data.filter((e) => e.category === "CO").length;
+
+      setStats((prev) => ({
+        ...prev,
+        expenseTypes: data.length,
+        expenseCounts: { ps: psCount, mooe: mooeCount, co: coCount },
+      }));
+    } catch (error) {
+      console.error("Failed to fetch expenses:", error);
+    }
+  };
+
   useEffect(() => {
-    // When backend is ready, fetch API data here, example:
-    // const response = await fetch("/api/dashboard");
-    // const data = await response.json();
-    // setStats(data.stats);
-    // setChartData(data.chartData);
+    fetchOffices();
+    fetchExpenses();
   }, []);
+
+  // ---- DELETE EXPENSE ----
+  const handleDeleteExpense = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this expense?")) return;
+
+    try {
+      await fetch("/api/expenses", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      fetchExpenses(); // refresh after delete
+    } catch (error) {
+      console.error("Failed to delete expense:", error);
+    }
+  };
 
   const COLORS = ["#2563eb", "#22c55e", "#f59e0b"];
 
@@ -127,6 +180,8 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         </div>
       </div>
+
+      
     </div>
   );
 }

@@ -27,6 +27,27 @@ export async function POST(request: Request) {
   return NextResponse.json(office);
 }
 
+// 📍 PUT: Update an office
+export async function PUT(request: Request) {
+  const data = await request.json();
+  const { id, name } = data;
+
+  if (!id || !name) {
+    return NextResponse.json({ error: "ID and name are required" }, { status: 400 });
+  }
+
+  try {
+    const updatedOffice = await prisma.office.update({
+      where: { id },
+      data: { name },
+    });
+    return NextResponse.json(updatedOffice);
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Failed to update office" }, { status: 500 });
+  }
+}
+
 // 📍 DELETE: Delete an office
 export async function DELETE(request: Request) {
   const { id } = await request.json();

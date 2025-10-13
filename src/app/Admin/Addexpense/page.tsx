@@ -1,18 +1,22 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Search, Plus } from "lucide-react";
+import { Search, Plus, Edit2 } from "lucide-react";
 
 export default function AddExpensePage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [expenses, setExpenses] = useState<any[]>([]);
-  const [type, setType] = useState("");
-  const [category, setCategory] = useState("");
+  const [type, setType] = useState(""); // text input for type of expense
+  const [category, setCategory] = useState("PS"); // default dropdown value
   const [loading, setLoading] = useState(false);
 
-  // For editing
+  // Modal control
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+
+  // Editing
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editType, setEditType] = useState("");
-  const [editCategory, setEditCategory] = useState("");
+  const [editCategory, setEditCategory] = useState("PS"); // default dropdown value
 
   // Fetch expenses
   const fetchExpenses = async () => {
@@ -27,10 +31,7 @@ export default function AddExpensePage() {
 
   // Add expense
   const handleAddExpense = async () => {
-    if (!type.trim() || !category.trim()) {
-      alert("Please fill in both fields");
-      return;
-    }
+    if (!type.trim() || !category.trim()) return alert("Please fill in both fields");
 
     setLoading(true);
     const res = await fetch("/api/expenses", {
@@ -41,11 +42,10 @@ export default function AddExpensePage() {
 
     if (res.ok) {
       setType("");
-      setCategory("");
+      setCategory("PS");
+      setShowAddModal(false);
       fetchExpenses();
-    } else {
-      alert("Failed to add expense");
-    }
+    } else alert("Failed to add expense");
     setLoading(false);
   };
 
@@ -60,46 +60,35 @@ export default function AddExpensePage() {
     fetchExpenses();
   };
 
-  // Start editing
+  // Open edit modal
   const handleEdit = (expense: any) => {
     setEditingId(expense.id);
     setEditType(expense.type);
     setEditCategory(expense.category);
-  };
-
-  // Cancel editing
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    setEditType("");
-    setEditCategory("");
+    setShowEditModal(true);
   };
 
   // Save edit
-  const handleSaveEdit = async (id: number) => {
-    if (!editType.trim() || !editCategory.trim()) {
-      alert("Please fill in both fields");
-      return;
-    }
+  const handleSaveEdit = async () => {
+    if (!editType.trim() || !editCategory.trim()) return alert("Please fill in both fields");
 
     const res = await fetch("/api/expenses", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, type: editType, category: editCategory }),
+      body: JSON.stringify({ id: editingId, type: editType, category: editCategory }),
     });
 
     if (res.ok) {
+      setShowEditModal(false);
       setEditingId(null);
       fetchExpenses();
-    } else {
-      alert("Failed to update expense");
-    }
+    } else alert("Failed to update expense");
   };
 
   return (
     <div className="w-full">
-      {/* Header Section */}
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        {/* Search Bar */}
         <div className="flex items-center space-x-2">
           <div className="relative">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
@@ -113,31 +102,13 @@ export default function AddExpensePage() {
           </div>
         </div>
 
-        {/* Add Expense Fields */}
-        <div className="flex items-center space-x-2">
-          <input
-            type="text"
-            placeholder="Type of Expense"
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none"
-          />
-          <input
-            type="text"
-            placeholder="Category"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none"
-          />
-          <button
-            onClick={handleAddExpense}
-            disabled={loading}
-            className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            {loading ? "Adding..." : "Add Expense"}
-          </button>
-        </div>
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Add Expense
+        </button>
       </div>
 
       {/* Table */}
@@ -149,7 +120,7 @@ export default function AddExpensePage() {
                 Type of Expense
               </th>
               <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">
-                Category of Expense
+                Category
               </th>
               <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">
                 Date Created
@@ -168,68 +139,30 @@ export default function AddExpensePage() {
               </tr>
             ) : (
               expenses
-                .filter((exp) =>
-                  exp.type.toLowerCase().includes(searchTerm.toLowerCase())
-                )
+                .filter((exp) => exp.type.toLowerCase().includes(searchTerm.toLowerCase()))
                 .map((expense) => (
                   <tr key={expense.id} className="border-b">
-                    <td className="px-6 py-3 text-gray-700">
-                      {editingId === expense.id ? (
-                        <input
-                          value={editType}
-                          onChange={(e) => setEditType(e.target.value)}
-                          className="border px-2 py-1 rounded-md w-full"
-                        />
-                      ) : (
-                        expense.type
-                      )}
-                    </td>
-                    <td className="px-6 py-3 text-gray-700">
-                      {editingId === expense.id ? (
-                        <input
-                          value={editCategory}
-                          onChange={(e) => setEditCategory(e.target.value)}
-                          className="border px-2 py-1 rounded-md w-full"
-                        />
-                      ) : (
-                        expense.category
-                      )}
-                    </td>
+                    <td className="px-6 py-3 text-gray-700">{expense.type}</td>
+                    <td className="px-6 py-3 text-gray-700">{expense.category}</td>
                     <td className="px-6 py-3 text-gray-700">
                       {new Date(expense.dateCreated).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-3 text-center text-gray-700 space-x-2">
-                      {editingId === expense.id ? (
-                        <>
-                          <button
-                            onClick={() => handleSaveEdit(expense.id)}
-                            className="text-green-600 hover:underline"
-                          >
-                            Save
-                          </button>
-                          <button
-                            onClick={handleCancelEdit}
-                            className="text-gray-500 hover:underline"
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => handleEdit(expense)}
-                            className="text-blue-500 hover:underline"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDelete(expense.id)}
-                            className="text-red-500 hover:underline"
-                          >
-                            Delete
-                          </button>
-                        </>
-                      )}
+                    <td className="px-6 py-3 text-center text-gray-700">
+                      <div className="flex justify-center items-center space-x-3">
+                        <button
+                          onClick={() => handleEdit(expense)}
+                          className="text-blue-500 hover:underline flex items-center space-x-1"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          onClick={() => handleDelete(expense.id)}
+                          className="text-red-500 hover:underline"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -237,6 +170,98 @@ export default function AddExpensePage() {
           </tbody>
         </table>
       </div>
+
+      {/* Add Expense Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 bg-black opacity-20 pointer-events-auto"></div>
+          <div className="bg-white rounded-lg shadow-lg w-96 p-6 z-10 pointer-events-auto">
+            <h2 className="text-lg font-semibold mb-3">Add Expense</h2>
+
+            {/* Type input */}
+            <input
+              type="text"
+              placeholder="Type of Expense"
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+              className="w-full border px-3 py-2 rounded-md mb-3 focus:outline-none focus:ring focus:ring-blue-200"
+            />
+
+            {/* Category dropdown */}
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full border px-3 py-2 rounded-md mb-4 focus:outline-none focus:ring focus:ring-blue-200"
+            >
+              <option value="PS">Personnel Services (PS)</option>
+              <option value="MOOE">Maintenance of Office Expenditure (MOOE)</option>
+              <option value="CO">Capital Outlay (CO)</option>
+            </select>
+
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-100 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddExpense}
+                disabled={loading}
+                className="px-4 py-2 rounded-md bg-green-500 text-white hover:bg-green-600 transition"
+              >
+                {loading ? "Adding..." : "Add"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Expense Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 bg-black opacity-20 pointer-events-auto"></div>
+          <div className="bg-white rounded-lg shadow-lg w-96 p-6 z-10 pointer-events-auto">
+            <h2 className="text-lg font-semibold mb-3">Edit Expense</h2>
+
+            {/* Type input */}
+            <input
+              type="text"
+              placeholder="Type of Expense"
+              value={editType}
+              onChange={(e) => setEditType(e.target.value)}
+              className="w-full border px-3 py-2 rounded-md mb-3 focus:outline-none focus:ring focus:ring-blue-200"
+            />
+
+            {/* Category dropdown */}
+            <select
+              value={editCategory}
+              onChange={(e) => setEditCategory(e.target.value)}
+              className="w-full border px-3 py-2 rounded-md mb-4 focus:outline-none focus:ring focus:ring-blue-200"
+            >
+              <option value="PS">Personnel Services (PS)</option>
+              <option value="MOOE">Maintenance of Office Expenditure (MOOE)</option>
+              <option value="CO">Capital Outlay (CO)</option>
+            </select>
+
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-100 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={loading}
+                className="px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 transition"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

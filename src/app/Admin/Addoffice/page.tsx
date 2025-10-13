@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Search, Plus } from "lucide-react";
+import { Search, Plus, Edit2 } from "lucide-react";
 
 export default function AddOfficePage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -8,7 +8,15 @@ export default function AddOfficePage() {
   const [newOffice, setNewOffice] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Fetch data
+  // Add modal
+  const [addModal, setAddModal] = useState(false);
+
+  // Edit modal
+  const [editModal, setEditModal] = useState(false);
+  const [editingOffice, setEditingOffice] = useState<{ id: number; name: string } | null>(null);
+  const [editName, setEditName] = useState("");
+
+  // Fetch offices
   const fetchOffices = async () => {
     const res = await fetch("/api/offices");
     const data = await res.json();
@@ -19,19 +27,18 @@ export default function AddOfficePage() {
     fetchOffices();
   }, []);
 
-  // Add new office
+  // Add office
   const handleAddOffice = async () => {
     if (!newOffice.trim()) return alert("Please enter an office name.");
     setLoading(true);
-
     const res = await fetch("/api/offices", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: newOffice }),
     });
-
     if (res.ok) {
       setNewOffice("");
+      setAddModal(false);
       fetchOffices();
     }
     setLoading(false);
@@ -48,10 +55,36 @@ export default function AddOfficePage() {
     fetchOffices();
   };
 
+  // Open edit modal
+  const handleEdit = (office: any) => {
+    setEditingOffice(office);
+    setEditName(office.name);
+    setEditModal(true);
+  };
+
+  // Save edit
+  const handleSaveEdit = async () => {
+    if (!editName.trim() || !editingOffice) return alert("Please enter a name");
+    setLoading(true);
+    const res = await fetch("/api/offices", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: editingOffice.id, name: editName }),
+    });
+    if (res.ok) {
+      setEditModal(false);
+      setEditingOffice(null);
+      fetchOffices();
+    } else {
+      alert("Failed to update office");
+    }
+    setLoading(false);
+  };
+
   return (
-    <div className="w-full">
+    <div className="w-full p-4">
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        {/* Search */}
         <div className="flex items-center space-x-2">
           <div className="relative">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
@@ -65,24 +98,13 @@ export default function AddOfficePage() {
           </div>
         </div>
 
-        {/* Add */}
-        <div className="flex items-center space-x-2">
-          <input
-            type="text"
-            placeholder="New office name"
-            value={newOffice}
-            onChange={(e) => setNewOffice(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none"
-          />
-          <button
-            onClick={handleAddOffice}
-            disabled={loading}
-            className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            {loading ? "Adding..." : "Add Office"}
-          </button>
-        </div>
+        <button
+          onClick={() => setAddModal(true)}
+          className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Add Office
+        </button>
       </div>
 
       {/* Table */}
@@ -90,45 +112,39 @@ export default function AddOfficePage() {
         <table className="min-w-full border-collapse">
           <thead className="bg-gray-100 text-gray-700 border-b">
             <tr>
-              <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">
-                List of Office
-              </th>
-              <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">
-                Date Created
-              </th>
-              <th className="px-6 py-3 text-center font-semibold border-b border-gray-300">
-                Action
-              </th>
+              <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">List of Office</th>
+              <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">Date Created</th>
+              <th className="px-6 py-3 text-center font-semibold border-b border-gray-300">Action</th>
             </tr>
           </thead>
           <tbody>
             {offices.length === 0 ? (
               <tr>
-                <td
-                  colSpan={3}
-                  className="text-center py-6 text-gray-500 italic"
-                >
-                  No offices found.
-                </td>
+                <td colSpan={3} className="text-center py-6 text-gray-500 italic">No offices found.</td>
               </tr>
             ) : (
               offices
-                .filter((o) =>
-                  o.name.toLowerCase().includes(searchTerm.toLowerCase())
-                )
-                .map((office: any) => (
+                .filter((o) => o.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                .map((office) => (
                   <tr key={office.id} className="border-b">
                     <td className="px-6 py-3 text-gray-700">{office.name}</td>
-                    <td className="px-6 py-3 text-gray-700">
-                      {new Date(office.dateCreated).toLocaleDateString()}
-                    </td>
+                    <td className="px-6 py-3 text-gray-700">{new Date(office.dateCreated).toLocaleDateString()}</td>
                     <td className="px-6 py-3 text-center text-gray-700">
-                      <button
-                        onClick={() => handleDelete(office.id)}
-                        className="text-red-500 hover:underline"
-                      >
-                        Delete
-                      </button>
+                      <div className="flex justify-center items-center space-x-4">
+                        <button
+                          onClick={() => handleEdit(office)}
+                          className="flex items-center text-blue-500 hover:underline space-x-1"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          onClick={() => handleDelete(office.id)}
+                          className="text-red-500 hover:underline"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -136,6 +152,70 @@ export default function AddOfficePage() {
           </tbody>
         </table>
       </div>
+
+      {/* Add Modal */}
+      {addModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 bg-black opacity-20 pointer-events-auto"></div>
+          <div className="bg-white rounded-lg shadow-lg w-96 p-6 z-10 pointer-events-auto">
+            <h2 className="text-lg font-semibold mb-3">Add Office</h2>
+            <input
+              type="text"
+              placeholder="Office Name"
+              value={newOffice}
+              onChange={(e) => setNewOffice(e.target.value)}
+              className="w-full border px-3 py-2 rounded-md mb-4 focus:outline-none focus:ring focus:ring-blue-200"
+            />
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => setAddModal(false)}
+                className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-100 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddOffice}
+                disabled={loading}
+                className="px-4 py-2 rounded-md bg-green-500 text-white hover:bg-green-600 transition"
+              >
+                {loading ? "Adding..." : "Add"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editModal && editingOffice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 bg-black opacity-20 pointer-events-auto"></div>
+          <div className="bg-white rounded-lg shadow-lg w-96 p-6 z-10 pointer-events-auto">
+            <h2 className="text-lg font-semibold mb-3">Edit Office</h2>
+            <input
+              type="text"
+              placeholder="Office Name"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              className="w-full border px-3 py-2 rounded-md mb-4 focus:outline-none focus:ring focus:ring-blue-200"
+            />
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => setEditModal(false)}
+                className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-100 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={loading}
+                className="px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 transition"
+              >
+                {loading ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
