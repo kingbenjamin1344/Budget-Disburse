@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 const prisma = new PrismaClient();
 
-// 📍 GET: Fetch all offices
+
 export async function GET() {
   const offices = await prisma.office.findMany({
     orderBy: { id: "desc" },
@@ -11,7 +11,6 @@ export async function GET() {
   return NextResponse.json(offices);
 }
 
-// 📍 POST: Create a new office
 export async function POST(request: Request) {
   const data = await request.json();
   const { name } = data;
@@ -27,7 +26,7 @@ export async function POST(request: Request) {
   return NextResponse.json(office);
 }
 
-// 📍 PUT: Update an office
+
 export async function PUT(request: Request) {
   const data = await request.json();
   const { id, name } = data;
@@ -48,7 +47,6 @@ export async function PUT(request: Request) {
   }
 }
 
-// 📍 DELETE: Delete an office
 export async function DELETE(request: Request) {
   const { id } = await request.json();
 

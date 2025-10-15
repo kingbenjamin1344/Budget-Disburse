@@ -1,146 +1,234 @@
 "use client";
-import { useState } from "react";
-import { Search, Plus } from "lucide-react";
+
+import { useState, useEffect } from "react";
+import { Search, Plus, Edit, Trash2, X } from "lucide-react";
 
 export default function DisbursementPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterOffice, setFilterOffice] = useState("");
   const [filterExpense, setFilterExpense] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const totalPages = 3; // for future dynamic pagination
+  const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+
+  const [disbursements, setDisbursements] = useState<any[]>([]);
+  const [offices, setOffices] = useState<string[]>([]);
+  const [expenses, setExpenses] = useState<{ type: string; category: string }[]>([]);
+
+  const [formData, setFormData] = useState({
+    dvNo: "",
+    payee: "",
+    office: "",
+    expenseType: "",
+    expenseCategory: "",
+  });
+
+  // Fetch Offices + Expenses
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [officeRes, expenseRes] = await Promise.all([
+          fetch("/api/offices"),
+          fetch("/api/expenses"),
+        ]);
+        const officeData = await officeRes.json();
+        const expenseData = await expenseRes.json();
+
+        setOffices(officeData.map((o: any) => o.name));
+        setExpenses(expenseData.map((e: any) => ({ type: e.type, category: e.category })));
+      } catch (err) {
+        console.error("Failed to fetch office/expense:", err);
+      }
+    }
+    loadData();
+  }, []);
+
+  // Load disbursements
+  useEffect(() => {
+    async function loadDisbursements() {
+      try {
+        const res = await fetch("/api/disbursement");
+        const data = await res.json();
+        setDisbursements(data);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    loadDisbursements();
+  }, []);
+
+  // Auto-fill category when expenseType changes
+  useEffect(() => {
+    const match = expenses.find((e) => e.type === formData.expenseType);
+    if (match) setFormData(prev => ({ ...prev, expenseCategory: match.category }));
+  }, [formData.expenseType, expenses]);
+
+  // Open modal
+  const handleAdd = () => {
+    setShowModal(true);
+    setEditingId(null);
+    setFormData({ dvNo: "", payee: "", office: "", expenseType: "", expenseCategory: "" });
+  };
+
+  // Save or update
+  const handleSave = async () => {
+    if (!formData.dvNo || !formData.payee || !formData.office || !formData.expenseType) {
+      alert("Please fill all required fields");
+      return;
+    }
+
+    const body = editingId
+      ? { id: editingId, ...formData }
+      : { ...formData, dateCreated: new Date().toISOString() };
+
+    try {
+      const res = await fetch("/api/disbursement", {
+        method: editingId ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error("Failed to save disbursement");
+      const updated = await res.json();
+
+      setDisbursements(prev =>
+        editingId ? prev.map(d => (d.id === editingId ? updated : d)) : [updated, ...prev]
+      );
+      setShowModal(false);
+    } catch (err) {
+      console.error(err);
+      alert("Error saving disbursement.");
+    }
+  };
+
+  const handleEdit = (id: number) => {
+    const record = disbursements.find(d => d.id === id);
+    if (!record) return;
+    setEditingId(id);
+    setFormData(record);
+    setShowModal(true);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("Delete this record?")) return;
+    try {
+      const res = await fetch("/api/disbursement", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) throw new Error("Failed to delete");
+      setDisbursements(prev => prev.filter(d => d.id !== id));
+    } catch (err) {
+      console.error(err);
+      alert("Error deleting disbursement.");
+    }
+  };
+
+  const filtered = disbursements.filter(item => {
+    const matchesSearch =
+      item.dvNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.payee.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesOffice = filterOffice ? item.office === filterOffice : true;
+    const matchesExpense = filterExpense ? item.expenseType === filterExpense : true;
+    return matchesSearch && matchesOffice && matchesExpense;
+  });
 
   return (
-    <div className="w-full">
-      {/* Header Section */}
+    <div className="w-full p-4">
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-3">
-        {/* Left: Filter and Search */}
         <div className="flex flex-col md:flex-row items-center gap-2">
-          {/* Search Input */}
           <div className="relative">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
             <input
               type="text"
               placeholder="Search disbursement..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-blue-200"
+              onChange={e => setSearchTerm(e.target.value)}
+              className="pl-8 pr-3 py-2 border border-gray-300 rounded-md"
             />
           </div>
-
-          {/* Filter: Office */}
-          <select
-            value={filterOffice}
-            onChange={(e) => setFilterOffice(e.target.value)}
-            className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring focus:ring-blue-200"
-          >
-            <option value="">Sort by Office</option>
-            {/* Options to be dynamically added later */}
+          <select value={filterOffice} onChange={e => setFilterOffice(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2">
+            <option value="">Filter by Office</option>
+            {offices.map(o => <option key={o} value={o}>{o}</option>)}
           </select>
-
-          {/* Filter: Expense Category */}
-          <select
-            value={filterExpense}
-            onChange={(e) => setFilterExpense(e.target.value)}
-            className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring focus:ring-blue-200"
-          >
-            <option value="">Sort by Expense Category</option>
-            {/* Options to be dynamically added later */}
+          <select value={filterExpense} onChange={e => setFilterExpense(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2">
+            <option value="">Filter by Expense Type</option>
+            {expenses.map(e => <option key={e.type} value={e.type}>{e.type}</option>)}
           </select>
-
-          {/* Filter Button (optional for future functionality) */}
-          <button className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition">
-            Filter
-          </button>
         </div>
-
-        {/* Right: Record Disbursement */}
-        <button className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition">
-          <Plus className="w-4 h-4 mr-2" />
-          Record Disbursement
+        <button onClick={handleAdd} className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition">
+          <Plus className="w-4 h-4 mr-2" /> Record Disbursement
         </button>
       </div>
 
-      {/* Table Section */}
+      {/* Table */}
       <div className="overflow-x-auto rounded-lg bg-white shadow-sm">
         <table className="min-w-full border-collapse">
-          <thead className="bg-gray-100 text-gray-700 border-b">
+          <thead className="bg-gray-100 border-b">
             <tr>
-              <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">
-                DV No.
-              </th>
-              <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">
-                Payee
-              </th>
-              <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">
-                Office
-              </th>
-              <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">
-                Type of Expense
-              </th>
-              <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">
-                Category of Expense
-              </th>
-              <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">
-                Date Created
-              </th>
-              <th className="px-6 py-3 text-center font-semibold border-b border-gray-300">
-                Actions
-              </th>
+              <th className="px-6 py-3 text-left">DV No.</th>
+              <th className="px-6 py-3 text-left">Payee</th>
+              <th className="px-6 py-3 text-left">Office</th>
+              <th className="px-6 py-3 text-left">Type</th>
+              <th className="px-6 py-3 text-left">Category</th>
+              <th className="px-6 py-3 text-left">Date</th>
+              <th className="px-6 py-3 text-center">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {/* Empty Table Message */}
-            <tr>
-              <td
-                colSpan={7}
-                className="text-center py-6 text-gray-500 italic"
-              >
-                No disbursement records found.
-              </td>
-            </tr>
+            {filtered.length > 0 ? (
+              filtered.map(d => (
+                <tr key={d.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-3">{d.dvNo}</td>
+                  <td className="px-6 py-3">{d.payee}</td>
+                  <td className="px-6 py-3">{d.office}</td>
+                  <td className="px-6 py-3">{d.expenseType}</td>
+                  <td className="px-6 py-3">{d.expenseCategory}</td>
+                  <td className="px-6 py-3">{new Date(d.dateCreated).toLocaleDateString()}</td>
+                  <td className="px-6 py-3 text-center space-x-2">
+                    <button onClick={() => handleEdit(d.id)} className="text-blue-600 hover:text-blue-800"><Edit className="w-4 h-4 inline" /></button>
+                    <button onClick={() => handleDelete(d.id)} className="text-red-600 hover:text-red-800"><Trash2 className="w-4 h-4 inline" /></button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={7} className="text-center py-6 text-gray-500 italic">No disbursement records found.</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
 
-      {/* Pagination Section */}
-      <div className="flex justify-end mt-4">
-        <nav aria-label="Page navigation">
-          <ul className="flex items-center border border-gray-300 rounded-md overflow-hidden">
-            <li>
-              <button
-                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-                className="px-3 py-1 text-gray-600 border-r border-gray-300 hover:bg-gray-100 transition block"
-              >
-                Previous
-              </button>
-            </li>
+      {/* Vertical Stack Modal */}
+      {showModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/30">
+          <div className="bg-white border shadow-xl p-6 rounded-lg w-full max-w-md relative flex flex-col gap-3">
+            <button onClick={() => setShowModal(false)} className="absolute top-2 right-2 text-gray-500 hover:text-gray-700">
+              <X className="w-5 h-5" />
+            </button>
 
-            {Array.from({ length: totalPages }, (_, i) => (
-              <li key={i}>
-                <button
-                  onClick={() => setCurrentPage(i + 1)}
-                  className={`px-3 py-1 border-r border-gray-300 ${
-                    currentPage === i + 1
-                      ? "bg-blue-500 text-white"
-                      : "text-gray-600 hover:bg-gray-100 transition"
-                  }`}
-                >
-                  {i + 1}
-                </button>
-              </li>
-            ))}
+            <h2 className="text-lg font-semibold mb-2">{editingId ? "Edit Disbursement" : "Record Disbursement"}</h2>
 
-            <li>
-              <button
-                onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-                className="px-3 py-1 text-gray-600 hover:bg-gray-100 transition block"
-              >
-                Next
-              </button>
-            </li>
-          </ul>
-        </nav>
-      </div>
+            <input type="text" placeholder="DV No." value={formData.dvNo} onChange={e => setFormData({ ...formData, dvNo: e.target.value })} className="border rounded-md p-2 w-full" />
+            <input type="text" placeholder="Payee" value={formData.payee} onChange={e => setFormData({ ...formData, payee: e.target.value })} className="border rounded-md p-2 w-full" />
+
+            <select value={formData.office} onChange={e => setFormData({ ...formData, office: e.target.value })} className="border rounded-md p-2 w-full">
+              <option value="">Select Office</option>
+              {offices.map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+
+            <select value={formData.expenseType} onChange={e => setFormData({ ...formData, expenseType: e.target.value })} className="border rounded-md p-2 w-full">
+              <option value="">Select Type</option>
+              {expenses.map(e => <option key={e.type} value={e.type}>{e.type}</option>)}
+            </select>
+
+            <input type="text" placeholder="Category" value={formData.expenseCategory} readOnly className="border rounded-md p-2 w-full bg-gray-100" />
+
+            <button onClick={handleSave} className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 mt-3">Save</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
