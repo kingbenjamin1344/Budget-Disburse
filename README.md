@@ -1,4 +1,4 @@
 aysa paulahi nani pang tombits ni
 
 
--add budget should repeatedly add budget to the same office
+-add budget should not repeatedly add budget to the same office
