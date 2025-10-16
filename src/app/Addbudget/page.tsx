@@ -14,19 +14,17 @@ export default function AddBudgetPage() {
   const [co, setCo] = useState<number>(0);
   const totalBudget = ps + mooe + co;
 
-  // Fetch all budgets from API
-  const fetchBudgets = async () => {
-    try {
-      const res = await fetch("/api/addbudget");
-      const data = await res.json();
-      setBudgets(data);
-    } catch (error) {
-      console.error("Failed to fetch budgets:", error);
-    }
-  };
-
-  // Fetch offices (sample API)
   useEffect(() => {
+    const fetchBudgets = async () => {
+      try {
+        const res = await fetch("/api/addbudget");
+        const data = await res.json();
+        setBudgets(data);
+      } catch (error) {
+        console.error("Failed to fetch budgets:", error);
+      }
+    };
+
     const fetchOffices = async () => {
       try {
         const res = await fetch("/api/offices");
@@ -36,11 +34,11 @@ export default function AddBudgetPage() {
         console.error("Failed to fetch offices:", error);
       }
     };
-    fetchOffices();
+
     fetchBudgets();
+    fetchOffices();
   }, []);
 
-  // Save budget (add or update)
   const handleSaveBudget = async () => {
     if (!officeId) return alert("Please select an office");
 
@@ -66,13 +64,16 @@ export default function AddBudgetPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save");
 
-      await fetchBudgets();
       setShowModal(false);
       setEditingId(null);
       setOfficeId("");
       setPs(0);
       setMooe(0);
       setCo(0);
+      // refresh budgets
+      const refreshed = await fetch("/api/addbudget");
+      const refreshedData = await refreshed.json();
+      setBudgets(refreshedData);
     } catch (error) {
       alert("Failed to save budget");
       console.error(error);
@@ -101,11 +102,19 @@ export default function AddBudgetPage() {
         body: JSON.stringify({ id: budget.id }),
       });
       if (!res.ok) throw new Error("Failed to delete");
-      await fetchBudgets();
+      // refresh budgets
+      const refreshed = await fetch("/api/addbudget");
+      const refreshedData = await refreshed.json();
+      setBudgets(refreshedData);
     } catch (error) {
       console.error(error);
     }
   };
+
+  // Filter budgets for search
+  const filteredBudgets = budgets.filter((b) =>
+    b.office.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="w-full">
@@ -150,41 +159,37 @@ export default function AddBudgetPage() {
             </tr>
           </thead>
           <tbody>
-            {budgets.length === 0 ? (
+            {filteredBudgets.length === 0 ? (
               <tr>
                 <td colSpan={7} className="text-center py-6 text-gray-500 italic">
                   No budgets found.
                 </td>
               </tr>
             ) : (
-              budgets
-                .filter((b) =>
-                  b.office.toLowerCase().includes(searchTerm.toLowerCase())
-                )
-                .map((b, i) => (
-                  <tr key={b.id} className="border-b">
-                    <td className="px-6 py-3">{b.office}</td>
-                    <td className="px-6 py-3">₱{b.ps.toLocaleString()}</td>
-                    <td className="px-6 py-3">₱{b.mooe.toLocaleString()}</td>
-                    <td className="px-6 py-3">₱{b.co.toLocaleString()}</td>
-                    <td className="px-6 py-3 font-semibold">₱{b.total.toLocaleString()}</td>
-                    <td className="px-6 py-3">{b.dateCreated}</td>
-                    <td className="px-6 py-3 text-center">
-                      <button
-                        onClick={() => handleEdit(i)}
-                        className="text-blue-500 hover:underline mr-2"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(i)}
-                        className="text-red-500 hover:underline"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))
+              filteredBudgets.map((b, i) => (
+                <tr key={b.id} className="border-b">
+                  <td className="px-6 py-3">{b.office}</td>
+                  <td className="px-6 py-3">₱{b.ps.toLocaleString()}</td>
+                  <td className="px-6 py-3">₱{b.mooe.toLocaleString()}</td>
+                  <td className="px-6 py-3">₱{b.co.toLocaleString()}</td>
+                  <td className="px-6 py-3 font-semibold">₱{b.total.toLocaleString()}</td>
+                  <td className="px-6 py-3">{b.dateCreated}</td>
+                  <td className="px-6 py-3 text-center">
+                    <button
+                      onClick={() => handleEdit(i)}
+                      className="text-blue-500 hover:underline mr-2"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(i)}
+                      className="text-red-500 hover:underline"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>

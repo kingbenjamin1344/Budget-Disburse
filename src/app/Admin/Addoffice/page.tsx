@@ -8,15 +8,11 @@ export default function AddOfficePage() {
   const [newOffice, setNewOffice] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Add modal
   const [addModal, setAddModal] = useState(false);
-
-  // Edit modal
   const [editModal, setEditModal] = useState(false);
   const [editingOffice, setEditingOffice] = useState<{ id: number; name: string } | null>(null);
   const [editName, setEditName] = useState("");
 
-  // Fetch offices
   const fetchOffices = async () => {
     const res = await fetch("/api/offices");
     const data = await res.json();
@@ -27,7 +23,6 @@ export default function AddOfficePage() {
     fetchOffices();
   }, []);
 
-  // Add office
   const handleAddOffice = async () => {
     if (!newOffice.trim()) return alert("Please enter an office name.");
     setLoading(true);
@@ -44,7 +39,6 @@ export default function AddOfficePage() {
     setLoading(false);
   };
 
-  // Delete office
   const handleDelete = async (id: number) => {
     if (!confirm("Delete this office?")) return;
     await fetch("/api/offices", {
@@ -55,14 +49,12 @@ export default function AddOfficePage() {
     fetchOffices();
   };
 
-  // Open edit modal
   const handleEdit = (office: any) => {
     setEditingOffice(office);
     setEditName(office.name);
     setEditModal(true);
   };
 
-  // Save edit
   const handleSaveEdit = async () => {
     if (!editName.trim() || !editingOffice) return alert("Please enter a name");
     setLoading(true);
@@ -80,6 +72,11 @@ export default function AddOfficePage() {
     }
     setLoading(false);
   };
+
+  // Filter offices based on search term
+  const filteredOffices = offices.filter((o) =>
+    o.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="w-full p-4">
@@ -112,42 +109,50 @@ export default function AddOfficePage() {
         <table className="min-w-full border-collapse">
           <thead className="bg-gray-100 text-gray-700 border-b">
             <tr>
-              <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">List of Office</th>
-              <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">Date Created</th>
-              <th className="px-6 py-3 text-center font-semibold border-b border-gray-300">Action</th>
+              <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">
+                List of Office
+              </th>
+              <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">
+                Date Created
+              </th>
+              <th className="px-6 py-3 text-center font-semibold border-b border-gray-300">
+                Action
+              </th>
             </tr>
           </thead>
           <tbody>
-            {offices.length === 0 ? (
+            {filteredOffices.length === 0 ? (
               <tr>
-                <td colSpan={3} className="text-center py-6 text-gray-500 italic">No offices found.</td>
+                <td colSpan={3} className="text-center py-6 text-gray-500 italic">
+                  No offices found.
+                </td>
               </tr>
             ) : (
-              offices
-                .filter((o) => o.name.toLowerCase().includes(searchTerm.toLowerCase()))
-                .map((office) => (
-                  <tr key={office.id} className="border-b">
-                    <td className="px-6 py-3 text-gray-700">{office.name}</td>
-                    <td className="px-6 py-3 text-gray-700">{new Date(office.dateCreated).toLocaleDateString()}</td>
-                    <td className="px-6 py-3 text-center text-gray-700">
-                      <div className="flex justify-center items-center space-x-4">
-                        <button
-                          onClick={() => handleEdit(office)}
-                          className="flex items-center text-blue-500 hover:underline space-x-1"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                          <span>Edit</span>
-                        </button>
-                        <button
-                          onClick={() => handleDelete(office.id)}
-                          className="text-red-500 hover:underline"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+              filteredOffices.map((office) => (
+                <tr key={office.id} className="border-b">
+                  <td className="px-6 py-3 text-gray-700">{office.name}</td>
+                  <td className="px-6 py-3 text-gray-700">
+                    {new Date(office.dateCreated).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-3 text-center text-gray-700">
+                    <div className="flex justify-center items-center space-x-4">
+                      <button
+                        onClick={() => handleEdit(office)}
+                        className="flex items-center text-blue-500 hover:underline space-x-1"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        onClick={() => handleDelete(office.id)}
+                        className="text-red-500 hover:underline"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>
