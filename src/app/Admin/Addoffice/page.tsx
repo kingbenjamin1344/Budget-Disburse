@@ -122,11 +122,19 @@ export default function AddOfficePage() {
           </thead>
           <tbody>
             {filteredOffices.length === 0 ? (
-              <tr>
-                <td colSpan={3} className="text-center py-6 text-gray-500 italic">
-                  No offices found.
-                </td>
-              </tr>
+                <tr>
+                  <td colSpan={7} className="py-6 text-gray-500 italic">
+                    <div className="flex flex-col items-center justify-center">
+                      <img
+                        src="/img/addbudget.png"
+                        alt="No data"
+                        className="mb-2 max-w-[200px] h-auto object-contain"
+                      />
+                      <span>No offices found.</span>
+                    </div>
+                  </td>
+                </tr>
+
             ) : (
               filteredOffices.map((office) => (
                 <tr key={office.id} className="border-b">

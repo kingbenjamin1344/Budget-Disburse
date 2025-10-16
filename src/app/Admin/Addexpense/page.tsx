@@ -128,10 +128,18 @@ export default function AddExpensePage() {
           <tbody>
             {filteredExpenses.length === 0 ? (
               <tr>
-                <td colSpan={4} className="text-center py-6 text-gray-500 italic">
-                  No expense record found.
+                <td colSpan={7} className="py-6 text-gray-500 italic">
+                  <div className="flex flex-col items-center justify-center">
+                    <img
+                      src="/img/addexpense.png"
+                      alt="No data"
+                      className="mb-2 max-w-[200px] h-auto object-contain"
+                    />
+                    <span>No expense record found.</span>
+                  </div>
                 </td>
               </tr>
+
             ) : (
               filteredExpenses.map((expense) => (
                 <tr key={expense.id} className="border-b">

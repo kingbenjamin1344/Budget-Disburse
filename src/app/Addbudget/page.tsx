@@ -162,9 +162,17 @@ export default function AddBudgetPage() {
             {filteredBudgets.length === 0 ? (
               <tr>
                 <td colSpan={7} className="text-center py-6 text-gray-500 italic">
-                  No budgets found.
+                  <div className="flex flex-col items-center justify-center">
+                    <img
+                      src="/img/soe.png" 
+                      alt="No data"
+                     className="mb-2 max-w-[200px] h-auto object-contain"
+                    />
+                    <span>No budgets found.</span>
+                  </div>
                 </td>
               </tr>
+              
             ) : (
               filteredBudgets.map((b, i) => (
                 <tr key={b.id} className="border-b">

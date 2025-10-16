@@ -231,11 +231,19 @@ export default function DisbursementPage() {
                 </tr>
               ))
             ) : (
-              <tr>
-                <td colSpan={8} className="text-center py-6 text-gray-500 italic">
-                  No disbursement records found.
-                </td>
-              </tr>
+            <tr>
+              <td colSpan={8} className="py-6 text-gray-500 italic">
+                <div className="flex flex-col items-center justify-center">
+                  <img
+                    src="/img/disburse.png"
+                    alt="No data"
+                    className="mb-2 max-w-[200px] h-auto object-contain"
+                  />
+                  <span>No disbursement records found.</span>
+                </div>
+              </td>
+            </tr>
+
             )}
           </tbody>
         </table>

@@ -194,11 +194,19 @@ export default function SoePage() {
                 </td>
               </tr>
             ) : data.length === 0 ? (
-              <tr>
-                <td colSpan={13} className="py-6 text-gray-500 italic">
-                  No data available.
-                </td>
-              </tr>
+<tr className="h-48"> {/* give the row some height */}
+  <td colSpan={13} className="text-gray-500 italic p-0">
+    <div className="flex flex-col items-center justify-center h-full w-full">
+      <img
+        src="/img/add.png"
+        alt="No data"
+        className="mb-2 max-w-[200px] h-auto object-contain"
+      />
+      <span>No disbursement records found.</span>
+    </div>
+  </td>
+</tr>
+
             ) : (
               data.map((row, i) => (
                 <tr key={i} className="hover:bg-gray-50">
