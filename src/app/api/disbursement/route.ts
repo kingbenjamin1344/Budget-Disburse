@@ -8,10 +8,11 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const { dvNo, payee, office, expenseType, expenseCategory, dateCreated } = await req.json();
+  const { dvNo, payee, office, expenseType, expenseCategory, amount, dateCreated } =
+    await req.json();
 
-  if (!dvNo || !payee || !office || !expenseType || !dateCreated) {
-    return NextResponse.json({ message: "Missing fields" }, { status: 400 });
+  if (!dvNo || !payee || !office || !expenseType || !amount) {
+    return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
   }
 
   const newItem = {
@@ -21,7 +22,8 @@ export async function POST(req: Request) {
     office,
     expenseType,
     expenseCategory,
-    dateCreated,
+    amount,
+    dateCreated: dateCreated || new Date().toISOString(),
   };
 
   disbursements.push(newItem);
@@ -29,12 +31,21 @@ export async function POST(req: Request) {
 }
 
 export async function PUT(req: Request) {
-  const { id, dvNo, payee, office, expenseType, expenseCategory, dateCreated } = await req.json();
+  const { id, dvNo, payee, office, expenseType, expenseCategory, amount } = await req.json();
 
   const index = disbursements.findIndex((d) => d.id === id);
-  if (index === -1) return NextResponse.json({ message: "Not found" }, { status: 404 });
+  if (index === -1)
+    return NextResponse.json({ message: "Disbursement not found" }, { status: 404 });
 
-  disbursements[index] = { ...disbursements[index], dvNo, payee, office, expenseType, expenseCategory, dateCreated };
+  disbursements[index] = {
+    ...disbursements[index],
+    dvNo,
+    payee,
+    office,
+    expenseType,
+    expenseCategory,
+    amount,
+  };
   return NextResponse.json(disbursements[index]);
 }
 

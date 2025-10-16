@@ -20,6 +20,7 @@ export default function DisbursementPage() {
     office: "",
     expenseType: "",
     expenseCategory: "",
+    amount: "",
   });
 
   // Fetch Offices + Expenses
@@ -59,19 +60,26 @@ export default function DisbursementPage() {
   // Auto-fill category when expenseType changes
   useEffect(() => {
     const match = expenses.find((e) => e.type === formData.expenseType);
-    if (match) setFormData(prev => ({ ...prev, expenseCategory: match.category }));
+    if (match) setFormData((prev) => ({ ...prev, expenseCategory: match.category }));
   }, [formData.expenseType, expenses]);
 
   // Open modal
   const handleAdd = () => {
     setShowModal(true);
     setEditingId(null);
-    setFormData({ dvNo: "", payee: "", office: "", expenseType: "", expenseCategory: "" });
+    setFormData({
+      dvNo: "",
+      payee: "",
+      office: "",
+      expenseType: "",
+      expenseCategory: "",
+      amount: "",
+    });
   };
 
   // Save or update
   const handleSave = async () => {
-    if (!formData.dvNo || !formData.payee || !formData.office || !formData.expenseType) {
+    if (!formData.dvNo || !formData.payee || !formData.office || !formData.expenseType || !formData.amount) {
       alert("Please fill all required fields");
       return;
     }
@@ -89,8 +97,8 @@ export default function DisbursementPage() {
       if (!res.ok) throw new Error("Failed to save disbursement");
       const updated = await res.json();
 
-      setDisbursements(prev =>
-        editingId ? prev.map(d => (d.id === editingId ? updated : d)) : [updated, ...prev]
+      setDisbursements((prev) =>
+        editingId ? prev.map((d) => (d.id === editingId ? updated : d)) : [updated, ...prev]
       );
       setShowModal(false);
     } catch (err) {
@@ -100,7 +108,7 @@ export default function DisbursementPage() {
   };
 
   const handleEdit = (id: number) => {
-    const record = disbursements.find(d => d.id === id);
+    const record = disbursements.find((d) => d.id === id);
     if (!record) return;
     setEditingId(id);
     setFormData(record);
@@ -116,14 +124,14 @@ export default function DisbursementPage() {
         body: JSON.stringify({ id }),
       });
       if (!res.ok) throw new Error("Failed to delete");
-      setDisbursements(prev => prev.filter(d => d.id !== id));
+      setDisbursements((prev) => prev.filter((d) => d.id !== id));
     } catch (err) {
       console.error(err);
       alert("Error deleting disbursement.");
     }
   };
 
-  const filtered = disbursements.filter(item => {
+  const filtered = disbursements.filter((item) => {
     const matchesSearch =
       item.dvNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.payee.toLowerCase().includes(searchTerm.toLowerCase());
@@ -143,20 +151,39 @@ export default function DisbursementPage() {
               type="text"
               placeholder="Search disbursement..."
               value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-8 pr-3 py-2 border border-gray-300 rounded-md"
             />
           </div>
-          <select value={filterOffice} onChange={e => setFilterOffice(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2">
+          <select
+            value={filterOffice}
+            onChange={(e) => setFilterOffice(e.target.value)}
+            className="border border-gray-300 rounded-md px-3 py-2"
+          >
             <option value="">Filter by Office</option>
-            {offices.map(o => <option key={o} value={o}>{o}</option>)}
+            {offices.map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
           </select>
-          <select value={filterExpense} onChange={e => setFilterExpense(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2">
+          <select
+            value={filterExpense}
+            onChange={(e) => setFilterExpense(e.target.value)}
+            className="border border-gray-300 rounded-md px-3 py-2"
+          >
             <option value="">Filter by Expense Type</option>
-            {expenses.map(e => <option key={e.type} value={e.type}>{e.type}</option>)}
+            {expenses.map((e) => (
+              <option key={e.type} value={e.type}>
+                {e.type}
+              </option>
+            ))}
           </select>
         </div>
-        <button onClick={handleAdd} className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition">
+        <button
+          onClick={handleAdd}
+          className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
+        >
           <Plus className="w-4 h-4 mr-2" /> Record Disbursement
         </button>
       </div>
@@ -171,61 +198,127 @@ export default function DisbursementPage() {
               <th className="px-6 py-3 text-left">Office</th>
               <th className="px-6 py-3 text-left">Type</th>
               <th className="px-6 py-3 text-left">Category</th>
+              <th className="px-6 py-3 text-left">Amount</th>
               <th className="px-6 py-3 text-left">Date</th>
               <th className="px-6 py-3 text-center">Actions</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length > 0 ? (
-              filtered.map(d => (
+              filtered.map((d) => (
                 <tr key={d.id} className="hover:bg-gray-50">
                   <td className="px-6 py-3">{d.dvNo}</td>
                   <td className="px-6 py-3">{d.payee}</td>
                   <td className="px-6 py-3">{d.office}</td>
                   <td className="px-6 py-3">{d.expenseType}</td>
                   <td className="px-6 py-3">{d.expenseCategory}</td>
+                  <td className="px-6 py-3">{d.amount}</td>
                   <td className="px-6 py-3">{new Date(d.dateCreated).toLocaleDateString()}</td>
                   <td className="px-6 py-3 text-center space-x-2">
-                    <button onClick={() => handleEdit(d.id)} className="text-blue-600 hover:text-blue-800"><Edit className="w-4 h-4 inline" /></button>
-                    <button onClick={() => handleDelete(d.id)} className="text-red-600 hover:text-red-800"><Trash2 className="w-4 h-4 inline" /></button>
+                    <button
+                      onClick={() => handleEdit(d.id)}
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      <Edit className="w-4 h-4 inline" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(d.id)}
+                      className="text-red-600 hover:text-red-800"
+                    >
+                      <Trash2 className="w-4 h-4 inline" />
+                    </button>
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={7} className="text-center py-6 text-gray-500 italic">No disbursement records found.</td>
+                <td colSpan={8} className="text-center py-6 text-gray-500 italic">
+                  No disbursement records found.
+                </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
 
-      {/* Vertical Stack Modal */}
+      {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/30">
           <div className="bg-white border shadow-xl p-6 rounded-lg w-full max-w-md relative flex flex-col gap-3">
-            <button onClick={() => setShowModal(false)} className="absolute top-2 right-2 text-gray-500 hover:text-gray-700">
+            <button
+              onClick={() => setShowModal(false)}
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+            >
               <X className="w-5 h-5" />
             </button>
 
-            <h2 className="text-lg font-semibold mb-2">{editingId ? "Edit Disbursement" : "Record Disbursement"}</h2>
+            <h2 className="text-lg font-semibold mb-2">
+              {editingId ? "Edit Disbursement" : "Record Disbursement"}
+            </h2>
 
-            <input type="text" placeholder="DV No." value={formData.dvNo} onChange={e => setFormData({ ...formData, dvNo: e.target.value })} className="border rounded-md p-2 w-full" />
-            <input type="text" placeholder="Payee" value={formData.payee} onChange={e => setFormData({ ...formData, payee: e.target.value })} className="border rounded-md p-2 w-full" />
+            <input
+              type="text"
+              placeholder="DV No."
+              value={formData.dvNo}
+              onChange={(e) => setFormData({ ...formData, dvNo: e.target.value })}
+              className="border rounded-md p-2 w-full"
+            />
+            <input
+              type="text"
+              placeholder="Payee"
+              value={formData.payee}
+              onChange={(e) => setFormData({ ...formData, payee: e.target.value })}
+              className="border rounded-md p-2 w-full"
+            />
 
-            <select value={formData.office} onChange={e => setFormData({ ...formData, office: e.target.value })} className="border rounded-md p-2 w-full">
+            <select
+              value={formData.office}
+              onChange={(e) => setFormData({ ...formData, office: e.target.value })}
+              className="border rounded-md p-2 w-full"
+            >
               <option value="">Select Office</option>
-              {offices.map(o => <option key={o} value={o}>{o}</option>)}
+              {offices.map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
             </select>
 
-            <select value={formData.expenseType} onChange={e => setFormData({ ...formData, expenseType: e.target.value })} className="border rounded-md p-2 w-full">
+            <select
+              value={formData.expenseType}
+              onChange={(e) => setFormData({ ...formData, expenseType: e.target.value })}
+              className="border rounded-md p-2 w-full"
+            >
               <option value="">Select Type</option>
-              {expenses.map(e => <option key={e.type} value={e.type}>{e.type}</option>)}
+              {expenses.map((e) => (
+                <option key={e.type} value={e.type}>
+                  {e.type}
+                </option>
+              ))}
             </select>
 
-            <input type="text" placeholder="Category" value={formData.expenseCategory} readOnly className="border rounded-md p-2 w-full bg-gray-100" />
+            <input
+              type="text"
+              placeholder="Category"
+              value={formData.expenseCategory}
+              readOnly
+              className="border rounded-md p-2 w-full bg-gray-100"
+            />
 
-            <button onClick={handleSave} className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 mt-3">Save</button>
+            <input
+              type="number"
+              placeholder="Amount"
+              value={formData.amount}
+              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+              className="border rounded-md p-2 w-full"
+            />
+
+            <button
+              onClick={handleSave}
+              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 mt-3"
+            >
+              Save
+            </button>
           </div>
         </div>
       )}
