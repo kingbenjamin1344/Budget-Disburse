@@ -1,12 +1,13 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import { Search, Plus, Edit2 } from "lucide-react";
 
 export default function AddExpensePage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [expenses, setExpenses] = useState<any[]>([]);
-  const [type, setType] = useState(""); 
-  const [category, setCategory] = useState("PS"); 
+  const [type, setType] = useState("");
+  const [category, setCategory] = useState("PS");
   const [loading, setLoading] = useState(false);
 
   const [showAddModal, setShowAddModal] = useState(false);
@@ -16,10 +17,17 @@ export default function AddExpensePage() {
   const [editType, setEditType] = useState("");
   const [editCategory, setEditCategory] = useState("PS");
 
+  // ✅ Category filter state
+  const [filterCategory, setFilterCategory] = useState("All");
+
   const fetchExpenses = async () => {
-    const res = await fetch("/api/expenses");
-    const data = await res.json();
-    setExpenses(data);
+    try {
+      const res = await fetch("/api/expenses");
+      const data = await res.json();
+      setExpenses(data);
+    } catch (err) {
+      console.error("Failed to fetch expenses:", err);
+    }
   };
 
   useEffect(() => {
@@ -41,7 +49,9 @@ export default function AddExpensePage() {
       setCategory("PS");
       setShowAddModal(false);
       fetchExpenses();
-    } else alert("Failed to add expense");
+    } else {
+      alert("Failed to add expense");
+    }
     setLoading(false);
   };
 
@@ -68,7 +78,11 @@ export default function AddExpensePage() {
     const res = await fetch("/api/expenses", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: editingId, type: editType, category: editCategory }),
+      body: JSON.stringify({
+        id: editingId,
+        type: editType,
+        category: editCategory,
+      }),
     });
 
     if (res.ok) {
@@ -78,14 +92,19 @@ export default function AddExpensePage() {
     } else alert("Failed to update expense");
   };
 
-  const filteredExpenses = expenses.filter((exp) =>
-    exp.type.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // ✅ Apply both search + category filter
+  const filteredExpenses = expenses.filter((exp) => {
+    const matchesSearch = exp.type.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = filterCategory === "All" || exp.category === filterCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   return (
     <div className="w-full">
-      <div className="flex items-center justify-between mb-6">
+      {/* Top Controls */}
+      <div className="flex flex-wrap items-center justify-between mb-6 gap-3">
         <div className="flex items-center space-x-2">
+          {/* Search Input */}
           <div className="relative">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
             <input
@@ -96,8 +115,21 @@ export default function AddExpensePage() {
               className="pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-blue-200"
             />
           </div>
+
+          {/* ✅ Category Filter */}
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="border border-gray-300 px-3 py-2 rounded-md focus:outline-none focus:ring focus:ring-blue-200"
+          >
+            <option value="All">All Categories</option>
+            <option value="PS">Personnel Services (PS)</option>
+            <option value="MOOE">Maintenance of Office Expenditure (MOOE)</option>
+            <option value="CO">Capital Outlay (CO)</option>
+          </select>
         </div>
 
+        {/* Add Expense Button */}
         <button
           onClick={() => setShowAddModal(true)}
           className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
@@ -107,22 +139,15 @@ export default function AddExpensePage() {
         </button>
       </div>
 
+      {/* Expense Table */}
       <div className="overflow-x-auto rounded-lg bg-white shadow-sm">
         <table className="min-w-full border-collapse">
           <thead className="bg-gray-100 text-gray-700 border-b">
             <tr>
-              <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">
-                Type of Expense
-              </th>
-              <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">
-                Category
-              </th>
-              <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">
-                Date Created
-              </th>
-              <th className="px-6 py-3 text-center font-semibold border-b border-gray-300">
-                Actions
-              </th>
+              <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">Type of Expense</th>
+              <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">Category</th>
+              <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">Date Created</th>
+              <th className="px-6 py-3 text-center font-semibold border-b border-gray-300">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -139,7 +164,6 @@ export default function AddExpensePage() {
                   </div>
                 </td>
               </tr>
-
             ) : (
               filteredExpenses.map((expense) => (
                 <tr key={expense.id} className="border-b">
@@ -172,12 +196,12 @@ export default function AddExpensePage() {
         </table>
       </div>
 
-      {/* Add Expense Modal */}
+      {/* ✅ Add Expense Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
           <div className="absolute inset-0 bg-black opacity-20 pointer-events-auto"></div>
           <div className="bg-white rounded-lg shadow-lg w-96 p-6 z-10 pointer-events-auto">
-            <h2 className="text-lg font-semibold mb-3">Add Expense</h2>
+            <h2 className="text-lg font-semibold mb-3 text-center" >Add Expense</h2>
             <input
               type="text"
               placeholder="Type of Expense"
@@ -213,12 +237,12 @@ export default function AddExpensePage() {
         </div>
       )}
 
-      {/* Edit Expense Modal */}
+      {/* ✅ Edit Expense Modal */}
       {showEditModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
           <div className="absolute inset-0 bg-black opacity-20 pointer-events-auto"></div>
           <div className="bg-white rounded-lg shadow-lg w-96 p-6 z-10 pointer-events-auto">
-            <h2 className="text-lg font-semibold mb-3">Edit Expense</h2>
+            <h2 className="text-lg font-semibold mb-3 text-center">Edit Expense</h2>
             <input
               type="text"
               placeholder="Type of Expense"

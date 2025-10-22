@@ -9,10 +9,12 @@ export default function AddBudgetPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [officeId, setOfficeId] = useState<number | "">("");
-  const [ps, setPs] = useState<number>(0);
-  const [mooe, setMooe] = useState<number>(0);
-  const [co, setCo] = useState<number>(0);
-  const totalBudget = ps + mooe + co;
+  const [ps, setPs] = useState<string>(""); // changed
+  const [mooe, setMooe] = useState<string>(""); // changed
+  const [co, setCo] = useState<string>(""); // changed
+
+  const totalBudget =
+    (parseFloat(ps) || 0) + (parseFloat(mooe) || 0) + (parseFloat(co) || 0);
 
   useEffect(() => {
     const fetchBudgets = async () => {
@@ -46,9 +48,9 @@ export default function AddBudgetPage() {
     const budgetData = {
       id: editingId !== null ? budgets[editingId]?.id : undefined,
       office: selectedOffice?.name,
-      ps,
-      mooe,
-      co,
+      ps: parseFloat(ps) || 0,
+      mooe: parseFloat(mooe) || 0,
+      co: parseFloat(co) || 0,
       total: totalBudget,
       dateCreated: new Date().toLocaleDateString(),
     };
@@ -67,9 +69,10 @@ export default function AddBudgetPage() {
       setShowModal(false);
       setEditingId(null);
       setOfficeId("");
-      setPs(0);
-      setMooe(0);
-      setCo(0);
+      setPs("");
+      setMooe("");
+      setCo("");
+
       // refresh budgets
       const refreshed = await fetch("/api/addbudget");
       const refreshedData = await refreshed.json();
@@ -84,9 +87,9 @@ export default function AddBudgetPage() {
     const budget = budgets[index];
     const office = offices.find((o) => o.name === budget.office);
     setOfficeId(office?.id || "");
-    setPs(budget.ps);
-    setMooe(budget.mooe);
-    setCo(budget.co);
+    setPs(String(budget.ps)); // changed
+    setMooe(String(budget.mooe)); // changed
+    setCo(String(budget.co)); // changed
     setEditingId(index);
     setShowModal(true);
   };
@@ -102,7 +105,7 @@ export default function AddBudgetPage() {
         body: JSON.stringify({ id: budget.id }),
       });
       if (!res.ok) throw new Error("Failed to delete");
-      // refresh budgets
+
       const refreshed = await fetch("/api/addbudget");
       const refreshedData = await refreshed.json();
       setBudgets(refreshedData);
@@ -111,7 +114,6 @@ export default function AddBudgetPage() {
     }
   };
 
-  // Filter budgets for search
   const filteredBudgets = budgets.filter((b) =>
     b.office.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -137,6 +139,10 @@ export default function AddBudgetPage() {
           onClick={() => {
             setShowModal(true);
             setEditingId(null);
+            setOfficeId("");
+            setPs("");
+            setMooe("");
+            setCo("");
           }}
           className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
         >
@@ -161,18 +167,20 @@ export default function AddBudgetPage() {
           <tbody>
             {filteredBudgets.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center py-6 text-gray-500 italic">
+                <td
+                  colSpan={7}
+                  className="text-center py-6 text-gray-500 italic"
+                >
                   <div className="flex flex-col items-center justify-center">
                     <img
-                      src="/img/soe.png" 
+                      src="/img/soe.png"
                       alt="No data"
-                     className="mb-2 max-w-[200px] h-auto object-contain"
+                      className="mb-2 max-w-[200px] h-auto object-contain"
                     />
                     <span>No budgets found.</span>
                   </div>
                 </td>
               </tr>
-              
             ) : (
               filteredBudgets.map((b, i) => (
                 <tr key={b.id} className="border-b">
@@ -180,7 +188,9 @@ export default function AddBudgetPage() {
                   <td className="px-6 py-3">₱{b.ps.toLocaleString()}</td>
                   <td className="px-6 py-3">₱{b.mooe.toLocaleString()}</td>
                   <td className="px-6 py-3">₱{b.co.toLocaleString()}</td>
-                  <td className="px-6 py-3 font-semibold">₱{b.total.toLocaleString()}</td>
+                  <td className="px-6 py-3 font-semibold">
+                    ₱{b.total.toLocaleString()}
+                  </td>
                   <td className="px-6 py-3">{b.dateCreated}</td>
                   <td className="px-6 py-3 text-center">
                     <button
@@ -208,11 +218,14 @@ export default function AddBudgetPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black opacity-20"></div>
           <div className="bg-white rounded-lg shadow-lg w-96 p-6 z-10">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold">
+            <div className="relative mb-4">
+              <h2 className="text-lg font-semibold text-center">
                 {editingId !== null ? "Edit Budget" : "Add Budget"}
               </h2>
-              <button onClick={() => setShowModal(false)}>
+              <button
+                onClick={() => setShowModal(false)}
+                className="absolute right-0 top-1/2 -translate-y-1/2"
+              >
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
@@ -234,21 +247,21 @@ export default function AddBudgetPage() {
               type="number"
               placeholder="PS"
               value={ps}
-              onChange={(e) => setPs(Number(e.target.value))}
+              onChange={(e) => setPs(e.target.value)}
               className="w-full border px-3 py-2 rounded-md mb-3"
             />
             <input
               type="number"
               placeholder="MOOE"
               value={mooe}
-              onChange={(e) => setMooe(Number(e.target.value))}
+              onChange={(e) => setMooe(e.target.value)}
               className="w-full border px-3 py-2 rounded-md mb-3"
             />
             <input
               type="number"
               placeholder="CO"
               value={co}
-              onChange={(e) => setCo(Number(e.target.value))}
+              onChange={(e) => setCo(e.target.value)}
               className="w-full border px-3 py-2 rounded-md mb-3"
             />
 

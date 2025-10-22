@@ -187,55 +187,51 @@ export default function SoePage() {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={13} className="py-6 text-gray-500 italic">
-                  Loading data...
-                </td>
-              </tr>
-            ) : data.length === 0 ? (
-<tr className="h-48"> {/* give the row some height */}
-  <td colSpan={13} className="text-gray-500 italic p-0">
-    <div className="flex flex-col items-center justify-center h-full w-full">
-      <img
-        src="/img/add.png"
-        alt="No data"
-        className="mb-2 max-w-[200px] h-auto object-contain"
-      />
-      <span>No disbursement records found.</span>
-    </div>
-  </td>
-</tr>
-
-            ) : (
-              data.map((row, i) => (
-                <tr key={i} className="hover:bg-gray-50">
-                  <td className="border border-gray-300 px-3 py-2 font-medium">{row.office}</td>
-                  <td className="border border-gray-300 px-3 py-2">{row.budget.ps}</td>
-                  <td className="border border-gray-300 px-3 py-2">{row.budget.mooe}</td>
-                  <td className="border border-gray-300 px-3 py-2">{row.budget.co}</td>
-                  <td className="border border-gray-300 px-3 py-2 font-semibold">
-                    {row.budget.total}
-                  </td>
-
-                  <td className="border border-gray-300 px-3 py-2">{row.actual.ps}</td>
-                  <td className="border border-gray-300 px-3 py-2">{row.actual.mooe}</td>
-                  <td className="border border-gray-300 px-3 py-2">{row.actual.co}</td>
-                  <td className="border border-gray-300 px-3 py-2 font-semibold">
-                    {row.actual.total}
-                  </td>
-
-                  <td className="border border-gray-300 px-3 py-2 text-red-600">{row.variance.ps}</td>
-                  <td className="border border-gray-300 px-3 py-2 text-red-600">
-                    {row.variance.mooe}
-                  </td>
-                  <td className="border border-gray-300 px-3 py-2 text-red-600">{row.variance.co}</td>
-                  <td className="border border-gray-300 px-3 py-2 font-bold text-red-600">
-                    {row.variance.total}
+                         {loading ? (
+                <tr>
+                  <td colSpan={13} className="py-6 text-gray-500 italic">
+                    Loading data...
                   </td>
                 </tr>
-              ))
-            )}
+              ) : data.length === 0 ? (
+                <tr className="h-48">
+                  <td colSpan={13} className="text-gray-500 italic p-0">
+                    <div className="flex flex-col items-center justify-center h-full w-full">
+                      <img
+                        src="/img/add.png"
+                        alt="No data"
+                        className="mb-2 max-w-[200px] h-auto object-contain"
+                      />
+                      <span>No disbursement records found.</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                data.map((row, i) => (
+                  <tr key={i} className="hover:bg-gray-50">
+                    <td className="border border-gray-300 px-3 py-2 font-medium">{row.office}</td>
+                    <td className="border border-gray-300 px-3 py-2">{row.budget.ps}</td>
+                    <td className="border border-gray-300 px-3 py-2">{row.budget.mooe}</td>
+                    <td className="border border-gray-300 px-3 py-2">{row.budget.co}</td>
+                    <td className="border border-gray-300 px-3 py-2 font-semibold">
+                      {row.budget.total}
+                    </td>
+                    <td className="border border-gray-300 px-3 py-2">{row.actual.ps}</td>
+                    <td className="border border-gray-300 px-3 py-2">{row.actual.mooe}</td>
+                    <td className="border border-gray-300 px-3 py-2">{row.actual.co}</td>
+                    <td className="border border-gray-300 px-3 py-2 font-semibold">
+                      {row.actual.total}
+                    </td>
+                    <td className="border border-gray-300 px-3 py-2 text-red-600">{row.variance.ps}</td>
+                    <td className="border border-gray-300 px-3 py-2 text-red-600">{row.variance.mooe}</td>
+                    <td className="border border-gray-300 px-3 py-2 text-red-600">{row.variance.co}</td>
+                    <td className="border border-gray-300 px-3 py-2 font-bold text-red-600">
+                      {row.variance.total}
+                    </td>
+                  </tr>
+                ))
+              )}
+              
           </tbody>
         </table>
       </div>

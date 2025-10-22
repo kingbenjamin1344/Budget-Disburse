@@ -171,7 +171,7 @@ export default function AddOfficePage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
           <div className="absolute inset-0 bg-black opacity-20 pointer-events-auto"></div>
           <div className="bg-white rounded-lg shadow-lg w-96 p-6 z-10 pointer-events-auto">
-            <h2 className="text-lg font-semibold mb-3">Add Office</h2>
+            <h2 className="text-lg font-semibold mb-3 text-center" >Add Office</h2>
             <input
               type="text"
               placeholder="Office Name"
@@ -203,7 +203,7 @@ export default function AddOfficePage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
           <div className="absolute inset-0 bg-black opacity-20 pointer-events-auto"></div>
           <div className="bg-white rounded-lg shadow-lg w-96 p-6 z-10 pointer-events-auto">
-            <h2 className="text-lg font-semibold mb-3">Edit Office</h2>
+            <h2 className="text-lg font-semibold mb-3 text-center" >Edit Office</h2>
             <input
               type="text"
               placeholder="Office Name"

@@ -7,6 +7,7 @@ export default function DisbursementPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterOffice, setFilterOffice] = useState("");
   const [filterExpense, setFilterExpense] = useState("");
+  const [filterCategory, setFilterCategory] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
 
@@ -131,13 +132,15 @@ export default function DisbursementPage() {
     }
   };
 
+  // Apply filters
   const filtered = disbursements.filter((item) => {
     const matchesSearch =
       item.dvNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.payee.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesOffice = filterOffice ? item.office === filterOffice : true;
     const matchesExpense = filterExpense ? item.expenseType === filterExpense : true;
-    return matchesSearch && matchesOffice && matchesExpense;
+    const matchesCategory = filterCategory ? item.expenseCategory === filterCategory : true;
+    return matchesSearch && matchesOffice && matchesExpense && matchesCategory;
   });
 
   return (
@@ -145,6 +148,7 @@ export default function DisbursementPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-3">
         <div className="flex flex-col md:flex-row items-center gap-2">
+          {/* Search */}
           <div className="relative">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
             <input
@@ -155,6 +159,8 @@ export default function DisbursementPage() {
               className="pl-8 pr-3 py-2 border border-gray-300 rounded-md"
             />
           </div>
+
+          {/* Office Filter */}
           <select
             value={filterOffice}
             onChange={(e) => setFilterOffice(e.target.value)}
@@ -167,6 +173,8 @@ export default function DisbursementPage() {
               </option>
             ))}
           </select>
+
+          {/* Expense Type Filter */}
           <select
             value={filterExpense}
             onChange={(e) => setFilterExpense(e.target.value)}
@@ -179,7 +187,23 @@ export default function DisbursementPage() {
               </option>
             ))}
           </select>
+
+          {/* Category Filter */}
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="border border-gray-300 rounded-md px-3 py-2"
+          >
+            <option value="">Filter by Category</option>
+            {[...new Set(expenses.map((e) => e.category))].map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
         </div>
+
+        {/* Add Button */}
         <button
           onClick={handleAdd}
           className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
@@ -215,35 +239,28 @@ export default function DisbursementPage() {
                   <td className="px-6 py-3">{d.amount}</td>
                   <td className="px-6 py-3">{new Date(d.dateCreated).toLocaleDateString()}</td>
                   <td className="px-6 py-3 text-center space-x-2">
-                    <button
-                      onClick={() => handleEdit(d.id)}
-                      className="text-blue-600 hover:text-blue-800"
-                    >
+                    <button onClick={() => handleEdit(d.id)} className="text-blue-600 hover:text-blue-800">
                       <Edit className="w-4 h-4 inline" />
                     </button>
-                    <button
-                      onClick={() => handleDelete(d.id)}
-                      className="text-red-600 hover:text-red-800"
-                    >
+                    <button onClick={() => handleDelete(d.id)} className="text-red-600 hover:text-red-800">
                       <Trash2 className="w-4 h-4 inline" />
                     </button>
                   </td>
                 </tr>
               ))
             ) : (
-            <tr>
-              <td colSpan={8} className="py-6 text-gray-500 italic">
-                <div className="flex flex-col items-center justify-center">
-                  <img
-                    src="/img/disburse.png"
-                    alt="No data"
-                    className="mb-2 max-w-[200px] h-auto object-contain"
-                  />
-                  <span>No disbursement records found.</span>
-                </div>
-              </td>
-            </tr>
-
+              <tr>
+                <td colSpan={8} className="py-6 text-gray-500 italic">
+                  <div className="flex flex-col items-center justify-center">
+                    <img
+                      src="/img/disburse.png"
+                      alt="No data"
+                      className="mb-2 max-w-[200px] h-auto object-contain"
+                    />
+                    <span>No disbursement records found.</span>
+                  </div>
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
@@ -260,7 +277,7 @@ export default function DisbursementPage() {
               <X className="w-5 h-5" />
             </button>
 
-            <h2 className="text-lg font-semibold mb-2">
+            <h2 className="text-lg font-semibold mb-2 text-center">
               {editingId ? "Edit Disbursement" : "Record Disbursement"}
             </h2>
 
