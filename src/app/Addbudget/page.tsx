@@ -9,9 +9,9 @@ export default function AddBudgetPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [officeId, setOfficeId] = useState<number | "">("");
-  const [ps, setPs] = useState<string>(""); // changed
-  const [mooe, setMooe] = useState<string>(""); // changed
-  const [co, setCo] = useState<string>(""); // changed
+  const [ps, setPs] = useState<string>(""); 
+  const [mooe, setMooe] = useState<string>(""); 
+  const [co, setCo] = useState<string>(""); 
 
   const totalBudget =
     (parseFloat(ps) || 0) + (parseFloat(mooe) || 0) + (parseFloat(co) || 0);
@@ -45,6 +45,15 @@ export default function AddBudgetPage() {
     if (!officeId) return alert("Please select an office");
 
     const selectedOffice = offices.find((o) => o.id === officeId);
+
+    // Prevent duplicate budget for an office (only if adding new)
+    if (
+      editingId === null &&
+      budgets.some((b) => b.office === selectedOffice?.name)
+    ) {
+      return alert("This office already has a budget allocated.");
+    }
+
     const budgetData = {
       id: editingId !== null ? budgets[editingId]?.id : undefined,
       office: selectedOffice?.name,
@@ -73,7 +82,7 @@ export default function AddBudgetPage() {
       setMooe("");
       setCo("");
 
-      // refresh budgets
+      // Refresh budgets
       const refreshed = await fetch("/api/addbudget");
       const refreshedData = await refreshed.json();
       setBudgets(refreshedData);
@@ -87,9 +96,9 @@ export default function AddBudgetPage() {
     const budget = budgets[index];
     const office = offices.find((o) => o.name === budget.office);
     setOfficeId(office?.id || "");
-    setPs(String(budget.ps)); // changed
-    setMooe(String(budget.mooe)); // changed
-    setCo(String(budget.co)); // changed
+    setPs(String(budget.ps)); 
+    setMooe(String(budget.mooe)); 
+    setCo(String(budget.co)); 
     setEditingId(index);
     setShowModal(true);
   };
@@ -236,11 +245,20 @@ export default function AddBudgetPage() {
               className="w-full border px-3 py-2 rounded-md mb-3"
             >
               <option value="">Select Office</option>
-              {offices.map((office) => (
-                <option key={office.id} value={office.id}>
-                  {office.name}
-                </option>
-              ))}
+              {offices.map((office) => {
+                const alreadyBudgeted = budgets.some(
+                  (b) => b.office === office.name
+                );
+                return (
+                  <option
+                    key={office.id}
+                    value={office.id}
+                    disabled={alreadyBudgeted && editingId === null} // disable only when adding new
+                  >
+                    {office.name} {alreadyBudgeted && editingId === null ? "(Already Budgeted)" : ""}
+                  </option>
+                );
+              })}
             </select>
 
             <input
