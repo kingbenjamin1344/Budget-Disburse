@@ -8,6 +8,15 @@ export default function SoePage() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Helper function to format numbers as Philippine Peso
+  const formatPeso = (value: number) => {
+    return new Intl.NumberFormat("en-PH", {
+      style: "currency",
+      currency: "PHP",
+      minimumFractionDigits: 2,
+    }).format(value);
+  };
+
   const toggleCompress = () => {
     const layout = document.getElementById("dashboard-layout");
     const sidebar = document.getElementById("sidebar");
@@ -45,7 +54,6 @@ export default function SoePage() {
         const budgetData = await budgetRes.json();
         const disbData = await disbRes.json();
 
-        // Helper function: sum up all disbursements per category per office
         const calculateTotals = (office: string, category: string) => {
           if (!office || !category) return 0;
           return disbData
@@ -187,51 +195,46 @@ export default function SoePage() {
             </tr>
           </thead>
           <tbody>
-                         {loading ? (
-                <tr>
-                  <td colSpan={13} className="py-6 text-gray-500 italic">
-                    Loading data...
-                  </td>
+            {loading ? (
+              <tr>
+                <td colSpan={13} className="py-6 text-gray-500 italic">
+                  Loading data...
+                </td>
+              </tr>
+            ) : data.length === 0 ? (
+              <tr className="h-48">
+                <td colSpan={13} className="text-gray-500 italic p-0">
+                  <div className="flex flex-col items-center justify-center h-full w-full">
+                    <img
+                      src="/img/add.png"
+                      alt="No data"
+                      className="mb-2 max-w-[200px] h-auto object-contain"
+                    />
+                    <span>No disbursement records found.</span>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              data.map((row, i) => (
+                <tr key={i} className="hover:bg-gray-50">
+                  <td className="border border-gray-300 px-3 py-2 font-medium">{row.office}</td>
+                  <td className="border border-gray-300 px-3 py-2">{formatPeso(row.budget.ps)}</td>
+                  <td className="border border-gray-300 px-3 py-2">{formatPeso(row.budget.mooe)}</td>
+                  <td className="border border-gray-300 px-3 py-2">{formatPeso(row.budget.co)}</td>
+                  <td className="border border-gray-300 px-3 py-2 font-semibold">{formatPeso(row.budget.total)}</td>
+
+                  <td className="border border-gray-300 px-3 py-2">{formatPeso(row.actual.ps)}</td>
+                  <td className="border border-gray-300 px-3 py-2">{formatPeso(row.actual.mooe)}</td>
+                  <td className="border border-gray-300 px-3 py-2">{formatPeso(row.actual.co)}</td>
+                  <td className="border border-gray-300 px-3 py-2 font-semibold">{formatPeso(row.actual.total)}</td>
+
+                  <td className="border border-gray-300 px-3 py-2 text-red-600">{formatPeso(row.variance.ps)}</td>
+                  <td className="border border-gray-300 px-3 py-2 text-red-600">{formatPeso(row.variance.mooe)}</td>
+                  <td className="border border-gray-300 px-3 py-2 text-red-600">{formatPeso(row.variance.co)}</td>
+                  <td className="border border-gray-300 px-3 py-2 font-bold text-red-600">{formatPeso(row.variance.total)}</td>
                 </tr>
-              ) : data.length === 0 ? (
-                <tr className="h-48">
-                  <td colSpan={13} className="text-gray-500 italic p-0">
-                    <div className="flex flex-col items-center justify-center h-full w-full">
-                      <img
-                        src="/img/add.png"
-                        alt="No data"
-                        className="mb-2 max-w-[200px] h-auto object-contain"
-                      />
-                      <span>No disbursement records found.</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                data.map((row, i) => (
-                  <tr key={i} className="hover:bg-gray-50">
-                    <td className="border border-gray-300 px-3 py-2 font-medium">{row.office}</td>
-                    <td className="border border-gray-300 px-3 py-2">{row.budget.ps}</td>
-                    <td className="border border-gray-300 px-3 py-2">{row.budget.mooe}</td>
-                    <td className="border border-gray-300 px-3 py-2">{row.budget.co}</td>
-                    <td className="border border-gray-300 px-3 py-2 font-semibold">
-                      {row.budget.total}
-                    </td>
-                    <td className="border border-gray-300 px-3 py-2">{row.actual.ps}</td>
-                    <td className="border border-gray-300 px-3 py-2">{row.actual.mooe}</td>
-                    <td className="border border-gray-300 px-3 py-2">{row.actual.co}</td>
-                    <td className="border border-gray-300 px-3 py-2 font-semibold">
-                      {row.actual.total}
-                    </td>
-                    <td className="border border-gray-300 px-3 py-2 text-red-600">{row.variance.ps}</td>
-                    <td className="border border-gray-300 px-3 py-2 text-red-600">{row.variance.mooe}</td>
-                    <td className="border border-gray-300 px-3 py-2 text-red-600">{row.variance.co}</td>
-                    <td className="border border-gray-300 px-3 py-2 font-bold text-red-600">
-                      {row.variance.total}
-                    </td>
-                  </tr>
-                ))
-              )}
-              
+              ))
+            )}
           </tbody>
         </table>
       </div>

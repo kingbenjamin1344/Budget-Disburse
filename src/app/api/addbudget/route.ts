@@ -1,62 +1,138 @@
 import { NextResponse } from "next/server";
+import { PrismaClient } from "@prisma/client";
 
-// temporary in-memory storage (replace with database later)
-let budgets: any[] = [];
+const prisma = new PrismaClient();
 
+// GET all budgets (with office name)
 export async function GET() {
-  // Return all budgets
-  return NextResponse.json(budgets);
+  try {
+    const budgets = await prisma.budget.findMany({
+      include: { office: true },
+      orderBy: { id: "desc" },
+    });
+
+    // Format for frontend
+    const formatted = budgets.map((b) => ({
+      id: b.id,
+      office: b.officeName || b.office.name, // ✅ prefer stored officeName
+      ps: b.ps,
+      mooe: b.mooe,
+      co: b.co,
+      total: b.total,
+      dateCreated: b.dateCreated.toLocaleDateString(),
+    }));
+
+    return NextResponse.json(formatted);
+  } catch (error) {
+    console.error("GET /addbudget error:", error);
+    return NextResponse.json({ error: "Failed to fetch budgets" }, { status: 500 });
+  }
 }
 
+// POST new budget
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { office, ps, mooe, co, total, dateCreated } = body;
+    const { office, ps, mooe, co, total } = body;
 
-    if (!office) {
-      return NextResponse.json({ error: "Office is required" }, { status: 400 });
+    // Find office by name
+    const existingOffice = await prisma.office.findFirst({
+      where: { name: office },
+    });
+
+    if (!existingOffice) {
+      return NextResponse.json({ error: "Office not found" }, { status: 400 });
     }
 
-    const newBudget = {
-      id: Date.now(),
-      office,
-      ps,
-      mooe,
-      co,
-      total,
-      dateCreated,
-    };
+    // Create budget with both officeId and officeName
+    const newBudget = await prisma.budget.create({
+      data: {
+        officeId: existingOffice.id,
+        officeName: existingOffice.name, // ✅ store readable name
+        ps,
+        mooe,
+        co,
+        total,
+      },
+      include: { office: true },
+    });
 
-    budgets.unshift(newBudget);
-    return NextResponse.json({ message: "Budget added successfully", data: newBudget });
+    return NextResponse.json({
+      message: "Budget added successfully",
+      data: {
+        id: newBudget.id,
+        office: newBudget.officeName,
+        ps: newBudget.ps,
+        mooe: newBudget.mooe,
+        co: newBudget.co,
+        total: newBudget.total,
+        dateCreated: newBudget.dateCreated.toLocaleDateString(),
+      },
+    });
   } catch (error) {
+    console.error("POST /addbudget error:", error);
     return NextResponse.json({ error: "Failed to add budget" }, { status: 500 });
   }
 }
 
+// PUT update budget
 export async function PUT(req: Request) {
   try {
     const body = await req.json();
-    const { id, office, ps, mooe, co, total, dateCreated } = body;
+    const { id, office, ps, mooe, co, total } = body;
 
-    const index = budgets.findIndex((b) => b.id === id);
-    if (index === -1) {
-      return NextResponse.json({ error: "Budget not found" }, { status: 404 });
+    const existingOffice = await prisma.office.findFirst({
+      where: { name: office },
+    });
+
+    if (!existingOffice) {
+      return NextResponse.json({ error: "Office not found" }, { status: 400 });
     }
 
-    budgets[index] = { id, office, ps, mooe, co, total, dateCreated };
-    return NextResponse.json({ message: "Budget updated", data: budgets[index] });
+    // Update both fields so officeName stays in sync
+    const updated = await prisma.budget.update({
+      where: { id },
+      data: {
+        officeId: existingOffice.id,
+        officeName: existingOffice.name, // ✅ keep name synced
+        ps,
+        mooe,
+        co,
+        total,
+      },
+      include: { office: true },
+    });
+
+    return NextResponse.json({
+      message: "Budget updated successfully",
+      data: {
+        id: updated.id,
+        office: updated.officeName,
+        ps: updated.ps,
+        mooe: updated.mooe,
+        co: updated.co,
+        total: updated.total,
+        dateCreated: updated.dateCreated.toLocaleDateString(),
+      },
+    });
   } catch (error) {
+    console.error("PUT /addbudget error:", error);
     return NextResponse.json({ error: "Failed to update budget" }, { status: 500 });
   }
 }
 
+// DELETE budget
 export async function DELETE(req: Request) {
   try {
     const { id } = await req.json();
-    budgets = budgets.filter((b) => b.id !== id);
-    return NextResponse.json({ message: "Budget deleted" });
+
+    await prisma.budget.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ message: "Budget deleted successfully" });
   } catch (error) {
+    console.error("DELETE /addbudget error:", error);
     return NextResponse.json({ error: "Failed to delete budget" }, { status: 500 });
   }
 }

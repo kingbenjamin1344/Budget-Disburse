@@ -3,7 +3,6 @@
 
 // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
@@ -14,17 +13,45 @@ generator client {
 }
 
 model Office {
-  id          Int      @id @default(autoincrement())
-  name        String
-  dateCreated DateTime @default(now())
+  id          Int         @id @default(autoincrement())
+  name        String       @unique
+  dateCreated DateTime     @default(now())
+  budgets     Budget[]
+  disbursements Disbursement[]  // ✅ One office can have many disbursements
+}
+
+model Budget {
+  id          Int       @id @default(autoincrement())
+  officeId    Int
+  officeName  String     // ✅ store readable name for convenience
+  office      Office     @relation(fields: [officeId], references: [id])
+  ps          Float
+  mooe        Float
+  co          Float
+  total       Float
+  dateCreated DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 }
 
 model Expense {
-  id           Int      @id @default(autoincrement())
+  id           Int        @id @default(autoincrement())
   type         String
   category     String
-  dateCreated  DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  dateCreated  DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
 
+model Disbursement {
+  id              Int       @id @default(autoincrement())
+  dvNo            String
+  payee           String
+  officeId        Int
+  officeName      String
+  office          Office    @relation(fields: [officeId], references: [id])
+  expenseType     String
+  expenseCategory String
+  amount          Float
+  dateCreated     DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
