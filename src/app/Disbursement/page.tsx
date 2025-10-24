@@ -14,6 +14,7 @@ export default function DisbursementPage() {
   const [disbursements, setDisbursements] = useState<any[]>([]);
   const [offices, setOffices] = useState<string[]>([]);
   const [expenses, setExpenses] = useState<{ type: string; category: string }[]>([]);
+  const [budgets, setBudgets] = useState<any[]>([]); // ✅ store budgets from AddBudget
 
   const [formData, setFormData] = useState({
     dvNo: "",
@@ -24,21 +25,24 @@ export default function DisbursementPage() {
     amount: "",
   });
 
-  // Fetch Offices + Expenses
+  // Fetch Offices, Expenses, Budgets
   useEffect(() => {
     async function loadData() {
       try {
-        const [officeRes, expenseRes] = await Promise.all([
+        const [officeRes, expenseRes, budgetRes] = await Promise.all([
           fetch("/api/offices"),
           fetch("/api/expenses"),
+          fetch("/api/addbudget"), // ✅ fetch allocated budgets
         ]);
         const officeData = await officeRes.json();
         const expenseData = await expenseRes.json();
+        const budgetData = await budgetRes.json();
 
         setOffices(officeData.map((o: any) => o.name));
         setExpenses(expenseData.map((e: any) => ({ type: e.type, category: e.category })));
+        setBudgets(budgetData);
       } catch (err) {
-        console.error("Failed to fetch office/expense:", err);
+        console.error("Failed to fetch data:", err);
       }
     }
     loadData();
@@ -78,10 +82,16 @@ export default function DisbursementPage() {
     });
   };
 
-  // Save or update
+  // ✅ Check if office has a budget before saving
   const handleSave = async () => {
     if (!formData.dvNo || !formData.payee || !formData.office || !formData.expenseType || !formData.amount) {
       alert("Please fill all required fields");
+      return;
+    }
+
+    const officeHasBudget = budgets.some((b) => b.office === formData.office);
+    if (!officeHasBudget) {
+      alert(`This office has no allocated budget. Please add one first before recording disbursement.`);
       return;
     }
 
@@ -148,7 +158,6 @@ export default function DisbursementPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-3">
         <div className="flex flex-col md:flex-row items-center gap-2">
-          {/* Search */}
           <div className="relative">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
             <input
@@ -160,7 +169,6 @@ export default function DisbursementPage() {
             />
           </div>
 
-          {/* Office Filter */}
           <select
             value={filterOffice}
             onChange={(e) => setFilterOffice(e.target.value)}
@@ -174,7 +182,6 @@ export default function DisbursementPage() {
             ))}
           </select>
 
-          {/* Expense Type Filter */}
           <select
             value={filterExpense}
             onChange={(e) => setFilterExpense(e.target.value)}
@@ -188,7 +195,6 @@ export default function DisbursementPage() {
             ))}
           </select>
 
-          {/* Category Filter */}
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
@@ -203,7 +209,6 @@ export default function DisbursementPage() {
           </select>
         </div>
 
-        {/* Add Button */}
         <button
           onClick={handleAdd}
           className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
@@ -236,7 +241,7 @@ export default function DisbursementPage() {
                   <td className="px-6 py-3">{d.office}</td>
                   <td className="px-6 py-3">{d.expenseType}</td>
                   <td className="px-6 py-3">{d.expenseCategory}</td>
-                  <td className="px-6 py-3">{d.amount}</td>
+                  <td className="px-6 py-3">₱{parseFloat(d.amount).toLocaleString()}</td>
                   <td className="px-6 py-3">{new Date(d.dateCreated).toLocaleDateString()}</td>
                   <td className="px-6 py-3 text-center space-x-2">
                     <button onClick={() => handleEdit(d.id)} className="text-blue-600 hover:text-blue-800">
@@ -288,6 +293,7 @@ export default function DisbursementPage() {
               onChange={(e) => setFormData({ ...formData, dvNo: e.target.value })}
               className="border rounded-md p-2 w-full"
             />
+
             <input
               type="text"
               placeholder="Payee"
