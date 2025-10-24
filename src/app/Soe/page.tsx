@@ -166,35 +166,80 @@ export default function SoePage() {
               <th rowSpan={2} className="px-4 py-2 border border-gray-300 align-middle">
                 Particulars
               </th>
-              <th colSpan={4} className="px-4 py-2 border border-gray-300">
+              <th colSpan={4} className="px-4 py-2 border border-gray-300 bg-blue-500 text-white font-semibold">
                 Budget Appropriation
               </th>
-              <th colSpan={4} className="px-4 py-2 border border-gray-300">
+              <th colSpan={4} className="px-4 py-2 border border-gray-300 bg-blue-500 text-white font-semibold">
                 Actual Expenditure
               </th>
-              <th colSpan={4} className="px-4 py-2 border border-gray-300">
+              <th colSpan={4} className="px-4 py-2 border border-gray-300 bg-blue-500 text-white font-semibold">
                 Variance
               </th>
             </tr>
-            <tr className="bg-gray-50 border-b border-gray-300">
-              {["PS", "MOOE", "CO", "Total"].map((h) => (
-                <th key={h} className="px-3 py-2 border border-gray-300">
-                  {h}
-                </th>
-              ))}
-              {["PS", "MOOE", "CO", "Total"].map((h) => (
-                <th key={h} className="px-3 py-2 border border-gray-300">
-                  {h}
-                </th>
-              ))}
-              {["PS", "MOOE", "CO", "Total"].map((h) => (
-                <th key={h} className="px-3 py-2 border border-gray-300">
-                  {h}
-                </th>
-              ))}
-            </tr>
+            <tr className="border-b border-gray-300 text-white">
+  {/* Budget Appropriation */}
+  <>
+    {["PS", "MOOE", "CO", "Total"].map((h) => (
+      <th
+        key={`budget-${h}`}
+        className={`px-3 py-2 border border-gray-300 ${
+          h === "PS"
+            ? "bg-blue-600"
+            : h === "MOOE"
+            ? "bg-green-600"
+            : h === "CO"
+            ? "bg-yellow-600"
+            : "bg-indigo-600"
+        }`}
+      >
+        {h}
+      </th>
+    ))}
+  </>
+
+  {/* Actual Expenditure */}
+  <>
+    {["PS", "MOOE", "CO", "Total"].map((h) => (
+      <th
+        key={`actual-${h}`}
+        className={`px-3 py-2 border border-gray-300 ${
+          h === "PS"
+            ? "bg-blue-600"
+            : h === "MOOE"
+            ? "bg-green-600"
+            : h === "CO"
+            ? "bg-yellow-600"
+            : "bg-indigo-600"
+        }`}
+      >
+        {h}
+      </th>
+    ))}
+  </>
+
+  {/* Variance */}
+  <>
+    {["PS", "MOOE", "CO", "Total"].map((h) => (
+      <th
+        key={`variance-${h}`}
+        className={`px-3 py-2 border border-gray-300 ${
+          h === "PS"
+            ? "bg-blue-600"
+            : h === "MOOE"
+            ? "bg-green-600"
+            : h === "CO"
+            ? "bg-yellow-600"
+            : "bg-indigo-600"
+        }`}
+      >
+        {h}
+      </th>
+    ))}
+  </>
+</tr>
+
           </thead>
-          <tbody>
+<tbody>
   {loading ? (
     <tr>
       <td colSpan={13} className="py-6 text-gray-500 italic">
@@ -218,26 +263,56 @@ export default function SoePage() {
     <>
       {data.map((row, i) => (
         <tr key={i} className="hover:bg-gray-50">
-          <td className="border border-gray-300 px-3 py-2 font-medium">{row.office}</td>
-          <td className="border border-gray-300 px-3 py-2">{formatPeso(row.budget.ps)}</td>
-          <td className="border border-gray-300 px-3 py-2">{formatPeso(row.budget.mooe)}</td>
-          <td className="border border-gray-300 px-3 py-2">{formatPeso(row.budget.co)}</td>
-          <td className="border border-gray-300 px-3 py-2 font-semibold">{formatPeso(row.budget.total)}</td>
+          <td className="border border-gray-300 px-3 py-2 font-medium">
+            {row.office}
+          </td>
 
-          <td className="border border-gray-300 px-3 py-2">{formatPeso(row.actual.ps)}</td>
-          <td className="border border-gray-300 px-3 py-2">{formatPeso(row.actual.mooe)}</td>
-          <td className="border border-gray-300 px-3 py-2">{formatPeso(row.actual.co)}</td>
-          <td className="border border-gray-300 px-3 py-2 font-semibold">{formatPeso(row.actual.total)}</td>
+          {/* Budget */}
+          <td className="border border-gray-300 px-3 py-2">
+            {formatPeso(row.budget.ps)}
+          </td>
+          <td className="border border-gray-300 px-3 py-2">
+            {formatPeso(row.budget.mooe)}
+          </td>
+          <td className="border border-gray-300 px-3 py-2">
+            {formatPeso(row.budget.co)}
+          </td>
+          <td className="border border-gray-300 px-3 py-2 font-semibold bg-indigo-100">
+            {formatPeso(row.budget.total)}
+          </td>
 
-          <td className="border border-gray-300 px-3 py-2 text-red-600">{formatPeso(row.variance.ps)}</td>
-          <td className="border border-gray-300 px-3 py-2 text-red-600">{formatPeso(row.variance.mooe)}</td>
-          <td className="border border-gray-300 px-3 py-2 text-red-600">{formatPeso(row.variance.co)}</td>
-          <td className="border border-gray-300 px-3 py-2 font-bold text-red-600">{formatPeso(row.variance.total)}</td>
+          {/* Actual */}
+          <td className="border border-gray-300 px-3 py-2">
+            {formatPeso(row.actual.ps)}
+          </td>
+          <td className="border border-gray-300 px-3 py-2">
+            {formatPeso(row.actual.mooe)}
+          </td>
+          <td className="border border-gray-300 px-3 py-2">
+            {formatPeso(row.actual.co)}
+          </td>
+          <td className="border border-gray-300 px-3 py-2 font-semibold bg-indigo-100">
+            {formatPeso(row.actual.total)}
+          </td>
+
+          {/* Variance */}
+          <td className="border border-gray-300 px-3 py-2 text-red-600">
+            {formatPeso(row.variance.ps)}
+          </td>
+          <td className="border border-gray-300 px-3 py-2 text-red-600">
+            {formatPeso(row.variance.mooe)}
+          </td>
+          <td className="border border-gray-300 px-3 py-2 text-red-600">
+            {formatPeso(row.variance.co)}
+          </td>
+          <td className="border border-gray-300 px-3 py-2 font-bold text-red-600 bg-indigo-100">
+            {formatPeso(row.variance.total)}
+          </td>
         </tr>
       ))}
 
       {/* Totals Row */}
-      <tr className="bg-gray-100 font-semibold">
+      <tr className="bg-indigo-50 font-semibold">
         <td className="border border-gray-300 px-3 py-2">TOTAL</td>
 
         {/* Budget Totals */}
@@ -250,7 +325,7 @@ export default function SoePage() {
         <td className="border border-gray-300 px-3 py-2">
           {formatPeso(data.reduce((sum, r) => sum + r.budget.co, 0))}
         </td>
-        <td className="border border-gray-300 px-3 py-2">
+        <td className="border border-gray-300 px-3 py-2 bg-indigo-300">
           {formatPeso(data.reduce((sum, r) => sum + r.budget.total, 0))}
         </td>
 
@@ -264,7 +339,7 @@ export default function SoePage() {
         <td className="border border-gray-300 px-3 py-2">
           {formatPeso(data.reduce((sum, r) => sum + r.actual.co, 0))}
         </td>
-        <td className="border border-gray-300 px-3 py-2">
+        <td className="border border-gray-300 px-3 py-2 bg-indigo-300">
           {formatPeso(data.reduce((sum, r) => sum + r.actual.total, 0))}
         </td>
 
@@ -278,13 +353,14 @@ export default function SoePage() {
         <td className="border border-gray-300 px-3 py-2 text-red-600">
           {formatPeso(data.reduce((sum, r) => sum + r.variance.co, 0))}
         </td>
-        <td className="border border-gray-300 px-3 py-2 text-red-600">
+        <td className="border border-gray-300 px-3 py-2 text-red-600 bg-indigo-300">
           {formatPeso(data.reduce((sum, r) => sum + r.variance.total, 0))}
         </td>
       </tr>
     </>
   )}
 </tbody>
+
 
         </table>
       </div>
