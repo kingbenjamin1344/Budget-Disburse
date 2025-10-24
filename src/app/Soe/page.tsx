@@ -164,7 +164,7 @@ export default function SoePage() {
           <thead>
             <tr className="bg-gray-100 border-b border-gray-300">
               <th rowSpan={2} className="px-4 py-2 border border-gray-300 align-middle">
-                Office
+                Particulars
               </th>
               <th colSpan={4} className="px-4 py-2 border border-gray-300">
                 Budget Appropriation
@@ -195,47 +195,97 @@ export default function SoePage() {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={13} className="py-6 text-gray-500 italic">
-                  Loading data...
-                </td>
-              </tr>
-            ) : data.length === 0 ? (
-              <tr className="h-48">
-                <td colSpan={13} className="text-gray-500 italic p-0">
-                  <div className="flex flex-col items-center justify-center h-full w-full">
-                    <img
-                      src="/img/add.png"
-                      alt="No data"
-                      className="mb-2 max-w-[200px] h-auto object-contain"
-                    />
-                    <span>No disbursement records found.</span>
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              data.map((row, i) => (
-                <tr key={i} className="hover:bg-gray-50">
-                  <td className="border border-gray-300 px-3 py-2 font-medium">{row.office}</td>
-                  <td className="border border-gray-300 px-3 py-2">{formatPeso(row.budget.ps)}</td>
-                  <td className="border border-gray-300 px-3 py-2">{formatPeso(row.budget.mooe)}</td>
-                  <td className="border border-gray-300 px-3 py-2">{formatPeso(row.budget.co)}</td>
-                  <td className="border border-gray-300 px-3 py-2 font-semibold">{formatPeso(row.budget.total)}</td>
+  {loading ? (
+    <tr>
+      <td colSpan={13} className="py-6 text-gray-500 italic">
+        Loading data...
+      </td>
+    </tr>
+  ) : data.length === 0 ? (
+    <tr className="h-48">
+      <td colSpan={13} className="text-gray-500 italic p-0">
+        <div className="flex flex-col items-center justify-center h-full w-full">
+          <img
+            src="/img/add.png"
+            alt="No data"
+            className="mb-2 max-w-[200px] h-auto object-contain"
+          />
+          <span>No disbursement records found.</span>
+        </div>
+      </td>
+    </tr>
+  ) : (
+    <>
+      {data.map((row, i) => (
+        <tr key={i} className="hover:bg-gray-50">
+          <td className="border border-gray-300 px-3 py-2 font-medium">{row.office}</td>
+          <td className="border border-gray-300 px-3 py-2">{formatPeso(row.budget.ps)}</td>
+          <td className="border border-gray-300 px-3 py-2">{formatPeso(row.budget.mooe)}</td>
+          <td className="border border-gray-300 px-3 py-2">{formatPeso(row.budget.co)}</td>
+          <td className="border border-gray-300 px-3 py-2 font-semibold">{formatPeso(row.budget.total)}</td>
 
-                  <td className="border border-gray-300 px-3 py-2">{formatPeso(row.actual.ps)}</td>
-                  <td className="border border-gray-300 px-3 py-2">{formatPeso(row.actual.mooe)}</td>
-                  <td className="border border-gray-300 px-3 py-2">{formatPeso(row.actual.co)}</td>
-                  <td className="border border-gray-300 px-3 py-2 font-semibold">{formatPeso(row.actual.total)}</td>
+          <td className="border border-gray-300 px-3 py-2">{formatPeso(row.actual.ps)}</td>
+          <td className="border border-gray-300 px-3 py-2">{formatPeso(row.actual.mooe)}</td>
+          <td className="border border-gray-300 px-3 py-2">{formatPeso(row.actual.co)}</td>
+          <td className="border border-gray-300 px-3 py-2 font-semibold">{formatPeso(row.actual.total)}</td>
 
-                  <td className="border border-gray-300 px-3 py-2 text-red-600">{formatPeso(row.variance.ps)}</td>
-                  <td className="border border-gray-300 px-3 py-2 text-red-600">{formatPeso(row.variance.mooe)}</td>
-                  <td className="border border-gray-300 px-3 py-2 text-red-600">{formatPeso(row.variance.co)}</td>
-                  <td className="border border-gray-300 px-3 py-2 font-bold text-red-600">{formatPeso(row.variance.total)}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
+          <td className="border border-gray-300 px-3 py-2 text-red-600">{formatPeso(row.variance.ps)}</td>
+          <td className="border border-gray-300 px-3 py-2 text-red-600">{formatPeso(row.variance.mooe)}</td>
+          <td className="border border-gray-300 px-3 py-2 text-red-600">{formatPeso(row.variance.co)}</td>
+          <td className="border border-gray-300 px-3 py-2 font-bold text-red-600">{formatPeso(row.variance.total)}</td>
+        </tr>
+      ))}
+
+      {/* Totals Row */}
+      <tr className="bg-gray-100 font-semibold">
+        <td className="border border-gray-300 px-3 py-2">TOTAL</td>
+
+        {/* Budget Totals */}
+        <td className="border border-gray-300 px-3 py-2">
+          {formatPeso(data.reduce((sum, r) => sum + r.budget.ps, 0))}
+        </td>
+        <td className="border border-gray-300 px-3 py-2">
+          {formatPeso(data.reduce((sum, r) => sum + r.budget.mooe, 0))}
+        </td>
+        <td className="border border-gray-300 px-3 py-2">
+          {formatPeso(data.reduce((sum, r) => sum + r.budget.co, 0))}
+        </td>
+        <td className="border border-gray-300 px-3 py-2">
+          {formatPeso(data.reduce((sum, r) => sum + r.budget.total, 0))}
+        </td>
+
+        {/* Actual Totals */}
+        <td className="border border-gray-300 px-3 py-2">
+          {formatPeso(data.reduce((sum, r) => sum + r.actual.ps, 0))}
+        </td>
+        <td className="border border-gray-300 px-3 py-2">
+          {formatPeso(data.reduce((sum, r) => sum + r.actual.mooe, 0))}
+        </td>
+        <td className="border border-gray-300 px-3 py-2">
+          {formatPeso(data.reduce((sum, r) => sum + r.actual.co, 0))}
+        </td>
+        <td className="border border-gray-300 px-3 py-2">
+          {formatPeso(data.reduce((sum, r) => sum + r.actual.total, 0))}
+        </td>
+
+        {/* Variance Totals */}
+        <td className="border border-gray-300 px-3 py-2 text-red-600">
+          {formatPeso(data.reduce((sum, r) => sum + r.variance.ps, 0))}
+        </td>
+        <td className="border border-gray-300 px-3 py-2 text-red-600">
+          {formatPeso(data.reduce((sum, r) => sum + r.variance.mooe, 0))}
+        </td>
+        <td className="border border-gray-300 px-3 py-2 text-red-600">
+          {formatPeso(data.reduce((sum, r) => sum + r.variance.co, 0))}
+        </td>
+        <td className="border border-gray-300 px-3 py-2 text-red-600">
+          {formatPeso(data.reduce((sum, r) => sum + r.variance.total, 0))}
+        </td>
+      </tr>
+    </>
+  )}
+</tbody>
+
         </table>
       </div>
     </div>

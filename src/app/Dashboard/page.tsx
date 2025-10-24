@@ -129,6 +129,9 @@ export default function DashboardPage() {
           </div>
         </div>
 
+
+
+
         {/* Expense Types */}
         <div className="bg-white shadow rounded-xl p-6 flex flex-col justify-between">
           <div className="flex items-center justify-between">
