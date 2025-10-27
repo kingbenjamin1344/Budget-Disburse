@@ -235,24 +235,24 @@ export default function DisbursementPage() {
           </thead>
           <tbody>
             {filtered.length > 0 ? (
-              filtered.map((d) => (
-                <tr key={d.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-3">{d.dvNo}</td>
-                  <td className="px-6 py-3">{d.payee}</td>
-                  <td className="px-6 py-3">{d.office}</td>
-                  <td className="px-6 py-3">{d.expenseType}</td>
-                  <td className="px-6 py-3">{d.expenseCategory}</td>
-                  <td className="px-6 py-3">₱{parseFloat(d.amount).toLocaleString()}</td>
-                  <td className="px-6 py-3">{new Date(d.dateCreated).toLocaleDateString()}</td>
-                  <td className="px-6 py-3 text-center space-x-2">
-                    <button onClick={() => handleEdit(d.id)} className="text-blue-600 hover:text-blue-800">
-                      <Edit className="w-4 h-4 inline" />
-                    </button>
-                    <button onClick={() => handleDelete(d.id)} className="text-red-600 hover:text-red-800">
-                      <Trash2 className="w-4 h-4 inline" />
-                    </button>
-                  </td>
-                </tr>
+    filtered.map((d) => (
+      <tr key={d.id} className="border-b hover:bg-gray-200">
+        <td className="px-6 py-3">{d.dvNo}</td>
+        <td className="px-6 py-3">{d.payee}</td>
+        <td className="px-6 py-3">{d.office}</td>
+        <td className="px-6 py-3">{d.expenseType}</td>
+        <td className="px-6 py-3">{d.expenseCategory}</td>
+        <td className="px-6 py-3">₱{parseFloat(d.amount).toLocaleString()}</td>
+        <td className="px-6 py-3">{new Date(d.dateCreated).toLocaleDateString()}</td>
+        <td className="px-6 py-3 text-center space-x-2">
+          <button onClick={() => handleEdit(d.id)} className="text-blue-600 hover:text-blue-800">
+            <Edit className="w-4 h-4 inline" />
+          </button>
+          <button onClick={() => handleDelete(d.id)} className="text-red-600 hover:text-red-800">
+            <Trash2 className="w-4 h-4 inline" />
+          </button>
+        </td>
+      </tr>
               ))
             ) : (
               <tr>

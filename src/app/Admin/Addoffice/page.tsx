@@ -141,7 +141,7 @@ export default function AddOfficePage() {
 
             ) : (
               filteredOffices.map((office) => (
-                <tr key={office.id} className="border-b">
+                <tr key={office.id} className="border-b hover:bg-gray-200">
                   <td className="px-6 py-3 text-gray-700">{office.name}</td>
                   <td className="px-6 py-3 text-gray-700">
                     {new Date(office.dateCreated).toLocaleDateString()}

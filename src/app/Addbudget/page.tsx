@@ -193,7 +193,7 @@ export default function AddBudgetPage() {
               </tr>
             ) : (
               filteredBudgets.map((b, i) => (
-                <tr key={b.id} className="border-b">
+                <tr key={b.id} className="border-b hover:bg-gray-200">
                   <td className="px-6 py-3">{b.office}</td>
                   <td className="px-6 py-3">₱{b.ps.toLocaleString()}</td>
                   <td className="px-6 py-3">₱{b.mooe.toLocaleString()}</td>

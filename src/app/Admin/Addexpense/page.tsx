@@ -168,7 +168,7 @@ export default function AddExpensePage() {
               </tr>
             ) : (
               filteredExpenses.map((expense) => (
-                <tr key={expense.id} className="border-b">
+                <tr key={expense.id} className="border-b hover:bg-gray-200">
                   <td className="px-6 py-3 text-gray-700">{expense.type}</td>
                   <td className="px-6 py-3 text-gray-700">{expense.category}</td>
                   <td className="px-6 py-3 text-gray-700">
