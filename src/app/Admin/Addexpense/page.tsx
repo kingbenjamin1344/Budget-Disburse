@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, Plus, Edit2 } from "lucide-react";
+import { Search, Plus, Edit, Trash2 } from "lucide-react";
 
 export default function AddExpensePage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -175,19 +175,18 @@ export default function AddExpensePage() {
                     {new Date(expense.dateCreated).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-3 text-center text-gray-700">
-                    <div className="flex justify-center items-center space-x-3">
+                    <div className="px-6 py-3 text-center space-x-2">
                       <button
                         onClick={() => handleEdit(expense)}
-                        className="text-blue-500 hover:underline flex items-center space-x-1"
+                        className="text-blue-500 hover:text-blue-700 transition"
                       >
-                        <Edit2 className="w-4 h-4" />
-                        <span>Edit</span>
+                        <Edit className="w-4 h-4 inline" />
                       </button>
                       <button
                         onClick={() => handleDelete(expense.id)}
-                        className="text-red-500 hover:underline"
+                        className="text-red-500 hover:text-red-700 transition"
                       >
-                        Delete
+                         <Trash2 className="w-4 h-4 inline" />
                       </button>
                     </div>
                   </td>

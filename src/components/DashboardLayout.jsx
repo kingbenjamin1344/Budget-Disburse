@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import LogoutModal from "@/components/LogoutModal";
 
 import { useRouter, usePathname } from "next/navigation";
@@ -38,10 +38,49 @@ export default function DashboardLayout({ children }) {
   ];
 
   const handleLogout = () => {
-    localStorage.removeItem("token"); // Adjust if you store session differently
-    router.push("/login");
+    // Clear any client-side token (if used) and perform a full navigation
+    // to the logout endpoint so the server can clear the auth cookie.
+    try {
+      localStorage.removeItem("token"); // Adjust if you store session differently
+    } catch (e) {
+      /* ignore */
+    }
+
+    // Use full navigation so the browser receives the Set-Cookie from the server
+    // and then the server/client will redirect to /login.
+    if (typeof window !== 'undefined') {
+      window.location.href = '/logout';
+    } else {
+      router.push('/logout');
+    }
   };
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  // Client-side guard: verify auth on mount and when pathname changes.
+  // If unauthorized, force a full navigation to /login so middleware and
+  // server-side guards take effect.
+  useEffect(() => {
+    let isMounted = true;
+    const checkAuth = async () => {
+      try {
+        const res = await fetch('/api/auth/check', { method: 'GET', credentials: 'include' });
+        if (!isMounted) return;
+        if (!res.ok) {
+          // Force full navigation to ensure cookie changes are considered
+          window.location.href = '/login';
+        }
+      } catch (e) {
+        if (!isMounted) return;
+        window.location.href = '/login';
+      }
+    };
+
+    checkAuth();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [pathname]);
 
 
   return (

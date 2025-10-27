@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Search, Plus, Edit2 } from "lucide-react";
+import { Search, Plus, Edit, Trash2 } from "lucide-react";
 
 export default function AddOfficePage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -150,16 +150,15 @@ export default function AddOfficePage() {
                     <div className="flex justify-center items-center space-x-4">
                       <button
                         onClick={() => handleEdit(office)}
-                        className="flex items-center text-blue-500 hover:underline space-x-1"
+                        className="text-blue-500 hover:text-blue-700 transition"
                       >
-                        <Edit2 className="w-4 h-4" />
-                        <span>Edit</span>
+                        <Edit className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(office.id)}
-                        className="text-red-500 hover:underline"
+                        className="text-red-500 hover:text-red-700 transition"
                       >
-                        Delete
+                       <Trash2 className="w-4 h-4 inline" />
                       </button>
                     </div>
                   </td>

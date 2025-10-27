@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Search, Plus, X } from "lucide-react";
+import { Search, Plus, X, Edit, Trash2} from "lucide-react";
 
 export default function AddBudgetPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -202,20 +202,23 @@ export default function AddBudgetPage() {
                     ₱{b.total.toLocaleString()}
                   </td>
                   <td className="px-6 py-3">{b.dateCreated}</td>
-                  <td className="px-6 py-3 text-center">
-                    <button
-                      onClick={() => handleEdit(i)}
-                      className="text-blue-500 hover:underline mr-2"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(i)}
-                      className="text-red-500 hover:underline"
-                    >
-                      Delete
-                    </button>
-                  </td>
+                    <td className="px-6 py-3 text-center space-x-2">
+                          <button
+                          onClick={() => handleEdit(i)}
+                          className="text-blue-500 hover:text-blue-700 transition"
+                          title="Edit"
+                        >
+                          <Edit className="w-4 h-4 inline" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(i)}
+                          className="text-red-500 hover:text-red-700 transition"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4 inline" />
+                        </button>
+                     </td>
+                     
                 </tr>
               ))
             )}

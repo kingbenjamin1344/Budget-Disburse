@@ -14,7 +14,7 @@ export default function DisbursementPage() {
   const [disbursements, setDisbursements] = useState<any[]>([]);
   const [offices, setOffices] = useState<string[]>([]);
   const [expenses, setExpenses] = useState<{ type: string; category: string }[]>([]);
-  const [budgets, setBudgets] = useState<any[]>([]); // ✅ store budgets from AddBudget
+  const [budgets, setBudgets] = useState<any[]>([]); 
 
   const [formData, setFormData] = useState({
     dvNo: "",
@@ -32,7 +32,7 @@ export default function DisbursementPage() {
         const [officeRes, expenseRes, budgetRes] = await Promise.all([
           fetch("/api/offices"),
           fetch("/api/expenses"),
-          fetch("/api/addbudget"), // ✅ fetch allocated budgets
+          fetch("/api/addbudget"), 
         ]);
         const officeData = await officeRes.json();
         const expenseData = await expenseRes.json();
