@@ -109,7 +109,7 @@ export default function AddOfficePage() {
         <table className="min-w-full border-collapse">
           <thead
             className="text-white border-b bg-cover bg-center"
-            style={{ backgroundImage: "url('/img/site.jpg')" }}
+            style={{ backgroundImage: "url('/img/blue.jpg')" }}
           >
 
             <tr>

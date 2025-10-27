@@ -218,9 +218,10 @@ export default function DisbursementPage() {
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-lg bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-lg bg-white shadow-sm " >
         <table className="min-w-full border-collapse">
-          <thead className="bg-gray-100 border-b">
+          <thead className="bg-gray-100 text-gray-700 border-b text-white border-b bg-cover bg-center"  
+            style={{ backgroundImage: "url('/img/blue.jpg')" }} >
             <tr>
               <th className="px-6 py-3 text-left">DV No.</th>
               <th className="px-6 py-3 text-left">Payee</th>

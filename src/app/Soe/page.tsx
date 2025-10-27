@@ -313,7 +313,7 @@ export default function SoePage() {
 
       {/* Totals Row */}
       <tr className="bg-indigo-50 font-semibold">
-        <td className="border border-gray-300 px-3 py-2">TOTAL</td>
+        <td className="border border-gray-300 px-3 py-2">Overall Total</td>
 
         {/* Budget Totals */}
         <td className="border border-gray-300 px-3 py-2">

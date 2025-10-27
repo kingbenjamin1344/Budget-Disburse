@@ -160,9 +160,10 @@ export default function AddBudgetPage() {
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto bg-white shadow-sm rounded-lg">
-        <table className="min-w-full border-collapse">
-          <thead className="bg-gray-100 text-gray-700 border-b">
+      <div className="overflow-x-auto bg-white shadow-sm rounded-lg" >
+        <table className="min-w-full border-collapse" >
+          <thead className="bg-gray-100 text-gray-700 border-b text-white border-b bg-cover bg-center"  
+            style={{ backgroundImage: "url('/img/blue.jpg')" }} >
             <tr>
               <th className="px-6 py-3 text-left font-semibold">Office</th>
               <th className="px-6 py-3 text-left font-semibold">PS</th>

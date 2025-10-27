@@ -140,9 +140,11 @@ export default function AddExpensePage() {
       </div>
 
       {/* Expense Table */}
-      <div className="overflow-x-auto rounded-lg bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-lg bg-white shadow-sm bg-cover bg-center" >
         <table className="min-w-full border-collapse">
-          <thead className="bg-gray-100 text-gray-700 border-b">
+          <thead className="bg-gray-100 text-gray-700 border-b text-white border-b bg-cover bg-center"  
+            style={{ backgroundImage: "url('/img/blue.jpg')" }}
+            >
             <tr>
               <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">Type of Expense</th>
               <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">Category</th>
