@@ -176,7 +176,7 @@ export default function AddExpensePage() {
                     {new Date(expense.dateCreated).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-1 text-center text-gray-700">
-                    <div className="px-6 py-2 text-center space-x-">
+                    <div className="px-6 py-2 text-center space-x-2">
                       <button
                         onClick={() => handleEdit(expense)}
                         className="text-blue-500 hover:text-blue-700 transition"
