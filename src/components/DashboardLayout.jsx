@@ -103,7 +103,7 @@ export default function DashboardLayout({ children }) {
           className={`relative fixed md:static z-20 top-16 left-0 h-full p-4 flex flex-col justify-between transition-all duration-300
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
           ${sidebarMini ? "w-20" : "w-64"}`}
-          style={{ backgroundColor: "#0a1448" }}
+          style={{ backgroundColor: "#0b1a44ff" }}
         >
           <nav className="flex-1 space-y-1">
             {/* ADMIN DROPDOWN */}
