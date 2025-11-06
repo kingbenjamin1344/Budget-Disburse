@@ -18,11 +18,26 @@ type Expense = {
   dateCreated: string;
 };
 
+type Budget = {
+  id: number;
+  office: string;
+  ps: number;
+  mooe: number;
+  co: number;
+  total: number;
+  dateCreated: string;
+};
+
+type Disbursement = {
+  id: number;
+  amount: number;
+};
+
 export default function DashboardPage() {
-  // ---- DYNAMIC STATES ----
   const [stats, setStats] = useState({
     offices: 0,
     totalBudget: { ps: 0, mooe: 0, co: 0 },
+    totalExpenditure: 0,
     expenseTypes: 0,
     expenseCounts: { ps: 0, mooe: 0, co: 0 },
   });
@@ -35,7 +50,7 @@ export default function DashboardPage() {
 
   const [expenses, setExpenses] = useState<Expense[]>([]);
 
-  // ---- FETCH DATA ----
+  // === FETCH OFFICES ===
   const fetchOffices = async () => {
     try {
       const res = await fetch("/api/offices");
@@ -46,13 +61,49 @@ export default function DashboardPage() {
     }
   };
 
+  // === FETCH BUDGETS (TOTAL PS/MOOE/CO) ===
+  const fetchBudgets = async () => {
+    try {
+      const res = await fetch("/api/addbudget");
+      const data: Budget[] = await res.json();
+
+      const totalPS = data.reduce((sum, b) => sum + (b.ps || 0), 0);
+      const totalMOOE = data.reduce((sum, b) => sum + (b.mooe || 0), 0);
+      const totalCO = data.reduce((sum, b) => sum + (b.co || 0), 0);
+
+      setStats((prev) => ({
+        ...prev,
+        totalBudget: { ps: totalPS, mooe: totalMOOE, co: totalCO },
+      }));
+    } catch (error) {
+      console.error("Failed to fetch budgets:", error);
+    }
+  };
+
+  // === FETCH DISBURSEMENTS (ACTUAL EXPENDITURE) ===
+  const fetchDisbursements = async () => {
+    try {
+      const res = await fetch("/api/disbursement");
+      const data: Disbursement[] = await res.json();
+
+      const totalExpenditure = data.reduce(
+        (sum, d) => sum + (d.amount || 0),
+        0
+      );
+
+      setStats((prev) => ({ ...prev, totalExpenditure }));
+    } catch (error) {
+      console.error("Failed to fetch disbursements:", error);
+    }
+  };
+
+  // === FETCH EXPENSES ===
   const fetchExpenses = async () => {
     try {
       const res = await fetch("/api/expenses");
       const data: Expense[] = await res.json();
       setExpenses(data);
 
-      // Count expense types
       const psCount = data.filter((e) => e.category === "PS").length;
       const mooeCount = data.filter((e) => e.category === "MOOE").length;
       const coCount = data.filter((e) => e.category === "CO").length;
@@ -67,32 +118,36 @@ export default function DashboardPage() {
     }
   };
 
+  // === UPDATE CHART WHENEVER STATS CHANGE ===
+  useEffect(() => {
+    const totalBudgetSum =
+      stats.totalBudget.ps + stats.totalBudget.mooe + stats.totalBudget.co;
+    const variance = totalBudgetSum - stats.totalExpenditure;
+
+    setChartData([
+      { name: "Budget Appropriation", value: totalBudgetSum },
+      { name: "Actual Expenditure", value: stats.totalExpenditure },
+      { name: "Variance", value: variance > 0 ? variance : 0 },
+    ]);
+  }, [stats.totalBudget, stats.totalExpenditure]);
+
   useEffect(() => {
     fetchOffices();
+    fetchBudgets();
     fetchExpenses();
+    fetchDisbursements(); // ✅ fetch actual expenditure
   }, []);
-
-  // ---- DELETE EXPENSE ----
-  const handleDeleteExpense = async (id: number) => {
-    if (!confirm("Are you sure you want to delete this expense?")) return;
-
-    try {
-      await fetch("/api/expenses", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
-      fetchExpenses(); // refresh after delete
-    } catch (error) {
-      console.error("Failed to delete expense:", error);
-    }
-  };
 
   const COLORS = ["#2563eb", "#22c55e", "#f59e0b"];
 
-  // ---- FORMAT HELPERS ----
   const currency = (val: number) =>
-    new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(val);
+    new Intl.NumberFormat("en-PH", {
+      style: "currency",
+      currency: "PHP",
+    }).format(val);
+
+  const totalBudgetSum =
+    stats.totalBudget.ps + stats.totalBudget.mooe + stats.totalBudget.co;
 
   return (
     <div className="space-y-8">
@@ -100,103 +155,85 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Offices */}
         <div className="bg-gradient-to-r from-[#1e3a8a] to-[#0f172a] text-white rounded-xl p-6 relative overflow-hidden shadow-md">
-  {/* Value and Label */}
-  <div className="flex flex-col justify-center h-full">
-    <p className="text-3xl font-semibold">{stats.offices}</p>
-    <p className="text-sm text-white/80 mt-1">Number of Offices</p>
-  </div>
+          <div className="flex flex-col justify-center h-full">
+            <p className="text-3xl font-semibold">{stats.offices}</p>
+            <p className="text-sm text-white/80 mt-1">Number of Offices</p>
+          </div>
+          <div className="absolute top-1/2 right-6 transform -translate-y-1/2 bg-white/20 p-3 rounded-full">
+            <Building2 size={32} className="text-white" />
+          </div>
+        </div>
 
-  {/* Icon on the right */}
-  <div className="absolute top-1/2 right-6 transform -translate-y-1/2 bg-white/20 p-3 rounded-full">
-    <Building2 size={32} className="text-white" />
-  </div>
-
-
-</div>
-
-{/* Expense Types */}
-<div className="bg-gradient-to-r from-[#1e3a8a] to-[#0f172a] text-white rounded-xl p-6 relative overflow-hidden shadow-md">
-  {/* Centered Value and Label */}
-  <div className="flex flex-col justify-center h-full">
-    <p className="text-3xl font-semibold">{stats.expenseTypes}</p>
-    <p className="text-sm text-white/80 mt-1">Number of Expense Types</p>
-  </div>
-
-  {/* Icon on the right */}
-  <div className="absolute top-1/2 right-6 transform -translate-y-1/2 bg-white/20 p-3 rounded-full">
-    <BarChart3 size={32} className="text-white" />
-  </div>
-
-  
-</div>
-
+        {/* Expense Types */}
+        <div className="bg-gradient-to-r from-[#1e3a8a] to-[#0f172a] text-white rounded-xl p-6 relative overflow-hidden shadow-md">
+          <div className="flex flex-col justify-center h-full">
+            <p className="text-3xl font-semibold">{stats.expenseTypes}</p>
+            <p className="text-sm text-white/80 mt-1">Number of Expense Types</p>
+          </div>
+          <div className="absolute top-1/2 right-6 transform -translate-y-1/2 bg-white/20 p-3 rounded-full">
+            <BarChart3 size={32} className="text-white" />
+          </div>
+        </div>
 
         {/* Total Budget */}
-        <div className="bg-white shadow rounded-xl p-6 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <h2 className="text-gray-600 font-medium">Overall Total Budget</h2>
-            <Wallet className="text-green-500" size={26} />
+        <div className="bg-gradient-to-r from-[#1e3a8a] to-[#0f172a] text-white rounded-xl p-6 relative overflow-hidden shadow-md">
+          <div className="flex flex-col justify-center h-full">
+            <p className="text-2xl font-semibold">{currency(totalBudgetSum)}</p>
+            <p className="text-sm text-white/80 mt-1">Overall Total Budget</p>
           </div>
-          <div className="text-sm mt-2 text-gray-600">
-            <p>PS: {currency(stats.totalBudget.ps)}</p>
-            <p>MOOE: {currency(stats.totalBudget.mooe)}</p>
-            <p>CO: {currency(stats.totalBudget.co)}</p>
-            <hr className="my-1" />
-            <p className="font-semibold text-gray-800">
-              Total:{" "}
-              {currency(
-                stats.totalBudget.ps +
-                  stats.totalBudget.mooe +
-                  stats.totalBudget.co
-              )}
+          <div className="absolute top-1/2 right-6 transform -translate-y-1/2 bg-white/20 p-3 rounded-full">
+            <Wallet size={32} className="text-white" />
+          </div>
+        </div>
+
+        {/* Actual Expenditure */}
+        <div className="bg-gradient-to-r from-[#1e3a8a] to-[#0f172a] text-white rounded-xl p-6 relative overflow-hidden shadow-md">
+          <div className="flex flex-col justify-center h-full">
+            <p className="text-2xl font-semibold">
+              {currency(stats.totalExpenditure)}
             </p>
+            <p className="text-sm text-white/80 mt-1">Actual Expenditure</p>
           </div>
-        </div>
-
-
-
-
-   
-
-        {/* Chart Preview */}
-        <div className="bg-white shadow rounded-xl p-6 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <h2 className="text-gray-600 font-medium">SOE Overview</h2>
-            <PieChart className="text-indigo-500" size={26} />
+          <div className="absolute top-1/2 right-6 transform -translate-y-1/2 bg-white/20 p-3 rounded-full">
+            <PieChart size={32} className="text-white" />
           </div>
-          <p className="text-sm mt-3 text-gray-500">Chart from SOE</p>
         </div>
       </div>
 
-      {/* === PIE CHART SECTION === */}
+      {/* === PIE CHART === */}
       <div className="bg-white rounded-xl shadow p-6">
-        <h3 className="text-lg font-semibold mb-4 text-gray-700">
-          Budget Appropriation vs Actual Expenditure vs Variance
-        </h3>
-        <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <RePieChart>
-              <Pie
-                data={chartData}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                outerRadius={110}
-                label
-              >
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(value: number) => currency(value)} />
-              <Legend />
-            </RePieChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+  <h3 className="text-lg font-semibold mb-4 text-gray-700">
+    Budget Appropriation - Actual Expenditure = Variance
+  </h3>
+  <div className="h-80">
+    <ResponsiveContainer width="100%" height="100%">
+      <RePieChart>
+       <Pie
+  data={chartData}
+  dataKey="value"
+  nameKey="name"
+  cx="50%"
+  cy="50%"
+  outerRadius={110}
+  label={({ name, value }) =>
+    `${name}: ₱${Number(value || 0).toLocaleString()}`
+  }
+>
+  {chartData.map((entry, index) => (
+    <Cell
+      key={`cell-${index}`}
+      fill={COLORS[index % COLORS.length]}
+    />
+  ))}
+</Pie>
+<Tooltip formatter={(value: number) => `₱${Number(value || 0).toLocaleString()}`} />
 
-      
+        <Legend />
+      </RePieChart>
+    </ResponsiveContainer>
+  </div>
+</div>
+
     </div>
   );
 }

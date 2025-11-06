@@ -25,7 +25,6 @@ export default function DisbursementPage() {
     amount: "",
   });
 
-  // 🟩 Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -72,7 +71,6 @@ export default function DisbursementPage() {
     if (match) setFormData((prev) => ({ ...prev, expenseCategory: match.category }));
   }, [formData.expenseType, expenses]);
 
-  // Open modal
   const handleAdd = () => {
     setShowModal(true);
     setEditingId(null);
@@ -86,22 +84,52 @@ export default function DisbursementPage() {
     });
   };
 
-  // ✅ Check if office has a budget before saving
   const handleSave = async () => {
     if (!formData.dvNo || !formData.payee || !formData.office || !formData.expenseType || !formData.amount) {
       alert("Please fill all required fields");
       return;
     }
 
-    const officeHasBudget = budgets.some((b) => b.office === formData.office);
-    if (!officeHasBudget) {
-      alert(`This office has no allocated budget. Please add one first before recording disbursement.`);
+    // 🟦 Find the matching budget
+    const budget = budgets.find(
+      (b) => b.office.toLowerCase() === formData.office.toLowerCase()
+    );
+
+    if (!budget) {
+      alert("No budget found for this office!");
       return;
     }
 
+    const category = formData.expenseCategory.toLowerCase();
+    let budgetAmount = 0;
+
+    if (category === "ps") budgetAmount = parseFloat(budget.ps) || 0;
+    else if (category === "mooe") budgetAmount = parseFloat(budget.mooe) || 0;
+    else if (category === "co") budgetAmount = parseFloat(budget.co) || 0;
+
+    // Calculate total disbursed so far for this office + category
+    const disbursedAmount = disbursements
+      .filter(
+        (d) =>
+          d.office.toLowerCase() === formData.office.toLowerCase() &&
+          d.expenseCategory.toLowerCase() === formData.expenseCategory.toLowerCase() &&
+          d.id !== editingId
+      )
+      .reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+
+    const newDisburseTotal = disbursedAmount + parseFloat(formData.amount);
+
+    // Prevent saving if exceeds budget
+    if (newDisburseTotal > budgetAmount) {
+      const remaining = (budgetAmount - disbursedAmount).toLocaleString();
+      alert(`Budget exceeded!\nYou only have ₱${remaining} remaining for ${formData.expenseCategory}.`);
+      return;
+    }
+
+    // Send to API
     const body = editingId
-      ? { id: editingId, ...formData }
-      : { ...formData, dateCreated: new Date().toISOString() };
+      ? { id: editingId, ...formData, amount: parseFloat(formData.amount) }
+      : { ...formData, amount: parseFloat(formData.amount) };
 
     try {
       const res = await fetch("/api/disbursement", {
@@ -146,7 +174,7 @@ export default function DisbursementPage() {
     }
   };
 
-  // Apply filters + pagination
+  // Filters + Pagination
   const filtered = disbursements.filter((item) => {
     const matchesSearch =
       item.dvNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -173,7 +201,7 @@ export default function DisbursementPage() {
 
   return (
     <div className="w-full p-4">
-      {/* Header */}
+      {/* Header & Filters */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-3">
         <div className="flex flex-col md:flex-row items-center gap-2">
           <div className="relative">
@@ -247,7 +275,7 @@ export default function DisbursementPage() {
         </button>
       </div>
 
-      {/* Table */}
+      {/* Table & Pagination */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[600px]">
         <div className="flex-grow overflow-y-auto">
           <table className="min-w-full border-collapse">
@@ -305,7 +333,6 @@ export default function DisbursementPage() {
           </table>
         </div>
 
-        {/* 🟩 Pagination Bar */}
         <div className="border-t border-gray-200 p-2 bg-gray-50">
           <div className="flex justify-end">
             <nav aria-label="Page navigation">
@@ -327,9 +354,7 @@ export default function DisbursementPage() {
                     <button
                       onClick={() => handlePageChange(index + 1)}
                       className={`px-3 py-2 border border-gray-300 hover:bg-gray-100 ${
-                        currentPage === index + 1
-                          ? "bg-blue-500 text-white"
-                          : "text-gray-700"
+                        currentPage === index + 1 ? "bg-blue-500 text-white" : "text-gray-700"
                       }`}
                     >
                       {index + 1}
@@ -342,9 +367,7 @@ export default function DisbursementPage() {
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
                     className={`px-3 py-2 border border-gray-300 rounded-r-lg hover:bg-gray-100 ${
-                      currentPage === totalPages
-                        ? "opacity-50 cursor-not-allowed"
-                        : ""
+                      currentPage === totalPages ? "opacity-50 cursor-not-allowed" : ""
                     }`}
                   >
                     Next
@@ -356,7 +379,7 @@ export default function DisbursementPage() {
         </div>
       </div>
 
-      {/* Modal (unchanged) */}
+      {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/30">
           <div className="bg-white border shadow-xl p-6 rounded-lg w-full max-w-md relative flex flex-col gap-3">
