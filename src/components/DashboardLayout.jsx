@@ -24,6 +24,7 @@ export default function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarMini, setSidebarMini] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const links = [
     { name: "Dashboard", icon: <LayoutDashboard size={20} />, path: "/Dashboard" },
@@ -38,40 +39,31 @@ export default function DashboardLayout({ children }) {
   ];
 
   const handleLogout = () => {
-    // Clear any client-side token (if used) and perform a full navigation
-    // to the logout endpoint so the server can clear the auth cookie.
     try {
-      localStorage.removeItem("token"); // Adjust if you store session differently
+      localStorage.removeItem("token");
     } catch (e) {
       /* ignore */
     }
 
-    // Use full navigation so the browser receives the Set-Cookie from the server
-    // and then the server/client will redirect to /login.
-    if (typeof window !== 'undefined') {
-      window.location.href = '/logout';
+    if (typeof window !== "undefined") {
+      window.location.href = "/logout";
     } else {
-      router.push('/logout');
+      router.push("/logout");
     }
   };
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  // Client-side guard: verify auth on mount and when pathname changes.
-  // If unauthorized, force a full navigation to /login so middleware and
-  // server-side guards take effect.
   useEffect(() => {
     let isMounted = true;
     const checkAuth = async () => {
       try {
-        const res = await fetch('/api/auth/check', { method: 'GET', credentials: 'include' });
+        const res = await fetch("/api/auth/check", { method: "GET", credentials: "include" });
         if (!isMounted) return;
         if (!res.ok) {
-          // Force full navigation to ensure cookie changes are considered
-          window.location.href = '/login';
+          window.location.href = "/login";
         }
       } catch (e) {
         if (!isMounted) return;
-        window.location.href = '/login';
+        window.location.href = "/login";
       }
     };
 
@@ -81,7 +73,6 @@ export default function DashboardLayout({ children }) {
       isMounted = false;
     };
   }, [pathname]);
-
 
   return (
     <div id="dashboard-layout" className="flex flex-col h-screen bg-gray-100">
@@ -109,9 +100,10 @@ export default function DashboardLayout({ children }) {
         {/* SIDEBAR */}
         <aside
           id="sidebar"
-          className={`relative fixed md:static z-20 top-16 left-0 h-full bg-white shadow-md p-4 flex flex-col justify-between transition-all duration-300
+          className={`relative fixed md:static z-20 top-16 left-0 h-full p-4 flex flex-col justify-between transition-all duration-300
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
           ${sidebarMini ? "w-20" : "w-64"}`}
+          style={{ backgroundColor: "#0a1448" }}
         >
           <nav className="flex-1 space-y-1">
             {/* ADMIN DROPDOWN */}
@@ -119,41 +111,30 @@ export default function DashboardLayout({ children }) {
               <button
                 onClick={() => setAdminOpen(!adminOpen)}
                 className={`flex items-center justify-between px-3 py-2 rounded-md w-full transition-all
-                ${sidebarMini ? "justify-center" : ""}
-                ${
-                  pathname.startsWith("/Admin")
-                    ? "bg-blue-500 text-white"
-                    : "text-gray-700 hover:bg-gray-200"
-                }`}
+                ${sidebarMini ? "justify-center" : ""} text-white`}
               >
                 <div className="flex items-center space-x-3">
-                  <UserStar size={20} />
+                  <UserStar size={20} color="white" />
                   {!sidebarMini && <span>Admin</span>}
                 </div>
 
                 {!sidebarMini && (
                   <ChevronRight
                     size={18}
-                    className={`transition-transform duration-200 ${
-                      adminOpen ? "rotate-90" : ""
-                    }`}
+                    color="white"
+                    className={`transition-transform duration-200 ${adminOpen ? "rotate-90" : ""}`}
                   />
                 )}
               </button>
 
-              {/* Admin Dropdown Links */}
               {!sidebarMini && adminOpen && (
                 <div className="flex flex-col mt-1 space-y-1 ml-3">
                   {adminLinks.map((sub) => (
                     <button
                       key={sub.name}
                       onClick={() => router.push(sub.path)}
-                      className={`flex items-center space-x-3 px-3 py-2 rounded-md w-full text-left transition-all
-                      ${
-                        pathname === sub.path
-                          ? "bg-blue-500 text-white"
-                          : "text-gray-700 hover:bg-gray-200"
-                      }`}
+                      className={`flex items-center space-x-3 px-3 py-2 rounded-md w-full text-left transition-all text-white
+                      ${pathname === sub.path ? "bg-[#0000FF]" : "hover:bg-white/20"}`}
                     >
                       {sub.icon}
                       <span>{sub.name}</span>
@@ -169,32 +150,26 @@ export default function DashboardLayout({ children }) {
                 key={link.name}
                 onClick={() => router.push(link.path)}
                 className={`flex items-center space-x-3 px-3 py-2 rounded-md w-full text-left transition-all
-                ${sidebarMini ? "justify-center" : ""}
-                ${
-                  pathname === link.path
-                    ? "bg-blue-500 text-white"
-                    : "text-gray-700 hover:bg-gray-200"
-                }`}
+                ${sidebarMini ? "justify-center" : ""} text-white
+                ${pathname === link.path ? "bg-[#0000FF]" : "hover:bg-white/20"}`}
               >
                 {link.icon}
                 {!sidebarMini && <span>{link.name}</span>}
               </button>
             ))}
 
-        {/* 🔒 Logout Button */}
-        <button
-          onClick={() => setShowLogoutModal(true)}
-          className={`flex items-center space-x-3 px-3 py-2 mt-3 rounded-md w-full text-left transition-all
-          ${sidebarMini ? "justify-center" : ""}
-          text-gray-700 hover:bg-gray-200`}
-        >
-          <LogOut size={20} />
-          {!sidebarMini && <span>Logout</span>}
-        </button>
-          
+            {/* Logout Button */}
+            <button
+              onClick={() => setShowLogoutModal(true)}
+              className={`flex items-center space-x-3 px-3 py-2 mt-3 rounded-md w-full text-left transition-all text-white
+              ${sidebarMini ? "justify-center" : ""} hover:bg-white/20`}
+            >
+              <LogOut size={20} color="white" />
+              {!sidebarMini && <span>Logout</span>}
+            </button>
           </nav>
 
-          {/* BOTTOM LOGO */}
+          {/* Bottom Logo */}
           <div className="mt-auto mb-6 flex flex-col items-center">
             <Image
               src="/img/logo.png"
@@ -204,7 +179,7 @@ export default function DashboardLayout({ children }) {
               className="object-contain mb-3"
             />
             {!sidebarMini && (
-              <p className="text-gray-700 text-base font-semibold tracking-wide text-center">
+              <p className="text-white text-base font-semibold tracking-wide text-center">
                 LGU Magallanes
               </p>
             )}
@@ -215,7 +190,7 @@ export default function DashboardLayout({ children }) {
             <div className="relative w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center shadow-inner">
               <button
                 onClick={() => setSidebarMini(!sidebarMini)}
-                className="absolute w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center hover:bg-blue-600 transition shadow-lg"
+                className="absolute w-6 h-6 rounded-full bg-[#101d66] text-white flex items-center justify-center hover:bg-[#0a1448] transition shadow-lg"
               >
                 {sidebarMini ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
               </button>
@@ -241,7 +216,8 @@ export default function DashboardLayout({ children }) {
           </div>
         </main>
       </div>
-          <LogoutModal
+
+      <LogoutModal
         isOpen={showLogoutModal}
         onCancel={() => setShowLogoutModal(false)}
         onConfirm={() => {

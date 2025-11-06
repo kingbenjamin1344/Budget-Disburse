@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RotateCcw, Printer, Minimize2, Maximize2 } from "lucide-react";
+import { RotateCcw, Printer, Minimize2, Maximize2,Save } from "lucide-react";
 
 export default function SoePage() {
   const [isCompressed, setIsCompressed] = useState(false);
@@ -135,8 +135,8 @@ export default function SoePage() {
           onClick={() => window.location.reload()}
           className="flex items-center bg-yellow-500 text-white px-4 py-2 rounded-md hover:bg-yellow-600 transition"
         >
-          <RotateCcw className="w-4 h-4 mr-2" />
-          Reset Data
+          <Save className="w-4 h-4 mr-2" />
+          Save Data
         </button>
         <button className="flex items-center bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition">
           <Printer className="w-4 h-4 mr-2" />
@@ -162,23 +162,34 @@ export default function SoePage() {
       <div className="overflow-x-auto rounded-lg bg-white shadow-sm transition-all duration-300">
         <table className="min-w-full border-collapse border border-gray-300 text-sm text-center">
           <thead>
-            <tr className="bg-gray-100 border-b border-gray-300">
-              <th rowSpan={2} className="px-4 py-2 border border-gray-300 align-middle">
-                Particulars
-              </th>
-              <th colSpan={4} className="px-4 py-2 border border-gray-300 bg-blue-500 text-white font-semibold">
-                Budget Appropriation
-              </th>
-              <th colSpan={4} className="px-4 py-2 border border-gray-300 bg-blue-500 text-white font-semibold">
-                Actual Expenditure
-              </th>
-              <th colSpan={4} className="px-4 py-2 border border-gray-300 bg-blue-500 text-white font-semibold">
-                Variance
-              </th>
-            </tr>
-            <tr className="border-b border-gray-300 text-white">
-  {/* Budget Appropriation */}
-  <>
+  <tr className="bg-gray-100 border-b border-gray-300">
+    <th
+      rowSpan={2}
+      className="px-4 py-2 border border-gray-300 align-middle"
+    >
+      Particulars
+    </th>
+    <th
+      colSpan={4}
+      className="px-4 py-2 border border-gray-300 bg-blue-500 text-white font-semibold"
+    >
+      Budget Appropriation
+    </th>
+    <th
+      colSpan={4}
+      className="px-4 py-2 border border-gray-300 bg-blue-500 text-white font-semibold"
+    >
+      Actual Expenditure
+    </th>
+    <th
+      colSpan={4}
+      className="px-4 py-2 border border-gray-300 bg-blue-500 text-white font-semibold"
+    >
+      Variance
+    </th>
+  </tr>
+  <tr className="border-b border-gray-300 text-white">
+    {/* Budget Appropriation */}
     {["PS", "MOOE", "CO", "Total"].map((h) => (
       <th
         key={`budget-${h}`}
@@ -190,15 +201,22 @@ export default function SoePage() {
             : h === "CO"
             ? "bg-yellow-600"
             : "bg-indigo-600"
-        }`}
+        } relative group`}
       >
         {h}
+        {h !== "Total" && (
+          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs rounded bg-gray-800 text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+            {h === "PS"
+              ? "Personnel Services"
+              : h === "MOOE"
+              ? "Maintenance and Other Operating Expense"
+              : "Capital Outlay"}
+          </span>
+        )}
       </th>
     ))}
-  </>
 
-  {/* Actual Expenditure */}
-  <>
+    {/* Actual Expenditure */}
     {["PS", "MOOE", "CO", "Total"].map((h) => (
       <th
         key={`actual-${h}`}
@@ -210,15 +228,22 @@ export default function SoePage() {
             : h === "CO"
             ? "bg-yellow-600"
             : "bg-indigo-600"
-        }`}
+        } relative group`}
       >
         {h}
+        {h !== "Total" && (
+          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs rounded bg-gray-800 text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+            {h === "PS"
+              ? "Personnel Services"
+              : h === "MOOE"
+              ? "Maintenance and Other Operating Expense"
+              : "Capital Outlay"}
+          </span>
+        )}
       </th>
     ))}
-  </>
 
-  {/* Variance */}
-  <>
+    {/* Variance */}
     {["PS", "MOOE", "CO", "Total"].map((h) => (
       <th
         key={`variance-${h}`}
@@ -230,15 +255,23 @@ export default function SoePage() {
             : h === "CO"
             ? "bg-yellow-600"
             : "bg-indigo-600"
-        }`}
+        } relative group`}
       >
         {h}
+        {h !== "Total" && (
+          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs rounded bg-gray-800 text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+            {h === "PS"
+              ? "Personnel Services"
+              : h === "MOOE"
+              ? "Maintenance and Other Operating Expense"
+              : "Capital Outlay"}
+          </span>
+        )}
       </th>
     ))}
-  </>
-</tr>
+  </tr>
+</thead>
 
-          </thead>
 <tbody>
   {loading ? (
     <tr>
