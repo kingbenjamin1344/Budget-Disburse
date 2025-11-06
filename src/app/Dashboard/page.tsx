@@ -99,13 +99,40 @@ export default function DashboardPage() {
       {/* === TOP CARDS === */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Offices */}
-        <div className="bg-white shadow rounded-xl p-6 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <h2 className="text-gray-600 font-medium">Number of Offices</h2>
-            <Building2 className="text-blue-500" size={26} />
-          </div>
-          <p className="text-3xl font-bold mt-3">{stats.offices}</p>
-        </div>
+        <div className="bg-gradient-to-r from-[#1e3a8a] to-[#0f172a] text-white rounded-xl p-6 relative overflow-hidden shadow-md">
+  {/* Value and Label */}
+  <div className="flex flex-col justify-center h-full">
+    <p className="text-3xl font-semibold">{stats.offices}</p>
+    <p className="text-sm text-white/80 mt-1">Number of Offices</p>
+  </div>
+
+  {/* Icon on the right */}
+  <div className="absolute top-1/2 right-6 transform -translate-y-1/2 bg-white/20 p-3 rounded-full">
+    <Building2 size={32} className="text-white" />
+  </div>
+
+
+</div>
+
+{/* Expense Types */}
+<div className="bg-gradient-to-r from-[#1e3a8a] to-[#0f172a] text-white rounded-xl p-6 relative overflow-hidden shadow-md">
+  {/* Centered Value and Label */}
+  <div className="flex flex-col justify-center h-full">
+    <p className="text-3xl font-semibold">{stats.expenseTypes}</p>
+    <p className="text-sm text-white/80 mt-1">Number of Expense Types</p>
+  </div>
+
+  {/* Icon on the right */}
+  <div className="absolute top-1/2 right-6 transform -translate-y-1/2 bg-white/20 p-3 rounded-full">
+    <BarChart3 size={32} className="text-white" />
+  </div>
+
+  {/* Bottom badge */}
+  <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-white/20 px-2 py-1 rounded-full text-xs text-white">
+    <span className="text-green-400">▲</span> Updated Today
+  </div>
+</div>
+
 
         {/* Total Budget */}
         <div className="bg-white shadow rounded-xl p-6 flex flex-col justify-between">
@@ -132,19 +159,7 @@ export default function DashboardPage() {
 
 
 
-        {/* Expense Types */}
-        <div className="bg-white shadow rounded-xl p-6 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <h2 className="text-gray-600 font-medium">Number of Expense Types</h2>
-            <BarChart3 className="text-yellow-500" size={26} />
-          </div>
-          <div className="mt-3 text-sm text-gray-600">
-            <p>Total Types: {stats.expenseTypes}</p>
-            <p>PS: {stats.expenseCounts.ps}</p>
-            <p>MOOE: {stats.expenseCounts.mooe}</p>
-            <p>CO: {stats.expenseCounts.co}</p>
-          </div>
-        </div>
+   
 
         {/* Chart Preview */}
         <div className="bg-white shadow rounded-xl p-6 flex flex-col justify-between">
