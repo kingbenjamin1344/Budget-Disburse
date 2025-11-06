@@ -1,17 +1,16 @@
-
 import "./globals.css";
-import DashboardLayout from "../components/DashboardLayout";
+import ClientLayout from "../components/ClientLayout";
 
 export const metadata = {
   title: "Budget and Disbursement Management System",
   description: "LGU Magallanes Budget Management",
 };
 
-export default function RootLayout({ children }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <DashboardLayout>{children}</DashboardLayout>
+        <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
   );
