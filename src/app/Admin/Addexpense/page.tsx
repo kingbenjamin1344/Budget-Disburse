@@ -159,7 +159,7 @@ export default function AddExpensePage() {
       </div>
 
       {/* Expense Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[600px]">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col ">
         {/* Table content */}
         <div className="flex-grow overflow-y-auto">
           <table className="min-w-full border-collapse">
