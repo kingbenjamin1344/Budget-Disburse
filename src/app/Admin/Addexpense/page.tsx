@@ -40,22 +40,18 @@ export default function AddExpensePage() {
 
   const handleAddExpense = async () => {
     if (!type.trim() || !category.trim()) return alert("Please fill in both fields");
-
     setLoading(true);
     const res = await fetch("/api/expenses", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type, category }),
     });
-
     if (res.ok) {
       setType("");
       setCategory("PS");
       setShowAddModal(false);
       fetchExpenses();
-    } else {
-      alert("Failed to add expense");
-    }
+    } else alert("Failed to add expense");
     setLoading(false);
   };
 
@@ -78,7 +74,6 @@ export default function AddExpensePage() {
 
   const handleSaveEdit = async () => {
     if (!editType.trim() || !editCategory.trim()) return alert("Please fill in both fields");
-
     const res = await fetch("/api/expenses", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -88,7 +83,6 @@ export default function AddExpensePage() {
         category: editCategory,
       }),
     });
-
     if (res.ok) {
       setShowEditModal(false);
       setEditingId(null);
@@ -113,7 +107,7 @@ export default function AddExpensePage() {
   };
 
   return (
-    <div className="w-full">
+    <div className="w-full p-4">
       {/* Top Controls */}
       <div className="flex flex-wrap items-center justify-between mb-6 gap-3">
         <div className="flex items-center space-x-2">
@@ -132,7 +126,7 @@ export default function AddExpensePage() {
             />
           </div>
 
-          {/* ✅ Category Filter */}
+          {/* Category Filter */}
           <select
             value={filterCategory}
             onChange={(e) => {
@@ -158,13 +152,13 @@ export default function AddExpensePage() {
         </button>
       </div>
 
-      {/* Expense Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col ">
-        {/* Table content */}
+      {/* 🟩 Table Card with Anchored Pagination */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[600px]">
+        {/* Table Content */}
         <div className="flex-grow overflow-y-auto">
           <table className="min-w-full border-collapse">
             <thead
-              className="bg-gray-100 text-gray-700 border-b text-white border-b bg-cover bg-center"
+              className="text-white border-b bg-cover bg-center"
               style={{ backgroundImage: "url('/img/blue.jpg')" }}
             >
               <tr>
@@ -178,7 +172,7 @@ export default function AddExpensePage() {
                   Date Created
                 </th>
                 <th className="px-6 py-3 text-center font-semibold border-b border-gray-300">
-                  Actions
+                  Action
                 </th>
               </tr>
             </thead>
@@ -204,13 +198,13 @@ export default function AddExpensePage() {
                     <td className="px-6 py-3 text-gray-700">
                       {new Date(expense.dateCreated).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-2 text-center text-gray-700">
-                      <div className="px-6 py-2 text-center space-x-2">
+                    <td className="px-6 py-3 text-center text-gray-700">
+                      <div className="flex justify-center items-center space-x-4">
                         <button
                           onClick={() => handleEdit(expense)}
                           className="text-blue-500 hover:text-blue-700 transition"
                         >
-                          <Edit className="w-4 h-4 inline" />
+                          <Edit className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(expense.id)}
@@ -227,7 +221,7 @@ export default function AddExpensePage() {
           </table>
         </div>
 
-        {/* 🟩 Pagination Bar */}
+        {/* 🟩 Anchored Pagination Bar */}
         <div className="border-t border-gray-200 p-2 bg-gray-50">
           <div className="flex justify-end">
             <nav aria-label="Page navigation">
@@ -353,7 +347,7 @@ export default function AddExpensePage() {
                 disabled={loading}
                 className="px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 transition"
               >
-                Save
+                {loading ? "Saving..." : "Save"}
               </button>
             </div>
           </div>
