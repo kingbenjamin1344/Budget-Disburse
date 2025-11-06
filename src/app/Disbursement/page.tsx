@@ -14,7 +14,7 @@ export default function DisbursementPage() {
   const [disbursements, setDisbursements] = useState<any[]>([]);
   const [offices, setOffices] = useState<string[]>([]);
   const [expenses, setExpenses] = useState<{ type: string; category: string }[]>([]);
-  const [budgets, setBudgets] = useState<any[]>([]); 
+  const [budgets, setBudgets] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
     dvNo: "",
@@ -25,6 +25,10 @@ export default function DisbursementPage() {
     amount: "",
   });
 
+  // 🟩 Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   // Fetch Offices, Expenses, Budgets
   useEffect(() => {
     async function loadData() {
@@ -32,7 +36,7 @@ export default function DisbursementPage() {
         const [officeRes, expenseRes, budgetRes] = await Promise.all([
           fetch("/api/offices"),
           fetch("/api/expenses"),
-          fetch("/api/addbudget"), 
+          fetch("/api/addbudget"),
         ]);
         const officeData = await officeRes.json();
         const expenseData = await expenseRes.json();
@@ -142,7 +146,7 @@ export default function DisbursementPage() {
     }
   };
 
-  // Apply filters
+  // Apply filters + pagination
   const filtered = disbursements.filter((item) => {
     const matchesSearch =
       item.dvNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -152,6 +156,20 @@ export default function DisbursementPage() {
     const matchesCategory = filterCategory ? item.expenseCategory === filterCategory : true;
     return matchesSearch && matchesOffice && matchesExpense && matchesCategory;
   });
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentItems = filtered.slice(startIndex, startIndex + itemsPerPage);
+
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) setCurrentPage(page);
+  };
+
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages]);
 
   return (
     <div className="w-full p-4">
@@ -164,14 +182,20 @@ export default function DisbursementPage() {
               type="text"
               placeholder="Search disbursement..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
               className="pl-8 pr-3 py-2 border border-gray-300 rounded-md"
             />
           </div>
 
           <select
             value={filterOffice}
-            onChange={(e) => setFilterOffice(e.target.value)}
+            onChange={(e) => {
+              setFilterOffice(e.target.value);
+              setCurrentPage(1);
+            }}
             className="border border-gray-300 rounded-md px-3 py-2"
           >
             <option value="">Filter by Office</option>
@@ -184,7 +208,10 @@ export default function DisbursementPage() {
 
           <select
             value={filterExpense}
-            onChange={(e) => setFilterExpense(e.target.value)}
+            onChange={(e) => {
+              setFilterExpense(e.target.value);
+              setCurrentPage(1);
+            }}
             className="border border-gray-300 rounded-md px-3 py-2"
           >
             <option value="">Filter by Expense Type</option>
@@ -197,7 +224,10 @@ export default function DisbursementPage() {
 
           <select
             value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
+            onChange={(e) => {
+              setFilterCategory(e.target.value);
+              setCurrentPage(1);
+            }}
             className="border border-gray-300 rounded-md px-3 py-2"
           >
             <option value="">Filter by Category</option>
@@ -218,61 +248,115 @@ export default function DisbursementPage() {
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-lg bg-white shadow-sm " >
-        <table className="min-w-full border-collapse">
-          <thead className="bg-gray-100 text-gray-700 border-b text-white border-b bg-cover bg-center"  
-            style={{ backgroundImage: "url('/img/blue.jpg')" }} >
-            <tr>
-              <th className="px-6 py-3 text-left">DV No.</th>
-              <th className="px-6 py-3 text-left">Payee</th>
-              <th className="px-6 py-3 text-left">Office</th>
-              <th className="px-6 py-3 text-left">Type</th>
-              <th className="px-6 py-3 text-left">Category</th>
-              <th className="px-6 py-3 text-left">Amount</th>
-              <th className="px-6 py-3 text-left">Date</th>
-              <th className="px-6 py-3 text-center">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length > 0 ? (
-    filtered.map((d) => (
-      <tr key={d.id} className="border-b hover:bg-gray-200">
-        <td className="px-6 py-3">{d.dvNo}</td>
-        <td className="px-6 py-3">{d.payee}</td>
-        <td className="px-6 py-3">{d.office}</td>
-        <td className="px-6 py-3">{d.expenseType}</td>
-        <td className="px-6 py-3">{d.expenseCategory}</td>
-        <td className="px-6 py-3">₱{parseFloat(d.amount).toLocaleString()}</td>
-        <td className="px-6 py-3">{new Date(d.dateCreated).toLocaleDateString()}</td>
-        <td className="px-6 py-3 text-center space-x-2">
-          <button onClick={() => handleEdit(d.id)} className="text-blue-600 hover:text-blue-800">
-            <Edit className="w-4 h-4 inline" />
-          </button>
-          <button onClick={() => handleDelete(d.id)} className="text-red-600 hover:text-red-800">
-            <Trash2 className="w-4 h-4 inline" />
-          </button>
-        </td>
-      </tr>
-              ))
-            ) : (
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[600px]">
+        <div className="flex-grow overflow-y-auto">
+          <table className="min-w-full border-collapse">
+            <thead
+              className="text-white border-b bg-cover bg-center"
+              style={{ backgroundImage: "url('/img/blue.jpg')" }}
+            >
               <tr>
-                <td colSpan={8} className="py-6 text-gray-500 italic">
-                  <div className="flex flex-col items-center justify-center">
-                    <img
-                      src="/img/disburse.png"
-                      alt="No data"
-                      className="mb-2 max-w-[200px] h-auto object-contain"
-                    />
-                    <span>No disbursement records found.</span>
-                  </div>
-                </td>
+                <th className="px-6 py-3 text-left">DV No.</th>
+                <th className="px-6 py-3 text-left">Payee</th>
+                <th className="px-6 py-3 text-left">Office</th>
+                <th className="px-6 py-3 text-left">Type</th>
+                <th className="px-6 py-3 text-left">Category</th>
+                <th className="px-6 py-3 text-left">Amount</th>
+                <th className="px-6 py-3 text-left">Date</th>
+                <th className="px-6 py-3 text-center">Actions</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {currentItems.length > 0 ? (
+                currentItems.map((d) => (
+                  <tr key={d.id} className="border-b hover:bg-gray-200">
+                    <td className="px-6 py-3">{d.dvNo}</td>
+                    <td className="px-6 py-3">{d.payee}</td>
+                    <td className="px-6 py-3">{d.office}</td>
+                    <td className="px-6 py-3">{d.expenseType}</td>
+                    <td className="px-6 py-3">{d.expenseCategory}</td>
+                    <td className="px-6 py-3">₱{parseFloat(d.amount).toLocaleString()}</td>
+                    <td className="px-6 py-3">{new Date(d.dateCreated).toLocaleDateString()}</td>
+                    <td className="px-6 py-3 text-center space-x-2">
+                      <button onClick={() => handleEdit(d.id)} className="text-blue-600 hover:text-blue-800">
+                        <Edit className="w-4 h-4 inline" />
+                      </button>
+                      <button onClick={() => handleDelete(d.id)} className="text-red-600 hover:text-red-800">
+                        <Trash2 className="w-4 h-4 inline" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={8} className="py-6 text-gray-500 italic">
+                    <div className="flex flex-col items-center justify-center">
+                      <img
+                        src="/img/disburse.png"
+                        alt="No data"
+                        className="mb-2 max-w-[200px] h-auto object-contain"
+                      />
+                      <span>No disbursement records found.</span>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* 🟩 Pagination Bar */}
+        <div className="border-t border-gray-200 p-2 bg-gray-50">
+          <div className="flex justify-end">
+            <nav aria-label="Page navigation">
+              <ul className="inline-flex -space-x-px text-sm">
+                <li>
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className={`px-3 py-2 border border-gray-300 rounded-l-lg hover:bg-gray-100 ${
+                      currentPage === 1 ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                  >
+                    Previous
+                  </button>
+                </li>
+
+                {[...Array(totalPages)].map((_, index) => (
+                  <li key={index}>
+                    <button
+                      onClick={() => handlePageChange(index + 1)}
+                      className={`px-3 py-2 border border-gray-300 hover:bg-gray-100 ${
+                        currentPage === index + 1
+                          ? "bg-blue-500 text-white"
+                          : "text-gray-700"
+                      }`}
+                    >
+                      {index + 1}
+                    </button>
+                  </li>
+                ))}
+
+                <li>
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className={`px-3 py-2 border border-gray-300 rounded-r-lg hover:bg-gray-100 ${
+                      currentPage === totalPages
+                        ? "opacity-50 cursor-not-allowed"
+                        : ""
+                    }`}
+                  >
+                    Next
+                  </button>
+                </li>
+              </ul>
+            </nav>
+          </div>
+        </div>
       </div>
 
-      {/* Modal */}
+      {/* Modal (unchanged) */}
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/30">
           <div className="bg-white border shadow-xl p-6 rounded-lg w-full max-w-md relative flex flex-col gap-3">

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Search, Plus, X, Edit, Trash2} from "lucide-react";
+import { Search, Plus, X, Edit, Trash2 } from "lucide-react";
 
 export default function AddBudgetPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -9,12 +9,16 @@ export default function AddBudgetPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [officeId, setOfficeId] = useState<number | "">("");
-  const [ps, setPs] = useState<string>(""); 
-  const [mooe, setMooe] = useState<string>(""); 
-  const [co, setCo] = useState<string>(""); 
+  const [ps, setPs] = useState<string>("");
+  const [mooe, setMooe] = useState<string>("");
+  const [co, setCo] = useState<string>("");
 
   const totalBudget =
     (parseFloat(ps) || 0) + (parseFloat(mooe) || 0) + (parseFloat(co) || 0);
+
+  // 🟩 Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     const fetchBudgets = async () => {
@@ -46,7 +50,6 @@ export default function AddBudgetPage() {
 
     const selectedOffice = offices.find((o) => o.id === officeId);
 
-    // Prevent duplicate budget for an office (only if adding new)
     if (
       editingId === null &&
       budgets.some((b) => b.office === selectedOffice?.name)
@@ -82,7 +85,6 @@ export default function AddBudgetPage() {
       setMooe("");
       setCo("");
 
-      // Refresh budgets
       const refreshed = await fetch("/api/addbudget");
       const refreshedData = await refreshed.json();
       setBudgets(refreshedData);
@@ -96,9 +98,9 @@ export default function AddBudgetPage() {
     const budget = budgets[index];
     const office = offices.find((o) => o.name === budget.office);
     setOfficeId(office?.id || "");
-    setPs(String(budget.ps)); 
-    setMooe(String(budget.mooe)); 
-    setCo(String(budget.co)); 
+    setPs(String(budget.ps));
+    setMooe(String(budget.mooe));
+    setCo(String(budget.co));
     setEditingId(index);
     setShowModal(true);
   };
@@ -123,12 +125,21 @@ export default function AddBudgetPage() {
     }
   };
 
+  // 🟩 Filter and paginate
   const filteredBudgets = budgets.filter((b) =>
     b.office.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const totalPages = Math.ceil(filteredBudgets.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentItems = filteredBudgets.slice(startIndex, startIndex + itemsPerPage);
+
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) setCurrentPage(page);
+  };
+
   return (
-    <div className="w-full">
+    <div className="w-full p-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-2">
@@ -138,7 +149,10 @@ export default function AddBudgetPage() {
               type="text"
               placeholder="Search office..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
               className="pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-blue-200"
             />
           </div>
@@ -159,71 +173,121 @@ export default function AddBudgetPage() {
         </button>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto bg-white shadow-sm rounded-lg" >
-        <table className="min-w-full border-collapse" >
-          <thead className="bg-gray-100 text-gray-700 border-b text-white border-b bg-cover bg-center"  
-            style={{ backgroundImage: "url('/img/blue.jpg')" }} >
-            <tr>
-              <th className="px-6 py-3 text-left font-semibold">Office</th>
-              <th className="px-6 py-3 text-left font-semibold">PS</th>
-              <th className="px-6 py-3 text-left font-semibold">MOOE</th>
-              <th className="px-6 py-3 text-left font-semibold">CO</th>
-              <th className="px-6 py-3 text-left font-semibold">Total</th>
-              <th className="px-6 py-3 text-left font-semibold">Date Created</th>
-              <th className="px-6 py-3 text-center font-semibold">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredBudgets.length === 0 ? (
+      {/* 🟩 Table with Pagination */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[600px]">
+        <div className="flex-grow overflow-y-auto">
+          <table className="min-w-full border-collapse">
+            <thead
+              className="text-white border-b bg-cover bg-center"
+              style={{ backgroundImage: "url('/img/blue.jpg')" }}
+            >
               <tr>
-                <td
-                  colSpan={7}
-                  className="text-center py-6 text-gray-500 italic"
-                >
-                  <div className="flex flex-col items-center justify-center">
-                    <img
-                      src="/img/soe.png"
-                      alt="No data"
-                      className="mb-2 max-w-[200px] h-auto object-contain"
-                    />
-                    <span>No budgets found.</span>
-                  </div>
-                </td>
+                <th className="px-6 py-3 text-left font-semibold">Office</th>
+                <th className="px-6 py-3 text-left font-semibold">PS</th>
+                <th className="px-6 py-3 text-left font-semibold">MOOE</th>
+                <th className="px-6 py-3 text-left font-semibold">CO</th>
+                <th className="px-6 py-3 text-left font-semibold">Total</th>
+                <th className="px-6 py-3 text-left font-semibold">Date Created</th>
+                <th className="px-6 py-3 text-center font-semibold">Actions</th>
               </tr>
-            ) : (
-              filteredBudgets.map((b, i) => (
-                <tr key={b.id} className="border-b hover:bg-gray-200">
-                  <td className="px-6 py-3">{b.office}</td>
-                  <td className="px-6 py-3">₱{b.ps.toLocaleString()}</td>
-                  <td className="px-6 py-3">₱{b.mooe.toLocaleString()}</td>
-                  <td className="px-6 py-3">₱{b.co.toLocaleString()}</td>
-                  <td className="px-6 py-3 font-semibold">
-                    ₱{b.total.toLocaleString()}
+            </thead>
+            <tbody>
+              {currentItems.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-6 text-gray-500 italic text-center">
+                    <div className="flex flex-col items-center justify-center">
+                      <img
+                        src="/img/soe.png"
+                        alt="No data"
+                        className="mb-2 max-w-[200px] h-auto object-contain"
+                      />
+                      <span>No budgets found.</span>
+                    </div>
                   </td>
-                  <td className="px-6 py-3">{b.dateCreated}</td>
-                    <td className="px-6 py-3 text-center space-x-2">
-                          <button
-                          onClick={() => handleEdit(i)}
-                          className="text-blue-500 hover:text-blue-700 transition"
-                          title="Edit"
-                        >
-                          <Edit className="w-4 h-4 inline" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(i)}
-                          className="text-red-500 hover:text-red-700 transition"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4 inline" />
-                        </button>
-                     </td>
-                     
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                currentItems.map((b, i) => (
+                  <tr key={b.id} className="border-b hover:bg-gray-200">
+                    <td className="px-6 py-3">{b.office}</td>
+                    <td className="px-6 py-3">₱{b.ps.toLocaleString()}</td>
+                    <td className="px-6 py-3">₱{b.mooe.toLocaleString()}</td>
+                    <td className="px-6 py-3">₱{b.co.toLocaleString()}</td>
+                    <td className="px-6 py-3 font-semibold">
+                      ₱{b.total.toLocaleString()}
+                    </td>
+                    <td className="px-6 py-3">{b.dateCreated}</td>
+                    <td className="px-6 py-3 text-center space-x-2">
+                      <button
+                        onClick={() => handleEdit(startIndex + i)}
+                        className="text-blue-500 hover:text-blue-700 transition"
+                        title="Edit"
+                      >
+                        <Edit className="w-4 h-4 inline" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(startIndex + i)}
+                        className="text-red-500 hover:text-red-700 transition"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-4 h-4 inline" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* 🟩 Pagination Bar */}
+        <div className="border-t border-gray-200 p-2 bg-gray-50">
+          <div className="flex justify-end">
+            <nav aria-label="Page navigation">
+              <ul className="inline-flex -space-x-px text-sm">
+                <li>
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className={`px-3 py-2 border border-gray-300 rounded-l-lg hover:bg-gray-100 ${
+                      currentPage === 1 ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                  >
+                    Previous
+                  </button>
+                </li>
+
+                {[...Array(totalPages)].map((_, index) => (
+                  <li key={index}>
+                    <button
+                      onClick={() => handlePageChange(index + 1)}
+                      className={`px-3 py-2 border border-gray-300 hover:bg-gray-100 ${
+                        currentPage === index + 1
+                          ? "bg-blue-500 text-white"
+                          : "text-gray-700"
+                      }`}
+                    >
+                      {index + 1}
+                    </button>
+                  </li>
+                ))}
+
+                <li>
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className={`px-3 py-2 border border-gray-300 rounded-r-lg hover:bg-gray-100 ${
+                      currentPage === totalPages
+                        ? "opacity-50 cursor-not-allowed"
+                        : ""
+                    }`}
+                  >
+                    Next
+                  </button>
+                </li>
+              </ul>
+            </nav>
+          </div>
+        </div>
       </div>
 
       {/* Modal */}
@@ -257,9 +321,12 @@ export default function AddBudgetPage() {
                   <option
                     key={office.id}
                     value={office.id}
-                    disabled={alreadyBudgeted && editingId === null} // disable only when adding new
+                    disabled={alreadyBudgeted && editingId === null}
                   >
-                    {office.name} {alreadyBudgeted && editingId === null ? "(Already Budgeted)" : ""}
+                    {office.name}{" "}
+                    {alreadyBudgeted && editingId === null
+                      ? "(Already Budgeted)"
+                      : ""}
                   </option>
                 );
               })}
