@@ -127,10 +127,7 @@ export default function DashboardPage() {
     <BarChart3 size={32} className="text-white" />
   </div>
 
-  {/* Bottom badge */}
-  <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-white/20 px-2 py-1 rounded-full text-xs text-white">
-    <span className="text-green-400">▲</span> Updated Today
-  </div>
+  
 </div>
 
 
