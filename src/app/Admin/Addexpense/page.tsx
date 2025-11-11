@@ -12,15 +12,17 @@ export default function AddExpensePage() {
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editType, setEditType] = useState("");
   const [editCategory, setEditCategory] = useState("PS");
 
-  // ✅ Category filter state
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [deleteType, setDeleteType] = useState("");
+
   const [filterCategory, setFilterCategory] = useState("All");
 
-  // 🟩 Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -55,13 +57,21 @@ export default function AddExpensePage() {
     setLoading(false);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Are you sure you want to delete this expense?")) return;
+  const openDeleteModal = (expense: any) => {
+    setDeleteId(expense.id);
+    setDeleteType(expense.type);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteId) return;
     await fetch("/api/expenses", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
+      body: JSON.stringify({ id: deleteId }),
     });
+    setShowDeleteModal(false);
+    setDeleteId(null);
     fetchExpenses();
   };
 
@@ -111,7 +121,6 @@ export default function AddExpensePage() {
       {/* Top Controls */}
       <div className="flex flex-wrap items-center justify-between mb-6 gap-3">
         <div className="flex items-center space-x-2">
-          {/* Search Input */}
           <div className="relative">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
             <input
@@ -126,7 +135,6 @@ export default function AddExpensePage() {
             />
           </div>
 
-          {/* Category Filter */}
           <select
             value={filterCategory}
             onChange={(e) => {
@@ -142,7 +150,6 @@ export default function AddExpensePage() {
           </select>
         </div>
 
-        {/* Add Expense Button */}
         <button
           onClick={() => setShowAddModal(true)}
           className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
@@ -152,9 +159,8 @@ export default function AddExpensePage() {
         </button>
       </div>
 
-      {/* 🟩 Table Card with Anchored Pagination */}
+      {/* Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[600px]">
-        {/* Table Content */}
         <div className="flex-grow overflow-y-auto">
           <table className="min-w-full border-collapse">
             <thead
@@ -162,30 +168,18 @@ export default function AddExpensePage() {
               style={{ backgroundImage: "url('/img/blue.jpg')" }}
             >
               <tr>
-                <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">
-                  Type of Expense
-                </th>
-                <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">
-                  Category
-                </th>
-                <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">
-                  Date Created
-                </th>
-                <th className="px-6 py-3 text-center font-semibold border-b border-gray-300">
-                  Action
-                </th>
+                <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">Type of Expense</th>
+                <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">Category</th>
+                <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">Date Created</th>
+                <th className="px-6 py-3 text-center font-semibold border-b border-gray-300">Action</th>
               </tr>
             </thead>
             <tbody>
               {currentItems.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-6 text-gray-500 italic">
+                  <td colSpan={7} className="py-6 text-gray-500 italic text-center">
                     <div className="flex flex-col items-center justify-center">
-                      <img
-                        src="/img/addexpense.png"
-                        alt="No data"
-                        className="mb-2 max-w-[200px] h-auto object-contain"
-                      />
+                      <img src="/img/addexpense.png" alt="No data" className="mb-2 max-w-[200px]" />
                       <span>No expense record found.</span>
                     </div>
                   </td>
@@ -198,7 +192,7 @@ export default function AddExpensePage() {
                     <td className="px-6 py-3 text-gray-700">
                       {new Date(expense.dateCreated).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-3 text-center text-gray-700">
+                    <td className="px-6 py-3 text-center">
                       <div className="flex justify-center items-center space-x-4">
                         <button
                           onClick={() => handleEdit(expense)}
@@ -207,7 +201,7 @@ export default function AddExpensePage() {
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(expense.id)}
+                          onClick={() => openDeleteModal(expense)}
                           className="text-red-500 hover:text-red-700 transition"
                         >
                           <Trash2 className="w-4 h-4 inline" />
@@ -221,7 +215,7 @@ export default function AddExpensePage() {
           </table>
         </div>
 
-        {/* 🟩 Anchored Pagination Bar */}
+        {/* Pagination */}
         <div className="border-t border-gray-200 p-2 bg-gray-50">
           <div className="flex justify-end">
             <nav aria-label="Page navigation">
@@ -243,9 +237,7 @@ export default function AddExpensePage() {
                     <button
                       onClick={() => handlePageChange(index + 1)}
                       className={`px-3 py-2 border border-gray-300 hover:bg-gray-100 ${
-                        currentPage === index + 1
-                          ? "bg-blue-500 text-white"
-                          : "text-gray-700"
+                        currentPage === index + 1 ? "bg-blue-500 text-white" : "text-gray-700"
                       }`}
                     >
                       {index + 1}
@@ -258,9 +250,7 @@ export default function AddExpensePage() {
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
                     className={`px-3 py-2 border border-gray-300 rounded-r-lg hover:bg-gray-100 ${
-                      currentPage === totalPages
-                        ? "opacity-50 cursor-not-allowed"
-                        : ""
+                      currentPage === totalPages ? "opacity-50 cursor-not-allowed" : ""
                     }`}
                   >
                     Next
@@ -272,7 +262,35 @@ export default function AddExpensePage() {
         </div>
       </div>
 
-      {/* ✅ Add Expense Modal */}
+      {/* ✅ Delete Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 bg-black opacity-20 pointer-events-auto"></div>
+          <div className="bg-white rounded-lg shadow-lg w-96 p-6 z-10 pointer-events-auto">
+            <h2 className="text-lg font-semibold mb-3 text-center text-red-600">Confirm Delete</h2>
+            <p className="text-gray-700 text-center mb-5">
+              Are you sure you want to delete{" "}
+              <span className="font-semibold">{deleteType}</span>?
+            </p>
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-100 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 rounded-md bg-red-500 text-white hover:bg-red-600 transition"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
           <div className="absolute inset-0 bg-black opacity-20 pointer-events-auto"></div>
@@ -313,7 +331,7 @@ export default function AddExpensePage() {
         </div>
       )}
 
-      {/* ✅ Edit Expense Modal */}
+      {/* Edit Modal */}
       {showEditModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
           <div className="absolute inset-0 bg-black opacity-20 pointer-events-auto"></div>

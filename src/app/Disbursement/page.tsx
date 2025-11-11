@@ -11,6 +11,10 @@ export default function DisbursementPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
 
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [deletePayee, setDeletePayee] = useState("");
+
   const [disbursements, setDisbursements] = useState<any[]>([]);
   const [offices, setOffices] = useState<string[]>([]);
   const [expenses, setExpenses] = useState<{ type: string; category: string }[]>([]);
@@ -90,10 +94,7 @@ export default function DisbursementPage() {
       return;
     }
 
-    // 🟦 Find the matching budget
-    const budget = budgets.find(
-      (b) => b.office.toLowerCase() === formData.office.toLowerCase()
-    );
+    const budget = budgets.find((b) => b.office.toLowerCase() === formData.office.toLowerCase());
 
     if (!budget) {
       alert("No budget found for this office!");
@@ -107,7 +108,6 @@ export default function DisbursementPage() {
     else if (category === "mooe") budgetAmount = parseFloat(budget.mooe) || 0;
     else if (category === "co") budgetAmount = parseFloat(budget.co) || 0;
 
-    // Calculate total disbursed so far for this office + category
     const disbursedAmount = disbursements
       .filter(
         (d) =>
@@ -119,14 +119,12 @@ export default function DisbursementPage() {
 
     const newDisburseTotal = disbursedAmount + parseFloat(formData.amount);
 
-    // Prevent saving if exceeds budget
     if (newDisburseTotal > budgetAmount) {
       const remaining = (budgetAmount - disbursedAmount).toLocaleString();
       alert(`Budget exceeded!\nYou only have ₱${remaining} remaining for ${formData.expenseCategory}.`);
       return;
     }
 
-    // Send to API
     const body = editingId
       ? { id: editingId, ...formData, amount: parseFloat(formData.amount) }
       : { ...formData, amount: parseFloat(formData.amount) };
@@ -158,16 +156,23 @@ export default function DisbursementPage() {
     setShowModal(true);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Delete this record?")) return;
+  const openDeleteModal = (id: number, payee: string) => {
+    setDeleteId(id);
+    setDeletePayee(payee);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteId) return;
     try {
       const res = await fetch("/api/disbursement", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ id: deleteId }),
       });
       if (!res.ok) throw new Error("Failed to delete");
-      setDisbursements((prev) => prev.filter((d) => d.id !== id));
+      setDisbursements((prev) => prev.filter((d) => d.id !== deleteId));
+      setShowDeleteModal(false);
     } catch (err) {
       console.error(err);
       alert("Error deleting disbursement.");
@@ -275,7 +280,7 @@ export default function DisbursementPage() {
         </button>
       </div>
 
-      {/* Table & Pagination */}
+      {/* Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[600px]">
         <div className="flex-grow overflow-y-auto">
           <table className="min-w-full border-collapse">
@@ -309,7 +314,10 @@ export default function DisbursementPage() {
                       <button onClick={() => handleEdit(d.id)} className="text-blue-600 hover:text-blue-800">
                         <Edit className="w-4 h-4 inline" />
                       </button>
-                      <button onClick={() => handleDelete(d.id)} className="text-red-600 hover:text-red-800">
+                      <button
+                        onClick={() => openDeleteModal(d.id, d.payee)}
+                        className="text-red-600 hover:text-red-800"
+                      >
                         <Trash2 className="w-4 h-4 inline" />
                       </button>
                     </td>
@@ -333,6 +341,7 @@ export default function DisbursementPage() {
           </table>
         </div>
 
+        {/* Pagination */}
         <div className="border-t border-gray-200 p-2 bg-gray-50">
           <div className="flex justify-end">
             <nav aria-label="Page navigation">
@@ -379,7 +388,7 @@ export default function DisbursementPage() {
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Add/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/30">
           <div className="bg-white border shadow-xl p-6 rounded-lg w-full max-w-md relative flex flex-col gap-3">
@@ -458,6 +467,36 @@ export default function DisbursementPage() {
             >
               Save
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* 🟥 Delete Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 bg-black opacity-30 pointer-events-auto"></div>
+          <div className="bg-white rounded-lg shadow-lg w-96 p-6 z-10 pointer-events-auto">
+            <h2 className="text-lg font-semibold mb-3 text-center text-red-600">
+              Confirm Delete
+            </h2>
+            <p className="text-gray-700 text-center mb-5">
+              Are you sure you want to delete the disbursement for{" "}
+              <span className="font-semibold">{deletePayee}</span>?
+            </p>
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-100 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 rounded-md bg-red-500 text-white hover:bg-red-600 transition"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}

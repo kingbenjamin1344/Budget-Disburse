@@ -13,10 +13,12 @@ export default function AddBudgetPage() {
   const [mooe, setMooe] = useState<string>("");
   const [co, setCo] = useState<string>("");
 
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
+
   const totalBudget =
     (parseFloat(ps) || 0) + (parseFloat(mooe) || 0) + (parseFloat(co) || 0);
 
-  // 🟩 Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -105,9 +107,14 @@ export default function AddBudgetPage() {
     setShowModal(true);
   };
 
-  const handleDelete = async (index: number) => {
-    if (!confirm("Are you sure you want to delete this budget?")) return;
-    const budget = budgets[index];
+  const handleDeleteClick = (index: number) => {
+    setDeleteIndex(index);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (deleteIndex === null) return;
+    const budget = budgets[deleteIndex];
 
     try {
       const res = await fetch("/api/addbudget", {
@@ -122,10 +129,12 @@ export default function AddBudgetPage() {
       setBudgets(refreshedData);
     } catch (error) {
       console.error(error);
+    } finally {
+      setShowDeleteModal(false);
+      setDeleteIndex(null);
     }
   };
 
-  // 🟩 Filter and paginate
   const filteredBudgets = budgets.filter((b) =>
     b.office.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -173,7 +182,7 @@ export default function AddBudgetPage() {
         </button>
       </div>
 
-      {/* 🟩 Table with Pagination */}
+      {/* Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[600px]">
         <div className="flex-grow overflow-y-auto">
           <table className="min-w-full border-collapse">
@@ -225,7 +234,7 @@ export default function AddBudgetPage() {
                         <Edit className="w-4 h-4 inline" />
                       </button>
                       <button
-                        onClick={() => handleDelete(startIndex + i)}
+                        onClick={() => handleDeleteClick(startIndex + i)}
                         className="text-red-500 hover:text-red-700 transition"
                         title="Delete"
                       >
@@ -239,7 +248,7 @@ export default function AddBudgetPage() {
           </table>
         </div>
 
-        {/* 🟩 Pagination Bar */}
+        {/* Pagination */}
         <div className="border-t border-gray-200 p-2 bg-gray-50">
           <div className="flex justify-end">
             <nav aria-label="Page navigation">
@@ -290,7 +299,7 @@ export default function AddBudgetPage() {
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Add/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black opacity-20"></div>
@@ -370,6 +379,39 @@ export default function AddBudgetPage() {
                 className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600"
               >
                 {editingId !== null ? "Update" : "Add"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 bg-black opacity-20 pointer-events-auto"></div>
+          <div className="bg-white rounded-lg shadow-lg w-96 p-6 z-10 pointer-events-auto">
+            <h2 className="text-lg font-semibold mb-3 text-center text-red-600">
+              Confirm Delete
+            </h2>
+            <p className="text-gray-700 text-center mb-5">
+              Are you sure you want to delete{" "}
+              <span className="font-semibold">
+                {deleteIndex !== null ? budgets[deleteIndex]?.office : ""}
+              </span>
+              ?
+            </p>
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-100 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 rounded-md bg-red-500 text-white hover:bg-red-600 transition"
+              >
+                Delete
               </button>
             </div>
           </div>
