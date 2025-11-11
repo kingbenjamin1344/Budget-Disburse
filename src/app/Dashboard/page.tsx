@@ -153,55 +153,61 @@ export default function DashboardPage() {
     <div className="space-y-8">
       {/* === TOP CARDS === */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Offices */}
-            <div className="bg-gradient-to-r from-[#1e3a8a] to-[#0f172a] text-white rounded-xl p-6 relative overflow-hidden shadow-md">
-            <div className="flex flex-col justify-center h-full">
-              <p className="text-3xl font-semibold">{stats.offices}</p>
-              <p className="text-sm text-white/80 mt-1">Number of Offices</p>
-            </div>
+  {/* Offices */}
+  <div className="bg-gradient-to-r from-[#1e3a8a] to-[#0f172a] text-white rounded-xl p-6 relative overflow-hidden shadow-md 
+                  hover:shadow-xl hover:scale-105 transition transform duration-300 group">
+    <div className="flex flex-col justify-center h-full">
+      <p className="text-3xl font-semibold">{stats.offices}</p>
+      <p className="text-sm text-white/80 mt-1">Number of Offices</p>
+    </div>
 
-            {/* Colored round icon container */}
-            <div className="absolute top-1/2 right-6 transform -translate-y-1/2 bg-blue-500/80 p-3 rounded-full shadow-lg">
-              <Building2 size={32} className="text-white" />
-            </div>
-          </div>
+    {/* Colored round icon container */}
+    <div className="absolute top-1/2 right-6 transform -translate-y-1/2 bg-blue-500/80 p-3 rounded-full shadow-lg 
+                    transition-transform duration-300 group-hover:scale-125">
+      <Building2 size={32} className="text-white" />
+    </div>
+  </div>
 
+  {/* Expense Types */}
+  <div className="bg-gradient-to-r from-[#1e3a8a] to-[#0f172a] text-white rounded-xl p-6 relative overflow-hidden shadow-md 
+                  hover:shadow-xl hover:scale-105 transition transform duration-300 group">
+    <div className="flex flex-col justify-center h-full">
+      <p className="text-3xl font-semibold">{stats.expenseTypes}</p>
+      <p className="text-sm text-white/80 mt-1">Number of Expense Types</p>
+    </div>
+    <div className="absolute top-1/2 right-6 transform -translate-y-1/2 bg-green-500/80 p-3 rounded-full shadow-lg 
+                    transition-transform duration-300 group-hover:scale-125">
+      <BarChart3 size={32} className="text-white" />
+    </div>
+  </div>
 
-        {/* Expense Types */}
-        <div className="bg-gradient-to-r from-[#1e3a8a] to-[#0f172a] text-white rounded-xl p-6 relative overflow-hidden shadow-md">
-          <div className="flex flex-col justify-center h-full">
-            <p className="text-3xl font-semibold">{stats.expenseTypes}</p>
-            <p className="text-sm text-white/80 mt-1">Number of Expense Types</p>
-          </div>
-          <div className="absolute top-1/2 right-6 transform -translate-y-1/2 bg-green-500/80 p-3 rounded-full">
-            <BarChart3 size={32} className="text-white" />
-          </div>
-        </div>
+  {/* Total Budget */}
+  <div className="bg-gradient-to-r from-[#1e3a8a] to-[#0f172a] text-white rounded-xl p-6 relative overflow-hidden shadow-md 
+                  hover:shadow-xl hover:scale-105 transition transform duration-300 group">
+    <div className="flex flex-col justify-center h-full">
+      <p className="text-2xl font-semibold">{currency(totalBudgetSum)}</p>
+      <p className="text-sm text-white/80 mt-1">Overall Total Budget</p>
+    </div>
+    <div className="absolute top-1/2 right-6 transform -translate-y-1/2 bg-orange-500/80 p-3 rounded-full shadow-lg 
+                    transition-transform duration-300 group-hover:scale-125">
+      <Wallet size={32} className="text-white" />
+    </div>
+  </div>
 
-        {/* Total Budget */}
-        <div className="bg-gradient-to-r from-[#1e3a8a] to-[#0f172a] text-white rounded-xl p-6 relative overflow-hidden shadow-md">
-          <div className="flex flex-col justify-center h-full">
-            <p className="text-2xl font-semibold">{currency(totalBudgetSum)}</p>
-            <p className="text-sm text-white/80 mt-1">Overall Total Budget</p>
-          </div>
-          <div className="absolute top-1/2 right-6 transform -translate-y-1/2 bg-orange-500/80 p-3 rounded-full">
-            <Wallet size={32} className="text-white" />
-          </div>
-        </div>
+  {/* Actual Expenditure */}
+  <div className="bg-gradient-to-r from-[#1e3a8a] to-[#0f172a] text-white rounded-xl p-6 relative overflow-hidden shadow-md 
+                  hover:shadow-xl hover:scale-105 transition transform duration-300 group">
+    <div className="flex flex-col justify-center h-full">
+      <p className="text-2xl font-semibold">{currency(stats.totalExpenditure)}</p>
+      <p className="text-sm text-white/80 mt-1">Actual Expenditure</p>
+    </div>
+    <div className="absolute top-1/2 right-6 transform -translate-y-1/2 bg-violet-500/80 p-3 rounded-full shadow-lg 
+                    transition-transform duration-300 group-hover:scale-125">
+      <PieChart size={32} className="text-white" />
+    </div>
+  </div>
+</div>
 
-        {/* Actual Expenditure */}
-        <div className="bg-gradient-to-r from-[#1e3a8a] to-[#0f172a] text-white rounded-xl p-6 relative overflow-hidden shadow-md">
-          <div className="flex flex-col justify-center h-full">
-            <p className="text-2xl font-semibold">
-              {currency(stats.totalExpenditure)}
-            </p>
-            <p className="text-sm text-white/80 mt-1">Actual Expenditure</p>
-          </div>
-          <div className="absolute top-1/2 right-6 transform -translate-y-1/2 bg-violet-500/80 p-3 rounded-full">
-            <PieChart size={32} className="text-white" />
-          </div>
-        </div>
-      </div>
 
       {/* === PIE CHART === */}
       <div className="bg-white rounded-xl shadow p-6">
