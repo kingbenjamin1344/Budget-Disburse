@@ -1,57 +1,55 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+generator client {
+  provider = "prisma-client-js"
+}
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
-}
-
-model Office {
-  id          Int         @id @default(autoincrement())
-  name        String       @unique
-  dateCreated DateTime     @default(now())
-  budgets     Budget[]
-  disbursements Disbursement[]  // ✅ One office can have many disbursements
-}
-
-model Budget {
-  id          Int       @id @default(autoincrement())
+model budget {
+  id          Int      @id @default(autoincrement())
   officeId    Int
-  officeName  String     // ✅ store readable name for convenience
-  office      Office     @relation(fields: [officeId], references: [id])
+  officeName  String
   ps          Float
   mooe        Float
   co          Float
   total       Float
-  dateCreated DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  dateCreated DateTime @default(now())
+  updatedAt   DateTime
+  office      office   @relation(fields: [officeId], references: [id], map: "Budget_officeId_fkey")
+
+  @@index([officeId], map: "Budget_officeId_fkey")
 }
 
-model Expense {
-  id           Int        @id @default(autoincrement())
-  type         String
-  category     String
-  dateCreated  DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-}
-
-model Disbursement {
-  id              Int       @id @default(autoincrement())
+model disbursement {
+  id              Int      @id @default(autoincrement())
   dvNo            String
   payee           String
   officeId        Int
   officeName      String
-  office          Office    @relation(fields: [officeId], references: [id])
   expenseType     String
   expenseCategory String
   amount          Float
-  dateCreated     DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  dateCreated     DateTime @default(now())
+  updatedAt       DateTime
+  office          office   @relation(fields: [officeId], references: [id], map: "Disbursement_officeId_fkey")
+
+  @@index([officeId], map: "Disbursement_officeId_fkey")
 }
 
+model expense {
+  id          Int      @id @default(autoincrement())
+  type        String
+  category    String
+  dateCreated DateTime @default(now())
+  updatedAt   DateTime
+}
+
+model office {
+  id           Int            @id @default(autoincrement())
+  name         String         @unique(map: "Office_name_key")
+  dateCreated  DateTime       @default(now())
+  budget       budget[]
+  disbursement disbursement[]
+}

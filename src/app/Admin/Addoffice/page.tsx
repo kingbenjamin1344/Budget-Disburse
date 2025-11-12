@@ -10,6 +10,9 @@ export default function AddOfficePage() {
 
   const [addModal, setAddModal] = useState(false);
   const [editModal, setEditModal] = useState(false);
+  const [deleteModal, setDeleteModal] = useState(false);
+  const [officeToDelete, setOfficeToDelete] = useState<{ id: number; name: string } | null>(null);
+
   const [editingOffice, setEditingOffice] = useState<{ id: number; name: string } | null>(null);
   const [editName, setEditName] = useState("");
 
@@ -43,16 +46,6 @@ export default function AddOfficePage() {
     setLoading(false);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Delete this office?")) return;
-    await fetch("/api/offices", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-    fetchOffices();
-  };
-
   const handleEdit = (office: any) => {
     setEditingOffice(office);
     setEditName(office.name);
@@ -75,6 +68,30 @@ export default function AddOfficePage() {
       alert("Failed to update office");
     }
     setLoading(false);
+  };
+
+  const handleDeleteClick = (office: any) => {
+    setOfficeToDelete(office);
+    setDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!officeToDelete) return;
+    try {
+      const res = await fetch("/api/offices", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: officeToDelete.id }),
+      });
+      if (!res.ok) throw new Error("Failed to delete office");
+
+      setDeleteModal(false);
+      setOfficeToDelete(null);
+      fetchOffices();
+    } catch (error) {
+      console.error(error);
+      alert("Error deleting office");
+    }
   };
 
   // 🟩 Filter and paginate
@@ -119,9 +136,8 @@ export default function AddOfficePage() {
         </button>
       </div>
 
-      {/* 🟩 Table Card with Anchored Pagination */}
+      {/* 🟩 Table with Pagination */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[600px]">
-        {/* Table content */}
         <div className="flex-grow overflow-y-auto">
           <table className="min-w-full border-collapse">
             <thead
@@ -129,21 +145,15 @@ export default function AddOfficePage() {
               style={{ backgroundImage: "url('/img/blue.jpg')" }}
             >
               <tr>
-                <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">
-                  List of Office
-                </th>
-                <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">
-                  Date Created
-                </th>
-                <th className="px-6 py-3 text-center font-semibold border-b border-gray-300">
-                  Action
-                </th>
+                  <th className="px-6 py-2 text-left font-semibold w-2/5">List of Office</th>
+                  <th className="px-4 py-2 text-left font-semibold w-2/5">Date Created</th>
+                  <th className="px-4 py-2 text-center font-semibold w-1/5">Action</th>
               </tr>
             </thead>
             <tbody>
               {currentItems.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-6 text-gray-500 italic">
+                  <td colSpan={7} className="py-6 text-gray-500 italic text-center">
                     <div className="flex flex-col items-center justify-center">
                       <img
                         src="/img/addbudget.png"
@@ -157,25 +167,23 @@ export default function AddOfficePage() {
               ) : (
                 currentItems.map((office) => (
                   <tr key={office.id} className="border-b hover:bg-gray-200">
-                    <td className="px-6 py-3 text-gray-700">{office.name}</td>
-                    <td className="px-6 py-3 text-gray-700">
+                    <td className="px-4 py-2">{office.name}</td>
+                    <td className="px-6 py-3">
                       {new Date(office.dateCreated).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-3 text-center text-gray-700">
-                      <div className="flex justify-center items-center space-x-4">
-                        <button
-                          onClick={() => handleEdit(office)}
-                          className="text-blue-500 hover:text-blue-700 transition"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(office.id)}
-                          className="text-red-500 hover:text-red-700 transition"
-                        >
-                          <Trash2 className="w-4 h-4 inline" />
-                        </button>
-                      </div>
+                    <td className="px-6 py-3 text-center space-x-4">
+                      <button
+                        onClick={() => handleEdit(office)}
+                        className="text-blue-500 hover:text-blue-700 transition"
+                      >
+                        <Edit className="w-4 h-4 inline" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteClick(office)}
+                        className="text-red-500 hover:text-red-700 transition"
+                      >
+                        <Trash2 className="w-4 h-4 inline" />
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -184,7 +192,7 @@ export default function AddOfficePage() {
           </table>
         </div>
 
-        {/* 🟩 Anchored Pagination Bar */}
+        {/* Pagination Bar */}
         <div className="border-t border-gray-200 p-2 bg-gray-50">
           <div className="flex justify-end">
             <nav aria-label="Page navigation">
@@ -235,7 +243,7 @@ export default function AddOfficePage() {
         </div>
       </div>
 
-      {/* Modals (unchanged below) */}
+      {/* 🟩 Add Office Modal */}
       {addModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
           <div className="absolute inset-0 bg-black opacity-20 pointer-events-auto"></div>
@@ -267,6 +275,7 @@ export default function AddOfficePage() {
         </div>
       )}
 
+      {/* 🟩 Edit Modal */}
       {editModal && editingOffice && (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
           <div className="absolute inset-0 bg-black opacity-20 pointer-events-auto"></div>
@@ -292,6 +301,36 @@ export default function AddOfficePage() {
                 className="px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 transition"
               >
                 {loading ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🟥 Delete Confirmation Modal */}
+      {deleteModal && officeToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 bg-black opacity-20 pointer-events-auto"></div>
+          <div className="bg-white rounded-lg shadow-lg w-96 p-6 z-10 pointer-events-auto">
+            <h2 className="text-lg font-semibold mb-3 text-center text-red-600">
+              Confirm Delete
+            </h2>
+            <p className="text-gray-700 text-center mb-5">
+              Are you sure you want to delete{" "}
+              <span className="font-semibold">{officeToDelete.name}</span>?
+            </p>
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => setDeleteModal(false)}
+                className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-100 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 rounded-md bg-red-500 text-white hover:bg-red-600 transition"
+              >
+                Delete
               </button>
             </div>
           </div>

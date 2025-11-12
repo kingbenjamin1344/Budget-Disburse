@@ -12,13 +12,19 @@ export default function AddExpensePage() {
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editType, setEditType] = useState("");
   const [editCategory, setEditCategory] = useState("PS");
 
-  // ✅ Category filter state
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [deleteType, setDeleteType] = useState("");
+
   const [filterCategory, setFilterCategory] = useState("All");
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const fetchExpenses = async () => {
     try {
@@ -36,32 +42,36 @@ export default function AddExpensePage() {
 
   const handleAddExpense = async () => {
     if (!type.trim() || !category.trim()) return alert("Please fill in both fields");
-
     setLoading(true);
     const res = await fetch("/api/expenses", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type, category }),
     });
-
     if (res.ok) {
       setType("");
       setCategory("PS");
       setShowAddModal(false);
       fetchExpenses();
-    } else {
-      alert("Failed to add expense");
-    }
+    } else alert("Failed to add expense");
     setLoading(false);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Are you sure you want to delete this expense?")) return;
+  const openDeleteModal = (expense: any) => {
+    setDeleteId(expense.id);
+    setDeleteType(expense.type);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteId) return;
     await fetch("/api/expenses", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
+      body: JSON.stringify({ id: deleteId }),
     });
+    setShowDeleteModal(false);
+    setDeleteId(null);
     fetchExpenses();
   };
 
@@ -74,7 +84,6 @@ export default function AddExpensePage() {
 
   const handleSaveEdit = async () => {
     if (!editType.trim() || !editCategory.trim()) return alert("Please fill in both fields");
-
     const res = await fetch("/api/expenses", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -84,7 +93,6 @@ export default function AddExpensePage() {
         category: editCategory,
       }),
     });
-
     if (res.ok) {
       setShowEditModal(false);
       setEditingId(null);
@@ -99,27 +107,40 @@ export default function AddExpensePage() {
     return matchesSearch && matchesCategory;
   });
 
+  // 🟩 Pagination logic
+  const totalPages = Math.ceil(filteredExpenses.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentItems = filteredExpenses.slice(startIndex, startIndex + itemsPerPage);
+
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) setCurrentPage(page);
+  };
+
   return (
-    <div className="w-full">
+    <div className="w-full p-4">
       {/* Top Controls */}
       <div className="flex flex-wrap items-center justify-between mb-6 gap-3">
         <div className="flex items-center space-x-2">
-          {/* Search Input */}
           <div className="relative">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
             <input
               type="text"
               placeholder="Search expense..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
               className="pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-blue-200"
             />
           </div>
 
-          {/* ✅ Category Filter */}
           <select
             value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
+            onChange={(e) => {
+              setFilterCategory(e.target.value);
+              setCurrentPage(1);
+            }}
             className="border border-gray-300 px-3 py-2 rounded-md focus:outline-none focus:ring focus:ring-blue-200"
           >
             <option value="All">All Categories</option>
@@ -129,7 +150,6 @@ export default function AddExpensePage() {
           </select>
         </div>
 
-        {/* Add Expense Button */}
         <button
           onClick={() => setShowAddModal(true)}
           className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
@@ -139,70 +159,143 @@ export default function AddExpensePage() {
         </button>
       </div>
 
-      
-{/* Expense Table */}
-      <div className="overflow-x-auto rounded-lg bg-white shadow-sm bg-cover bg-center" >
-        <table className="min-w-full border-collapse">
-          <thead className="bg-gray-100 text-gray-700 border-b text-white border-b bg-cover bg-center"  
-            style={{ backgroundImage: "url('/img/blue.jpg')" }}
+      {/* Table */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[600px]">
+        <div className="flex-grow overflow-y-auto">
+          <table className="min-w-full border-collapse">
+            <thead
+              className="text-white border-b bg-cover bg-center"
+              style={{ backgroundImage: "url('/img/blue.jpg')" }}
             >
-            <tr>
-              <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">Type of Expense</th>
-              <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">Category</th>
-              <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">Date Created</th>
-              <th className="px-6 py-3 text-center font-semibold border-b border-gray-300">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredExpenses.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-6 text-gray-500 italic">
-                  <div className="flex flex-col items-center justify-center">
-                    <img
-                      src="/img/addexpense.png"
-                      alt="No data"
-                      className="mb-2 max-w-[200px] h-auto object-contain"
-                    />
-                    <span>No expense record found.</span>
-                  </div>
-                </td>
+                <th className="px-6 py-2 text-left font-semibold border-b border-gray-300 ">Type of Expense</th>
+                <th className="px-3 py-2 text-left font-semibold border-b border-gray-300">Category</th>
+                <th className="px-3 py-2 text-left font-semibold border-b border-gray-300">Date Created</th>
+                <th className="px-3 py-2 text-center font-semibold border-b border-gray-300">Action</th>
               </tr>
-            ) : (
-              filteredExpenses.map((expense) => (
-                <tr key={expense.id} className="border-b hover:bg-gray-200">
-                  <td className="px-6 py-3 text-gray-700">{expense.type}</td>
-                  <td className="px-6 py-3 text-gray-700">{expense.category}</td>
-                  <td className="px-6 py-3 text-gray-700">
-                    {new Date(expense.dateCreated).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-2 text-center text-gray-700">
-                    <div className="px-6 py-2 text-center space-x-2">
-                      <button
-                        onClick={() => handleEdit(expense)}
-                        className="text-blue-500 hover:text-blue-700 transition"
-                      >
-                        <Edit className="w-4 h-4 inline" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(expense.id)}
-                        className="text-red-500 hover:text-red-700 transition"
-                      >
-                         <Trash2 className="w-4 h-4 inline" />
-                      </button>
+            </thead>
+            <tbody>
+              {currentItems.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-6 text-gray-500 italic text-center">
+                    <div className="flex flex-col items-center justify-center">
+                      <img src="/img/addexpense.png" alt="No data" className="mb-2 max-w-[200px]" />
+                      <span>No expense record found.</span>
                     </div>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                currentItems.map((expense) => (
+                  <tr key={expense.id} className="border-b hover:bg-gray-200">
+                    <td className="px-6 py-3 text-gray-700">{expense.type}</td>
+                    <td className="px-6 py-3 text-gray-700">{expense.category}</td>
+                    <td className="px-6 py-3 text-gray-700">
+                      {new Date(expense.dateCreated).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-3 text-center">
+                      <div className="flex justify-center items-center space-x-4">
+                        <button
+                          onClick={() => handleEdit(expense)}
+                          className="text-blue-500 hover:text-blue-700 transition"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => openDeleteModal(expense)}
+                          className="text-red-500 hover:text-red-700 transition"
+                        >
+                          <Trash2 className="w-4 h-4 inline" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        <div className="border-t border-gray-200 p-2 bg-gray-50">
+          <div className="flex justify-end">
+            <nav aria-label="Page navigation">
+              <ul className="inline-flex -space-x-px text-sm">
+                <li>
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className={`px-3 py-2 border border-gray-300 rounded-l-lg hover:bg-gray-100 ${
+                      currentPage === 1 ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                  >
+                    Previous
+                  </button>
+                </li>
+
+                {[...Array(totalPages)].map((_, index) => (
+                  <li key={index}>
+                    <button
+                      onClick={() => handlePageChange(index + 1)}
+                      className={`px-3 py-2 border border-gray-300 hover:bg-gray-100 ${
+                        currentPage === index + 1 ? "bg-blue-500 text-white" : "text-gray-700"
+                      }`}
+                    >
+                      {index + 1}
+                    </button>
+                  </li>
+                ))}
+
+                <li>
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className={`px-3 py-2 border border-gray-300 rounded-r-lg hover:bg-gray-100 ${
+                      currentPage === totalPages ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                  >
+                    Next
+                  </button>
+                </li>
+              </ul>
+            </nav>
+          </div>
+        </div>
       </div>
-      {/* ✅ Add Expense Modal */}
+
+      {/* ✅ Delete Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 bg-black opacity-20 pointer-events-auto"></div>
+          <div className="bg-white rounded-lg shadow-lg w-96 p-6 z-10 pointer-events-auto">
+            <h2 className="text-lg font-semibold mb-3 text-center text-red-600">Confirm Delete</h2>
+            <p className="text-gray-700 text-center mb-5">
+              Are you sure you want to delete{" "}
+              <span className="font-semibold">{deleteType}</span>?
+            </p>
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-100 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 rounded-md bg-red-500 text-white hover:bg-red-600 transition"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
           <div className="absolute inset-0 bg-black opacity-20 pointer-events-auto"></div>
           <div className="bg-white rounded-lg shadow-lg w-96 p-6 z-10 pointer-events-auto">
-            <h2 className="text-lg font-semibold mb-3 text-center" >Add Expense</h2>
+            <h2 className="text-lg font-semibold mb-3 text-center">Add Expense</h2>
             <input
               type="text"
               placeholder="Type of Expense"
@@ -238,7 +331,7 @@ export default function AddExpensePage() {
         </div>
       )}
 
-      {/* ✅ Edit Expense Modal */}
+      {/* Edit Modal */}
       {showEditModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
           <div className="absolute inset-0 bg-black opacity-20 pointer-events-auto"></div>
@@ -272,7 +365,7 @@ export default function AddExpensePage() {
                 disabled={loading}
                 className="px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 transition"
               >
-                Save
+                {loading ? "Saving..." : "Save"}
               </button>
             </div>
           </div>
