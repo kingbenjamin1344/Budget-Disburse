@@ -191,13 +191,13 @@ export default function AddBudgetPage() {
               style={{ backgroundImage: "url('/img/blue.jpg')" }}
             >
               <tr>
-                <th className="px-6 py-3 text-left font-semibold">Office</th>
-                <th className="px-6 py-3 text-left font-semibold">PS</th>
-                <th className="px-6 py-3 text-left font-semibold">MOOE</th>
-                <th className="px-6 py-3 text-left font-semibold">CO</th>
-                <th className="px-6 py-3 text-left font-semibold">Total</th>
-                <th className="px-6 py-3 text-left font-semibold">Date Created</th>
-                <th className="px-6 py-3 text-center font-semibold">Actions</th>
+                <th className="px-6 py-2 text-left font-semibold">Office</th>
+                <th className="px-3 py-2 text-left font-semibold">PS</th>
+                <th className="px-3 py-2 text-left font-semibold">MOOE</th>
+                <th className="px-3 py-2 text-left font-semibold">CO</th>
+                <th className="px-3 py-2 text-left font-semibold">Total</th>
+                <th className="px-3 py-2 text-left font-semibold">Date Created</th>
+                <th className="px-3 py-2 text-center font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody>

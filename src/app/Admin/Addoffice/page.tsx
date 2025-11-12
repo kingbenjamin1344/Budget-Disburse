@@ -145,9 +145,9 @@ export default function AddOfficePage() {
               style={{ backgroundImage: "url('/img/blue.jpg')" }}
             >
               <tr>
-                <th className="px-6 py-3 text-left font-semibold">List of Office</th>
-                <th className="px-6 py-3 text-left font-semibold">Date Created</th>
-                <th className="px-6 py-3 text-center font-semibold">Action</th>
+                  <th className="px-6 py-2 text-left font-semibold w-2/5">List of Office</th>
+                  <th className="px-4 py-2 text-left font-semibold w-2/5">Date Created</th>
+                  <th className="px-4 py-2 text-center font-semibold w-1/5">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -167,7 +167,7 @@ export default function AddOfficePage() {
               ) : (
                 currentItems.map((office) => (
                   <tr key={office.id} className="border-b hover:bg-gray-200">
-                    <td className="px-6 py-3">{office.name}</td>
+                    <td className="px-4 py-2">{office.name}</td>
                     <td className="px-6 py-3">
                       {new Date(office.dateCreated).toLocaleDateString()}
                     </td>

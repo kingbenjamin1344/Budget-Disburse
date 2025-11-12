@@ -289,14 +289,14 @@ export default function DisbursementPage() {
               style={{ backgroundImage: "url('/img/blue.jpg')" }}
             >
               <tr>
-                <th className="px-6 py-3 text-left">DV No.</th>
-                <th className="px-6 py-3 text-left">Payee</th>
-                <th className="px-6 py-3 text-left">Office</th>
-                <th className="px-6 py-3 text-left">Type</th>
-                <th className="px-6 py-3 text-left">Category</th>
-                <th className="px-6 py-3 text-left">Amount</th>
-                <th className="px-6 py-3 text-left">Date</th>
-                <th className="px-6 py-3 text-center">Actions</th>
+                <th className="px-6 py-2 text-left">DV No.</th>
+                <th className="px-3 py-2 text-left">Payee</th>
+                <th className="px-3 py-2 text-left">Office</th>
+                <th className="px-3 py-2 text-left">Type</th>
+                <th className="px-3 py-2 text-left">Category</th>
+                <th className="px-3 py-2 text-left">Amount</th>
+                <th className="px-3 py-2 text-left">Date</th>
+                <th className="px-3 py-2 text-center">Actions</th>
               </tr>
             </thead>
             <tbody>

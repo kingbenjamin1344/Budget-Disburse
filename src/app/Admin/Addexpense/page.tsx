@@ -168,10 +168,10 @@ export default function AddExpensePage() {
               style={{ backgroundImage: "url('/img/blue.jpg')" }}
             >
               <tr>
-                <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">Type of Expense</th>
-                <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">Category</th>
-                <th className="px-6 py-3 text-left font-semibold border-b border-gray-300">Date Created</th>
-                <th className="px-6 py-3 text-center font-semibold border-b border-gray-300">Action</th>
+                <th className="px-6 py-2 text-left font-semibold border-b border-gray-300 ">Type of Expense</th>
+                <th className="px-3 py-2 text-left font-semibold border-b border-gray-300">Category</th>
+                <th className="px-3 py-2 text-left font-semibold border-b border-gray-300">Date Created</th>
+                <th className="px-3 py-2 text-center font-semibold border-b border-gray-300">Action</th>
               </tr>
             </thead>
             <tbody>
