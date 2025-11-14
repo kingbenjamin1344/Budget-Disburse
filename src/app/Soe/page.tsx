@@ -1,12 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RotateCcw, Printer, Minimize2, Maximize2,Save } from "lucide-react";
+import { RotateCcw, Printer, Minimize2, Maximize2, Save } from "lucide-react";
+
+// PDF / export libs
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 export default function SoePage() {
   const [isCompressed, setIsCompressed] = useState(false);
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [saveFilename, setSaveFilename] = useState('');
+  const [saving, setSaving] = useState(false);
 
   // Helper function to format numbers as Philippine Peso
   const formatPeso = (value: number) => {
@@ -23,23 +30,289 @@ export default function SoePage() {
     const navbar = document.getElementById("navbar");
     const mainContent = document.getElementById("main-content");
 
-    if (!layout || !sidebar || !navbar || !mainContent) return;
-
-    if (!isCompressed) {
-      sidebar.style.display = "none";
-      navbar.style.display = "none";
-      mainContent.style.padding = "0";
-      layout.style.height = "100vh";
-      layout.style.background = "white";
-    } else {
-      sidebar.style.display = "";
-      navbar.style.display = "";
-      mainContent.style.padding = "1.5rem";
-      layout.style.height = "";
-      layout.style.background = "";
+    if (!layout || !sidebar || !navbar || !mainContent) {
+      setIsCompressed((v) => !v);
+      return;
     }
 
-    setIsCompressed(!isCompressed);
+    if (!isCompressed) {
+      sidebar.style.display = 'none';
+      navbar.style.display = 'none';
+      mainContent.style.padding = '0';
+      layout.style.height = '100vh';
+      layout.style.background = '#fff';
+      setIsCompressed(true);
+    } else {
+      sidebar.style.display = '';
+      navbar.style.display = '';
+      mainContent.style.padding = '';
+      layout.style.height = '';
+      layout.style.background = '';
+      setIsCompressed(false);
+    }
+  };
+
+  // Generate a PDF Blob from the SOE data by building a sanitized table (no site CSS)
+  const generatePdfBlob = async (): Promise<Blob | null> => {
+    try {
+      const tableEl = document.createElement('table');
+      tableEl.style.borderCollapse = 'collapse';
+      tableEl.style.width = '100%';
+      tableEl.style.fontFamily = 'Arial, sans-serif';
+      tableEl.style.fontSize = '12px';
+
+      // header
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      const headers = [
+        'Particulars',
+        'Budget PS',
+        'Budget MOOE',
+        'Budget CO',
+        'Budget Total',
+        'Actual PS',
+        'Actual MOOE',
+        'Actual CO',
+        'Actual Total',
+        'Variance PS',
+        'Variance MOOE',
+        'Variance CO',
+        'Variance Total',
+      ];
+      for (const h of headers) {
+        const th = document.createElement('th');
+        th.textContent = h;
+        th.style.border = '1px solid #d1d5db';
+        th.style.padding = '6px 8px';
+        th.style.background = '#f3f4f6';
+        th.style.fontWeight = '700';
+        headerRow.appendChild(th);
+      }
+      thead.appendChild(headerRow);
+      tableEl.appendChild(thead);
+
+      // body
+      const tbody = document.createElement('tbody');
+      for (const row of data) {
+        const tr = document.createElement('tr');
+        tr.style.border = '1px solid #e5e7eb';
+
+        const cells = [
+          row.office,
+          formatPeso(row.budget.ps),
+          formatPeso(row.budget.mooe),
+          formatPeso(row.budget.co),
+          formatPeso(row.budget.total),
+          formatPeso(row.actual.ps),
+          formatPeso(row.actual.mooe),
+          formatPeso(row.actual.co),
+          formatPeso(row.actual.total),
+          formatPeso(row.variance.ps),
+          formatPeso(row.variance.mooe),
+          formatPeso(row.variance.co),
+          formatPeso(row.variance.total),
+        ];
+
+        for (const c of cells) {
+          const td = document.createElement('td');
+          td.textContent = String(c ?? '');
+          td.style.border = '1px solid #e5e7eb';
+          td.style.padding = '6px 8px';
+          td.style.textAlign = 'right';
+          tr.appendChild(td);
+        }
+
+        if (tr.firstChild) (tr.firstChild as HTMLElement).style.textAlign = 'left';
+        tbody.appendChild(tr);
+      }
+
+      // totals row
+      const totalsRow = document.createElement('tr');
+      totalsRow.style.fontWeight = '700';
+      const totals = [
+        'Overall Total',
+        formatPeso(data.reduce((sum, r) => sum + r.budget.ps, 0)),
+        formatPeso(data.reduce((sum, r) => sum + r.budget.mooe, 0)),
+        formatPeso(data.reduce((sum, r) => sum + r.budget.co, 0)),
+        formatPeso(data.reduce((sum, r) => sum + r.budget.total, 0)),
+        formatPeso(data.reduce((sum, r) => sum + r.actual.ps, 0)),
+        formatPeso(data.reduce((sum, r) => sum + r.actual.mooe, 0)),
+        formatPeso(data.reduce((sum, r) => sum + r.actual.co, 0)),
+        formatPeso(data.reduce((sum, r) => sum + r.actual.total, 0)),
+        formatPeso(data.reduce((sum, r) => sum + r.variance.ps, 0)),
+        formatPeso(data.reduce((sum, r) => sum + r.variance.mooe, 0)),
+        formatPeso(data.reduce((sum, r) => sum + r.variance.co, 0)),
+        formatPeso(data.reduce((sum, r) => sum + r.variance.total, 0)),
+      ];
+      for (const c of totals) {
+        const td = document.createElement('td');
+        td.textContent = String(c ?? '');
+        td.style.border = '1px solid #e5e7eb';
+        td.style.padding = '6px 8px';
+        td.style.textAlign = 'right';
+        totalsRow.appendChild(td);
+      }
+      if (totalsRow.firstChild) (totalsRow.firstChild as HTMLElement).style.textAlign = 'left';
+      tbody.appendChild(totalsRow);
+
+      tableEl.appendChild(tbody);
+
+      // Render off-screen
+      const wrapper = document.createElement('div');
+      wrapper.style.position = 'fixed';
+      wrapper.style.left = '-99999px';
+      wrapper.style.top = '0';
+      wrapper.style.pointerEvents = 'none';
+      wrapper.appendChild(tableEl);
+      document.body.appendChild(wrapper);
+
+      const canvas = await html2canvas(tableEl as HTMLElement, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('l', 'pt', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      const imgProps = (pdf as any).getImageProperties(imgData);
+      const imgWidth = pageWidth;
+      const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+
+      let position = 0;
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      let remainingHeight = imgHeight - pageHeight;
+      while (remainingHeight > 0) {
+        position = position - pageHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        remainingHeight -= pageHeight;
+      }
+
+      const blob = pdf.output('blob');
+
+      // cleanup
+      try {
+        if (wrapper && wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
+      } catch (e) {
+        /* ignore */
+      }
+
+      return blob;
+    } catch (err) {
+      console.error('PDF generation error', err);
+      return null;
+    }
+  };
+
+  // Download the PDF file
+  const downloadPdf = async (filename?: string) => {
+    const blob = await generatePdfBlob();
+    if (!blob) return alert('Unable to generate PDF');
+
+    const finalFilename = filename || `SOE_${new Date().toISOString().split('T')[0]}.pdf`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = finalFilename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  // Save PDF using File System Access API when available, otherwise fall back to download
+  const savePdfWithFilename = async (filename: string) => {
+    setSaving(true);
+    try {
+      const blob = await generatePdfBlob();
+      if (!blob) throw new Error('Unable to generate PDF');
+
+      // If the browser supports the File System Access API
+      if ('showSaveFilePicker' in window) {
+        try {
+          // @ts-ignore
+          const handle = await (window as any).showSaveFilePicker({
+            suggestedName: filename,
+            types: [
+              {
+                description: 'PDF File',
+                accept: { 'application/pdf': ['.pdf'] },
+              },
+            ],
+          });
+          const writable = await handle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+        } catch (err) {
+          // If user cancels or API fails, fallback to anchor download
+          console.warn('File save via showSaveFilePicker failed, falling back to download', err);
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+        }
+      } else {
+        // Fallback: standard download
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      return true;
+    } catch (e) {
+      console.error('Save PDF error', e);
+      alert('Failed to save PDF: ' + (e as any)?.message || e);
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // View PDF in a new tab
+  const viewPdf = async () => {
+    const blob = await generatePdfBlob();
+    if (!blob) return alert('Unable to generate PDF');
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  };
+
+  // Download ZIP containing PDF (requires jszip). If jszip not installed, fallback to PDF download.
+  const downloadZipWithPdf = async () => {
+    const blob = await generatePdfBlob();
+    if (!blob) return alert('Unable to generate PDF');
+
+    try {
+      const JSZip = (await import('jszip')).default;
+      // If TypeScript/IDE complains about missing types, run: npm install jszip
+      const zip = new JSZip();
+      zip.file('soe.pdf', blob);
+      const content = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+
+      const url = URL.createObjectURL(content);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'soe.zip';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.warn('JSZip not available — falling back to PDF download', e);
+      // fallback
+      await downloadPdf('soe.pdf');
+    }
   };
 
   useEffect(() => {
@@ -131,17 +404,23 @@ export default function SoePage() {
     <div className="w-full transition-all duration-300">
       {/* Header */}
       <div className="flex justify-end mb-6 space-x-3">
-        <button
+       {/*  <button
           onClick={() => window.location.reload()}
           className="flex items-center bg-yellow-500 text-white px-4 py-2 rounded-md hover:bg-yellow-600 transition"
         >
           <Save className="w-4 h-4 mr-2" />
           Save Data
+        </button>*/}
+   
+        <button className="flex items-center bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition" onClick={() => {
+          const defaultName = `SOE_${new Date().toISOString().split('T')[0]}.pdf`;
+          setSaveFilename(defaultName);
+          setSaveModalOpen(true);
+        }}>
+          <Save className="w-4 h-4 mr-2" />
+          Download PDF
         </button>
-        <button className="flex items-center bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition">
-          <Printer className="w-4 h-4 mr-2" />
-          Print Details
-        </button>
+
         <button
           onClick={toggleCompress}
           className="flex items-center bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-800 transition"
@@ -157,6 +436,42 @@ export default function SoePage() {
           )}
         </button>
       </div>
+
+      {/* Save / Rename Modal */}
+      {saveModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black opacity-50" onClick={() => setSaveModalOpen(false)} />
+          <div className="bg-white rounded-lg shadow-lg z-10 w-[min(600px,90%)] p-6">
+            <h3 className="text-lg font-semibold mb-3">Save PDF</h3>
+            <label className="block text-sm text-gray-700 mb-2">Filename</label>
+            <input
+              className="w-full border border-gray-300 rounded px-3 py-2 mb-4"
+              value={saveFilename}
+              onChange={(e) => setSaveFilename(e.target.value)}
+            />
+            <div className="flex justify-end space-x-3">
+              <button
+                className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
+                onClick={() => setSaveModalOpen(false)}
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
+                onClick={async () => {
+                  if (!saveFilename) return alert('Please provide a filename.');
+                  const ok = await savePdfWithFilename(saveFilename.endsWith('.pdf') ? saveFilename : saveFilename + '.pdf');
+                  if (ok) setSaveModalOpen(false);
+                }}
+                disabled={saving}
+              >
+                {saving ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       <div className="overflow-x-auto rounded-lg bg-white shadow-sm transition-all duration-300">
