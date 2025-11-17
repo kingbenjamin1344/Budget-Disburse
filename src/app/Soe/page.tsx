@@ -246,18 +246,26 @@ export default function SoePage() {
           const writable = await handle.createWritable();
           await writable.write(blob);
           await writable.close();
-        } catch (err) {
-          // If user cancels or API fails, fallback to anchor download
-          console.warn('File save via showSaveFilePicker failed, falling back to download', err);
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          URL.revokeObjectURL(url);
-        }
+
+        } catch (err: any) {
+           // User canceled save dialog → just stop, do NOT download
+           if (err?.name === "AbortError") {
+             console.log("User cancelled save dialog. Not saving.");
+             return false;
+           }
+         
+           // Other errors (real errors) can still fallback to download
+           console.warn("Save failed, using fallback download:", err);
+           const url = URL.createObjectURL(blob);
+           const a = document.createElement('a');
+           a.href = url;
+           a.download = filename;
+           document.body.appendChild(a);
+           a.click();
+           a.remove();
+           URL.revokeObjectURL(url);
+          }
+
       } else {
         // Fallback: standard download
         const url = URL.createObjectURL(blob);
