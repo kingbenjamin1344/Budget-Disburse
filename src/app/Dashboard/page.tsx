@@ -167,6 +167,16 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      {/* === HEADER === */}
+    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-800">
+          Dashboard
+        </h1>
+      </div>     
+    </div>
+    {/* Divider line */}
+<hr className="border-gray-300 mt-4 mb-6" />
       {/* === TOP CARDS === */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Offices */}

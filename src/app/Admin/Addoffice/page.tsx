@@ -109,32 +109,46 @@ export default function AddOfficePage() {
 
   return (
     <div className="w-full p-4">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-2">
-          <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search office..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-blue-200"
-            />
-          </div>
-        </div>
+      {/* === HEADER WITH CONTROLS INLINE === */}
+<div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+  {/* Left: Dashboard Title */}
+  <div>
+    <h1 className="text-3xl font-bold text-gray-800">
+      Office
+    </h1>
+  </div>
 
-        <button
-          onClick={() => setAddModal(true)}
-          className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Office
-        </button>
-      </div>
+  {/* Right: Search and Add Button */}
+  <div className="flex items-center space-x-2 w-full sm:w-auto mt-4 sm:mt-0">
+    {/* Search */}
+    <div className="relative">
+      <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+      <input
+        type="text"
+        placeholder="Search office..."
+        value={searchTerm}
+        onChange={(e) => {
+          setSearchTerm(e.target.value);
+          setCurrentPage(1);
+        }}
+        className="pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-blue-200"
+      />
+    </div>
+
+    {/* Add Office Button */}
+    <button
+      onClick={() => setAddModal(true)}
+      className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
+    >
+      <Plus className="w-4 h-4 mr-2" />
+      Add Office
+    </button>
+  </div>
+</div>
+
+{/* Divider line */}
+<hr className="border-gray-300 mt-4 mb-6" />
+
 
       {/* 🟩 Table with Pagination */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[600px]">

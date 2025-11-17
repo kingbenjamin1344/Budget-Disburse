@@ -149,38 +149,46 @@ export default function AddBudgetPage() {
 
   return (
     <div className="w-full p-4">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-2">
-          <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search office..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-blue-200"
-            />
-          </div>
-        </div>
+      {/* === HEADER === */}
+<div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+  {/* Left: Title */}
+  <h1 className="text-3xl font-bold text-gray-800">Budget Allocation</h1>
 
-        <button
-          onClick={() => {
-            setShowModal(true);
-            setEditingId(null);
-            setOfficeId("");
-            setPs("");
-            setMooe("");
-            setCo("");
-          }}
-          className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
-        >
-          <Plus className="w-4 h-4 mr-2" /> Add Budget
-        </button>
-      </div>
+  {/* Right: Search + Add button */}
+  <div className="flex items-center space-x-2 mt-2 sm:mt-0">
+    {/* Search */}
+    <div className="relative">
+      <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+      <input
+        type="text"
+        placeholder="Search office..."
+        value={searchTerm}
+        onChange={(e) => {
+          setSearchTerm(e.target.value);
+          setCurrentPage(1);
+        }}
+        className="pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-blue-200"
+      />
+    </div>
+
+    {/* Add Budget Button */}
+    <button
+      onClick={() => {
+        setShowModal(true);
+        setEditingId(null);
+        setOfficeId("");
+        setPs("");
+        setMooe("");
+        setCo("");
+      }}
+      className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
+    >
+      <Plus className="w-4 h-4 mr-2" /> Add Budget
+    </button>
+  </div>
+</div>
+<hr className="border-gray-300 mb-6" />
+
 
       {/* Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[600px]">

@@ -233,80 +233,86 @@ const remainingBudget = useMemo(() => {
   }, [totalPages]);
 
   return (
+    
     <div className="w-full p-4">
-      {/* =================== Header & Filters =================== */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-3">
-        <div className="flex flex-col md:flex-row items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search disbursement..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="pl-8 pr-3 py-2 border border-gray-300 rounded-md"
-            />
-          </div>
+   {/* === HEADER === */}
+<div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+  {/* Left: Title */}
+  <h1 className="text-3xl font-bold text-gray-800">Disbursement</h1>
 
-          <select
-            value={filterOffice}
-            onChange={(e) => {
-              setFilterOffice(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="border border-gray-300 rounded-md px-3 py-2"
-          >
-            <option value="">Filter by Office</option>
-            {offices.map((o) => (
-              <option key={o} value={o}>
-                {o}
-              </option>
-            ))}
-          </select>
+  {/* Right: Search + Filters + Add Button */}
+  <div className="flex flex-wrap items-center gap-2 mt-2 sm:mt-0">
+    {/* Search */}
+    <div className="relative">
+      <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+      <input
+        type="text"
+        placeholder="Search disbursement..."
+        value={searchTerm}
+        onChange={(e) => {
+          setSearchTerm(e.target.value);
+          setCurrentPage(1);
+        }}
+        className="pl-8 pr-3 py-2 border border-gray-300 rounded-md"
+      />
+    </div>
 
-          <select
-            value={filterExpense}
-            onChange={(e) => {
-              setFilterExpense(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="border border-gray-300 rounded-md px-3 py-2"
-          >
-            <option value="">Filter by Expense Type</option>
-            {expenses.map((e) => (
-              <option key={e.type} value={e.type}>
-                {e.type}
-              </option>
-            ))}
-          </select>
+    {/* Filter by Office */}
+    <select
+      value={filterOffice}
+      onChange={(e) => {
+        setFilterOffice(e.target.value);
+        setCurrentPage(1);
+      }}
+      className="border border-gray-300 rounded-md px-3 py-2"
+    >
+      <option value="">Filter by Office</option>
+      {offices.map((o) => (
+        <option key={o} value={o}>{o}</option>
+      ))}
+    </select>
 
-          <select
-            value={filterCategory}
-            onChange={(e) => {
-              setFilterCategory(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="border border-gray-300 rounded-md px-3 py-2"
-          >
-            <option value="">Filter by Category</option>
-            {[...new Set(expenses.map((e) => e.category))].map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </div>
+    {/* Filter by Expense Type */}
+    <select
+      value={filterExpense}
+      onChange={(e) => {
+        setFilterExpense(e.target.value);
+        setCurrentPage(1);
+      }}
+      className="border border-gray-300 rounded-md px-3 py-2"
+    >
+      <option value="">Filter by Expense Type</option>
+      {expenses.map((e) => (
+        <option key={e.type} value={e.type}>{e.type}</option>
+      ))}
+    </select>
 
-        <button
-          onClick={handleAdd}
-          className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
-        >
-          <Plus className="w-4 h-4 mr-2" /> Record Disbursement
-        </button>
-      </div>
+    {/* Filter by Category */}
+    <select
+      value={filterCategory}
+      onChange={(e) => {
+        setFilterCategory(e.target.value);
+        setCurrentPage(1);
+      }}
+      className="border border-gray-300 rounded-md px-3 py-2"
+    >
+      <option value="">Filter by Category</option>
+      {[...new Set(expenses.map((e) => e.category))].map((c) => (
+        <option key={c} value={c}>{c}</option>
+      ))}
+    </select>
+
+    {/* Record Disbursement Button */}
+    <button
+      onClick={handleAdd}
+      className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
+    >
+      <Plus className="w-4 h-4 mr-2" /> Record Disbursement
+    </button>
+  </div>
+</div>
+<hr className="border-gray-300 mb-6" />
+
 
       {/* =================== Table =================== */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[600px]">

@@ -118,46 +118,61 @@ export default function AddExpensePage() {
 
   return (
     <div className="w-full p-4">
-      {/* Top Controls */}
-      <div className="flex flex-wrap items-center justify-between mb-6 gap-3">
-        <div className="flex items-center space-x-2">
-          <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search expense..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-blue-200"
-            />
-          </div>
+    {/* === HEADER WITH CONTROLS INLINE === */}
+<div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+  {/* Left: Title */}
+  <div>
+    <h1 className="text-3xl font-bold text-gray-800">
+      Expense
+    </h1>
+  </div>
 
-          <select
-            value={filterCategory}
-            onChange={(e) => {
-              setFilterCategory(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="border border-gray-300 px-3 py-2 rounded-md focus:outline-none focus:ring focus:ring-blue-200"
-          >
-            <option value="All">All Categories</option>
-            <option value="PS">Personnel Services (PS)</option>
-            <option value="MOOE">Maintenance of Office Expenditure (MOOE)</option>
-            <option value="CO">Capital Outlay (CO)</option>
-          </select>
-        </div>
+  {/* Right: Search, Filter, and Add Button */}
+  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto mt-4 sm:mt-0">
+    {/* Search Input */}
+    <div className="relative">
+      <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+      <input
+        type="text"
+        placeholder="Search expense..."
+        value={searchTerm}
+        onChange={(e) => {
+          setSearchTerm(e.target.value);
+          setCurrentPage(1);
+        }}
+        className="pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-blue-200"
+      />
+    </div>
 
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Expense
-        </button>
-      </div>
+    {/* Category Filter */}
+    <select
+      value={filterCategory}
+      onChange={(e) => {
+        setFilterCategory(e.target.value);
+        setCurrentPage(1);
+      }}
+      className="border border-gray-300 px-3 py-2 rounded-md focus:outline-none focus:ring focus:ring-blue-200"
+    >
+      <option value="All">All Categories</option>
+      <option value="PS">Personnel Services (PS)</option>
+      <option value="MOOE">Maintenance of Office Expenditure (MOOE)</option>
+      <option value="CO">Capital Outlay (CO)</option>
+    </select>
+
+    {/* Add Expense Button */}
+    <button
+      onClick={() => setShowAddModal(true)}
+      className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
+    >
+      <Plus className="w-4 h-4 mr-2" />
+      Add Expense
+    </button>
+  </div>
+</div>
+
+{/* Divider line */}
+<hr className="border-gray-300 mt-4 mb-6" />
+
 
       {/* Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[600px]">

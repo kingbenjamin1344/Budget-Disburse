@@ -410,40 +410,47 @@ export default function SoePage() {
 
   return (
     <div className="w-full transition-all duration-300">
-      {/* Header */}
-      <div className="flex justify-end mb-6 space-x-3">
-       {/*  <button
-          onClick={() => window.location.reload()}
-          className="flex items-center bg-yellow-500 text-white px-4 py-2 rounded-md hover:bg-yellow-600 transition"
-        >
-          <Save className="w-4 h-4 mr-2" />
-          Save Data
-        </button>*/}
-   
-        <button className="flex items-center bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition" onClick={() => {
-          const defaultName = `SOE_${new Date().toISOString().split('T')[0]}.pdf`;
-          setSaveFilename(defaultName);
-          setSaveModalOpen(true);
-        }}>
-          <Save className="w-4 h-4 mr-2" />
-          Download PDF
-        </button>
+     {/* === HEADER === */}
+<div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+  {/* Title */}
+  <h1 className="text-3xl font-bold text-gray-800">
+    Statement Of Expenditure
+  </h1>
 
-        <button
-          onClick={toggleCompress}
-          className="flex items-center bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-800 transition"
-        >
-          {isCompressed ? (
-            <>
-              <Maximize2 className="w-4 h-4 mr-2" /> Decompress
-            </>
-          ) : (
-            <>
-              <Minimize2 className="w-4 h-4 mr-2" /> Compress
-            </>
-          )}
-        </button>
-      </div>
+  {/* Buttons inline */}
+  <div className="flex space-x-3">
+    <button
+      className="flex items-center bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition"
+      onClick={() => {
+        const defaultName = `SOE_${new Date().toISOString().split('T')[0]}.pdf`;
+        setSaveFilename(defaultName);
+        setSaveModalOpen(true);
+      }}
+    >
+      <Save className="w-4 h-4 mr-2" />
+      Download PDF
+    </button>
+
+    <button
+      onClick={toggleCompress}
+      className="flex items-center bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-800 transition"
+    >
+      {isCompressed ? (
+        <>
+          <Maximize2 className="w-4 h-4 mr-2" /> Decompress
+        </>
+      ) : (
+        <>
+          <Minimize2 className="w-4 h-4 mr-2" /> Compress
+        </>
+      )}
+    </button>
+  </div>
+</div>
+
+{/* Divider line */}
+<hr className="border-gray-300 mb-6" />
+
 
       {/* Save / Rename Modal */}
       {saveModalOpen && (
