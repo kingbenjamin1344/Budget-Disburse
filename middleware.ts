@@ -11,6 +11,8 @@ export function middleware(request: NextRequest) {
   const publicPaths = [
     '/login',
     '/api/login',
+    '/api/auth/check',
+    '/api/auth/logout',
     '/favicon.ico',
   ];
 

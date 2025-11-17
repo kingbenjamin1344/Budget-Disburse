@@ -9,13 +9,10 @@ export default function LogoutPage() {
   useEffect(() => {
     const doLogout = async () => {
       try {
-        // Perform a full-page navigation to the logout endpoint so the browser
-        // receives the Set-Cookie header and applies cookie deletion reliably.
-        window.location.href = '/api/auth/logout';
+        await fetch('/api/auth/logout', { method: 'GET', credentials: 'include' });
+        router.push('/login');
       } catch (e) {
-        // ignore
-      } finally {
-        // no-op here; the server redirect will land on /login
+        router.push('/login');
       }
     };
 

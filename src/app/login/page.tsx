@@ -2,11 +2,23 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { Eye, EyeOff } from "lucide-react"; // For eye toggle
+
+// Replace these with your actual image URLs or imports
+const LOGIN_BG = "/picture/bg.png";
+const SOS_LOGO = "/picture/agusan.png";
+const BUDGET_LOGO = "/picture/logo.png";
+const CORNER_TOP = "/picture/corner-image.png";
+const CORNER_BOTTOM = "/picture/corner-image2.png";
 
 export default function LoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false); // <- eye toggle state
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -30,7 +42,6 @@ export default function LoginPage() {
         return;
       }
 
-      // ✅ Redirect dynamically based on backend response
       router.push(data.redirect);
     } catch (err) {
       setError("Something went wrong");
@@ -39,48 +50,99 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-xl shadow-md w-96">
-        <h1 className="text-2xl font-semibold mb-6 text-center">Login</h1>
-
-        {error && (
-          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">
-            {error}
+    <div className="flex justify-center items-center h-screen bg-gray-100">
+      <div className="flex w-full h-full bg-white shadow-lg rounded-lg">
+        {/* Left Side - Image and Branding */}
+        <div className="w-[65%] relative">
+          <Image src={LOGIN_BG} alt="Login Background" fill className="object-cover" />
+          <div className="absolute inset-0 flex flex-col justify-center items-center text-white text-center p-4 pointer-events-none">
+            <a href="" target="_blank" rel="noopener noreferrer" className="z-50 pointer-events-auto">
+              <Image src={SOS_LOGO} alt="SOS Logo" width={450} height={150} className="object-cover" />
+            </a>
+            <hr className="w-150 border-t border-white border-opacity-50 my-3" />
+            <h1 className="text-4xl font-bold">
+              Budget Disbursement Management System
+            </h1>
+            <p className="text-sm">
+              Manage budget and disbursement for Lgu Magallanes.
+            </p>
           </div>
-        )}
+        </div>
 
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <input
-              type="text"
-              placeholder="Username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
-              required
-            />
+        {/* Right Side - Login Form */}
+        <div className="w-[35%] relative flex justify-center items-center h-full overflow-hidden">
+          {/* Decorative Images */}
+          <Image src={CORNER_TOP} alt="Top Corner Decoration" width={350} height={40} className="top-0 right-[-5px] absolute" />
+          <Image src={CORNER_BOTTOM} alt="Bottom Corner Decoration" width={350} height={200} className="bottom-[-40px] left-[-20px] absolute 2xl:w-[400px]" />
+
+          {/* Login Form */}
+          <div className="w-full flex justify-center">
+            <div className="w-64"> {/* form width fixed */}
+              <h1 className="text-2xl font-semibold mb-6 text-center">Login</h1>
+
+              {error && (
+                <div className="mb-4 p-3 bg-red-100 text-red-700 rounded text-center">
+                  {error}
+                </div>
+              )}
+
+              <form onSubmit={handleLogin} className="space-y-4">
+                {/* Username */}
+                <input
+                  type="text"
+                  placeholder="Username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  required
+                />
+
+                {/* Password with Eye Toggle */}
+                <div className="relative w-full">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400 pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50"
+                >
+                  {loading ? "Logging in..." : "Login"}
+                </button>
+              </form>
+            </div>
           </div>
 
-          <div>
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
-              required
-            />
+          {/* Footer */}
+          <div className="absolute bottom-16 left-0 right-0 text-center">
+            <a href="" target="_blank" rel="noopener noreferrer" className="inline-block mb-2">
+              <Image src={BUDGET_LOGO} alt="Logo" width={100} height={40} />
+            </a>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50"
-          >
-            {loading ? "Logging in..." : "Login"}
-          </button>
-        </form>
+          {/* Copyright */}
+          <div className="absolute bottom-0 left-0 right-0 text-center text-[14px] text-gray-600">
+            <p>Copyright © 2025 Budget Allocation and Disbursement. All rights reserved.</p>
+          </div>
+        </div>
       </div>
-    </main>
+
+      <ToastContainer position="top-right" autoClose={3000} />
+    </div>
   );
 }
