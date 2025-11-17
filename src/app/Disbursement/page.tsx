@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Search, Plus, Edit, Trash2, X } from "lucide-react";
 
 export default function DisbursementPage() {
@@ -32,7 +32,7 @@ export default function DisbursementPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Fetch Offices, Expenses, Budgets
+  // ====== Fetch Offices, Expenses, Budgets ======
   useEffect(() => {
     async function loadData() {
       try {
@@ -55,7 +55,7 @@ export default function DisbursementPage() {
     loadData();
   }, []);
 
-  // Load disbursements
+  // ====== Load Disbursements ======
   useEffect(() => {
     async function loadDisbursements() {
       try {
@@ -69,12 +69,44 @@ export default function DisbursementPage() {
     loadDisbursements();
   }, []);
 
-  // Auto-fill category when expenseType changes
+  // ====== Auto-fill category when expenseType changes ======
   useEffect(() => {
     const match = expenses.find((e) => e.type === formData.expenseType);
     if (match) setFormData((prev) => ({ ...prev, expenseCategory: match.category }));
   }, [formData.expenseType, expenses]);
 
+ // ====== Remaining Budget Calculation ======
+const remainingBudget = useMemo(() => {
+  if (!formData.office || !formData.expenseCategory) return "";
+
+  const budget = budgets.find(
+    (b) => b.office.toLowerCase() === formData.office.toLowerCase()
+  );
+  if (!budget) return "";
+
+  const category = formData.expenseCategory.toLowerCase();
+  let budgetAmount = 0;
+
+  if (category === "ps") budgetAmount = parseFloat(budget.ps) || 0;
+  else if (category === "mooe") budgetAmount = parseFloat(budget.mooe) || 0;
+  else if (category === "co") budgetAmount = parseFloat(budget.co) || 0;
+
+  const disbursed = disbursements
+    .filter(
+      (d) =>
+        d.office.toLowerCase() === formData.office.toLowerCase() &&
+        d.expenseCategory.toLowerCase() === category &&
+        d.id !== editingId
+    )
+    .reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+
+  const typedAmount = parseFloat(formData.amount) || 0;
+
+  return `₱${(budgetAmount - disbursed - typedAmount).toLocaleString()}`;
+}, [formData.office, formData.expenseCategory, budgets, disbursements, editingId, formData.amount]);
+
+
+  // ====== Handlers ======
   const handleAdd = () => {
     setShowModal(true);
     setEditingId(null);
@@ -95,7 +127,6 @@ export default function DisbursementPage() {
     }
 
     const budget = budgets.find((b) => b.office.toLowerCase() === formData.office.toLowerCase());
-
     if (!budget) {
       alert("No budget found for this office!");
       return;
@@ -112,13 +143,12 @@ export default function DisbursementPage() {
       .filter(
         (d) =>
           d.office.toLowerCase() === formData.office.toLowerCase() &&
-          d.expenseCategory.toLowerCase() === formData.expenseCategory.toLowerCase() &&
+          d.expenseCategory.toLowerCase() === category &&
           d.id !== editingId
       )
       .reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
 
     const newDisburseTotal = disbursedAmount + parseFloat(formData.amount);
-
     if (newDisburseTotal > budgetAmount) {
       const remaining = (budgetAmount - disbursedAmount).toLocaleString();
       alert(`Budget exceeded!\nYou only have ₱${remaining} remaining for ${formData.expenseCategory}.`);
@@ -179,7 +209,7 @@ export default function DisbursementPage() {
     }
   };
 
-  // Filters + Pagination
+  // ====== Filter & Pagination ======
   const filtered = disbursements.filter((item) => {
     const matchesSearch =
       item.dvNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -199,14 +229,12 @@ export default function DisbursementPage() {
   };
 
   useEffect(() => {
-    if (currentPage > totalPages && totalPages > 0) {
-      setCurrentPage(totalPages);
-    }
+    if (currentPage > totalPages && totalPages > 0) setCurrentPage(totalPages);
   }, [totalPages]);
 
   return (
     <div className="w-full p-4">
-      {/* Header & Filters */}
+      {/* =================== Header & Filters =================== */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-3">
         <div className="flex flex-col md:flex-row items-center gap-2">
           <div className="relative">
@@ -280,7 +308,7 @@ export default function DisbursementPage() {
         </button>
       </div>
 
-      {/* Table */}
+      {/* =================== Table =================== */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[600px]">
         <div className="flex-grow overflow-y-auto">
           <table className="min-w-full border-collapse">
@@ -388,7 +416,7 @@ export default function DisbursementPage() {
         </div>
       </div>
 
-      {/* Add/Edit Modal */}
+      {/* =================== Add/Edit Modal =================== */}
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/30">
           <div className="bg-white border shadow-xl p-6 rounded-lg w-full max-w-md relative flex flex-col gap-3">
@@ -410,7 +438,6 @@ export default function DisbursementPage() {
               onChange={(e) => setFormData({ ...formData, dvNo: e.target.value })}
               className="border rounded-md p-2 w-full"
             />
-
             <input
               type="text"
               placeholder="Payee"
@@ -418,7 +445,6 @@ export default function DisbursementPage() {
               onChange={(e) => setFormData({ ...formData, payee: e.target.value })}
               className="border rounded-md p-2 w-full"
             />
-
             <select
               value={formData.office}
               onChange={(e) => setFormData({ ...formData, office: e.target.value })}
@@ -431,7 +457,6 @@ export default function DisbursementPage() {
                 </option>
               ))}
             </select>
-
             <select
               value={formData.expenseType}
               onChange={(e) => setFormData({ ...formData, expenseType: e.target.value })}
@@ -444,13 +469,21 @@ export default function DisbursementPage() {
                 </option>
               ))}
             </select>
-
             <input
               type="text"
               placeholder="Category"
               value={formData.expenseCategory}
               readOnly
               className="border rounded-md p-2 w-full bg-gray-100"
+            />
+
+             {/* Remaining Budget */}
+            <input
+              type="text"
+              readOnly
+              value={remainingBudget}
+              className="border rounded-md p-2 w-full bg-gray-100 "
+              placeholder="Remaining Budget"
             />
 
             <input
@@ -460,6 +493,8 @@ export default function DisbursementPage() {
               onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
               className="border rounded-md p-2 w-full"
             />
+
+           
 
             <button
               onClick={handleSave}
@@ -471,7 +506,7 @@ export default function DisbursementPage() {
         </div>
       )}
 
-      {/* 🟥 Delete Modal */}
+      {/* =================== Delete Modal =================== */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
           <div className="absolute inset-0 bg-black opacity-30 pointer-events-auto"></div>
