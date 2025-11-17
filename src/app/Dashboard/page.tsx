@@ -247,9 +247,17 @@ export default function DashboardPage() {
                 </div>
               );
             })}
-            {officeBudgets.length === 0 && (
-              <p className="text-center text-gray-500 mt-4">No budgets found.</p>
-            )}
+              {officeBudgets.length === 0 && (
+                <div className="py-6 text-gray-500 italic flex flex-col items-center justify-center">
+                  <img
+                    src="/img/disburse.png"
+                    alt="No data"
+                    className="mb-2 max-w-[200px] h-auto object-contain"
+                  />
+                  <span>No disbursement records yet.</span>
+                </div>
+              )}
+
           </div>
         </div>
 
