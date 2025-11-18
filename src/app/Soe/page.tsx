@@ -437,11 +437,11 @@ export default function SoePage() {
     >
       {isCompressed ? (
         <>
-          <Maximize2 className="w-4 h-4 mr-2" /> Decompress
+          <Maximize2 className="w-4 h-4 mr-2" /> Compress
         </>
       ) : (
         <>
-          <Minimize2 className="w-4 h-4 mr-2" /> Compress
+          <Minimize2 className="w-4 h-4 mr-2" /> Decompress
         </>
       )}
     </button>

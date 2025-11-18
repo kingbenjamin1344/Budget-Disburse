@@ -1,8 +1,32 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Search, Plus, Edit, Trash2, X } from "lucide-react";
+import { Search, Plus, Edit, Trash2, X, ScanEye } from "lucide-react";
 
+// =================== Floating Scan Button ===================
+interface FloatingScanButtonProps {
+  bottom?: number;
+  right?: number;
+  onClick?: () => void;
+}
+
+const FloatingScanButton: React.FC<FloatingScanButtonProps> = ({
+  bottom = 90,
+  right = 20,
+  onClick,
+}) => {
+  return (
+    <button
+      onClick={onClick}
+      className="absolute bg-white border border-gray-300 rounded-xl p-3 shadow-lg cursor-pointer hover:scale-105 transition flex items-center justify-center"
+      style={{ bottom: `${bottom}px`, right: `${right}px` }}
+    >
+      <ScanEye className="w-16 h-16 text-gray-800" />
+    </button>
+  );
+};
+
+// =================== Main Page ===================
 export default function DisbursementPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterOffice, setFilterOffice] = useState("");
@@ -10,16 +34,13 @@ export default function DisbursementPage() {
   const [filterCategory, setFilterCategory] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deletePayee, setDeletePayee] = useState("");
-
   const [disbursements, setDisbursements] = useState<any[]>([]);
   const [offices, setOffices] = useState<string[]>([]);
   const [expenses, setExpenses] = useState<{ type: string; category: string }[]>([]);
   const [budgets, setBudgets] = useState<any[]>([]);
-
   const [formData, setFormData] = useState({
     dvNo: "",
     payee: "",
@@ -28,7 +49,6 @@ export default function DisbursementPage() {
     expenseCategory: "",
     amount: "",
   });
-
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -75,36 +95,34 @@ export default function DisbursementPage() {
     if (match) setFormData((prev) => ({ ...prev, expenseCategory: match.category }));
   }, [formData.expenseType, expenses]);
 
- // ====== Remaining Budget Calculation ======
-const remainingBudget = useMemo(() => {
-  if (!formData.office || !formData.expenseCategory) return "";
+  // ====== Remaining Budget Calculation ======
+  const remainingBudget = useMemo(() => {
+    if (!formData.office || !formData.expenseCategory) return "";
 
-  const budget = budgets.find(
-    (b) => b.office.toLowerCase() === formData.office.toLowerCase()
-  );
-  if (!budget) return "";
+    const budget = budgets.find(
+      (b) => b.office.toLowerCase() === formData.office.toLowerCase()
+    );
+    if (!budget) return "";
 
-  const category = formData.expenseCategory.toLowerCase();
-  let budgetAmount = 0;
+    const category = formData.expenseCategory.toLowerCase();
+    let budgetAmount = 0;
+    if (category === "ps") budgetAmount = parseFloat(budget.ps) || 0;
+    else if (category === "mooe") budgetAmount = parseFloat(budget.mooe) || 0;
+    else if (category === "co") budgetAmount = parseFloat(budget.co) || 0;
 
-  if (category === "ps") budgetAmount = parseFloat(budget.ps) || 0;
-  else if (category === "mooe") budgetAmount = parseFloat(budget.mooe) || 0;
-  else if (category === "co") budgetAmount = parseFloat(budget.co) || 0;
+    const disbursed = disbursements
+      .filter(
+        (d) =>
+          d.office.toLowerCase() === formData.office.toLowerCase() &&
+          d.expenseCategory.toLowerCase() === category &&
+          d.id !== editingId
+      )
+      .reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
 
-  const disbursed = disbursements
-    .filter(
-      (d) =>
-        d.office.toLowerCase() === formData.office.toLowerCase() &&
-        d.expenseCategory.toLowerCase() === category &&
-        d.id !== editingId
-    )
-    .reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+    const typedAmount = parseFloat(formData.amount) || 0;
 
-  const typedAmount = parseFloat(formData.amount) || 0;
-
-  return `₱${(budgetAmount - disbursed - typedAmount).toLocaleString()}`;
-}, [formData.office, formData.expenseCategory, budgets, disbursements, editingId, formData.amount]);
-
+    return `₱${(budgetAmount - disbursed - typedAmount).toLocaleString()}`;
+  }, [formData.office, formData.expenseCategory, budgets, disbursements, editingId, formData.amount]);
 
   // ====== Handlers ======
   const handleAdd = () => {
@@ -125,7 +143,6 @@ const remainingBudget = useMemo(() => {
       alert("Please fill all required fields");
       return;
     }
-
     const budget = budgets.find((b) => b.office.toLowerCase() === formData.office.toLowerCase());
     if (!budget) {
       alert("No budget found for this office!");
@@ -134,7 +151,6 @@ const remainingBudget = useMemo(() => {
 
     const category = formData.expenseCategory.toLowerCase();
     let budgetAmount = 0;
-
     if (category === "ps") budgetAmount = parseFloat(budget.ps) || 0;
     else if (category === "mooe") budgetAmount = parseFloat(budget.mooe) || 0;
     else if (category === "co") budgetAmount = parseFloat(budget.co) || 0;
@@ -167,7 +183,6 @@ const remainingBudget = useMemo(() => {
       });
       if (!res.ok) throw new Error("Failed to save disbursement");
       const updated = await res.json();
-
       setDisbursements((prev) =>
         editingId ? prev.map((d) => (d.id === editingId ? updated : d)) : [updated, ...prev]
       );
@@ -233,95 +248,85 @@ const remainingBudget = useMemo(() => {
   }, [totalPages]);
 
   return (
-    
-    <div className="w-full p-4">
-   {/* === HEADER === */}
-<div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-  {/* Left: Title */}
-  <h1 className="text-3xl font-bold text-gray-800">Disbursement</h1>
+    <div className="w-full p-4 relative">
+      {/* === HEADER === */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+        <h1 className="text-3xl font-bold text-gray-800">Disbursement</h1>
+        <div className="flex flex-wrap items-center gap-2 mt-2 sm:mt-0">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search disbursement..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="pl-8 pr-3 py-2 border border-gray-300 rounded-md"
+            />
+          </div>
 
-  {/* Right: Search + Filters + Add Button */}
-  <div className="flex flex-wrap items-center gap-2 mt-2 sm:mt-0">
-    {/* Search */}
-    <div className="relative">
-      <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
-      <input
-        type="text"
-        placeholder="Search disbursement..."
-        value={searchTerm}
-        onChange={(e) => {
-          setSearchTerm(e.target.value);
-          setCurrentPage(1);
-        }}
-        className="pl-8 pr-3 py-2 border border-gray-300 rounded-md"
-      />
-    </div>
+          {/* Filters */}
+          <select
+            value={filterOffice}
+            onChange={(e) => {
+              setFilterOffice(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="border border-gray-300 rounded-md px-3 py-2"
+          >
+            <option value="">Filter by Office</option>
+            {offices.map((o) => (
+              <option key={o} value={o}>{o}</option>
+            ))}
+          </select>
 
-    {/* Filter by Office */}
-    <select
-      value={filterOffice}
-      onChange={(e) => {
-        setFilterOffice(e.target.value);
-        setCurrentPage(1);
-      }}
-      className="border border-gray-300 rounded-md px-3 py-2"
-    >
-      <option value="">Filter by Office</option>
-      {offices.map((o) => (
-        <option key={o} value={o}>{o}</option>
-      ))}
-    </select>
+          <select
+            value={filterExpense}
+            onChange={(e) => {
+              setFilterExpense(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="border border-gray-300 rounded-md px-3 py-2"
+          >
+            <option value="">Filter by Expense Type</option>
+            {expenses.map((e) => (
+              <option key={e.type} value={e.type}>{e.type}</option>
+            ))}
+          </select>
 
-    {/* Filter by Expense Type */}
-    <select
-      value={filterExpense}
-      onChange={(e) => {
-        setFilterExpense(e.target.value);
-        setCurrentPage(1);
-      }}
-      className="border border-gray-300 rounded-md px-3 py-2"
-    >
-      <option value="">Filter by Expense Type</option>
-      {expenses.map((e) => (
-        <option key={e.type} value={e.type}>{e.type}</option>
-      ))}
-    </select>
+          <select
+            value={filterCategory}
+            onChange={(e) => {
+              setFilterCategory(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="border border-gray-300 rounded-md px-3 py-2"
+          >
+            <option value="">Filter by Category</option>
+            {[...new Set(expenses.map((e) => e.category))].map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
 
-    {/* Filter by Category */}
-    <select
-      value={filterCategory}
-      onChange={(e) => {
-        setFilterCategory(e.target.value);
-        setCurrentPage(1);
-      }}
-      className="border border-gray-300 rounded-md px-3 py-2"
-    >
-      <option value="">Filter by Category</option>
-      {[...new Set(expenses.map((e) => e.category))].map((c) => (
-        <option key={c} value={c}>{c}</option>
-      ))}
-    </select>
-
-    {/* Record Disbursement Button */}
-    <button
-      onClick={handleAdd}
-      className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
-    >
-      <Plus className="w-4 h-4 mr-2" /> Record Disbursement
-    </button>
-  </div>
-</div>
-<hr className="border-gray-300 mb-6" />
-
+          {/* Record Disbursement Button */}
+          <button
+            onClick={handleAdd}
+            className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
+          >
+            <Plus className="w-4 h-4 mr-2" /> Record Disbursement
+          </button>
+        </div>
+      </div>
+      <hr className="border-gray-300 mb-6" />
 
       {/* =================== Table =================== */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[600px]">
-        <div className="flex-grow overflow-y-auto">
+        <div className="flex-grow overflow-y-auto relative">
           <table className="min-w-full border-collapse">
-            <thead
-              className="text-white border-b bg-cover bg-center"
-              style={{ backgroundImage: "url('/img/blue.jpg')" }}
-            >
+            <thead className="text-white border-b bg-cover bg-center" style={{ backgroundImage: "url('/img/blue.jpg')" }}>
               <tr>
                 <th className="px-6 py-2 text-left">DV No.</th>
                 <th className="px-3 py-2 text-left">Payee</th>
@@ -361,11 +366,7 @@ const remainingBudget = useMemo(() => {
                 <tr>
                   <td colSpan={8} className="py-6 text-gray-500 italic">
                     <div className="flex flex-col items-center justify-center">
-                      <img
-                        src="/img/disburse.png"
-                        alt="No data"
-                        className="mb-2 max-w-[200px] h-auto object-contain"
-                      />
+                      <img src="/img/disburse.png" alt="No data" className="mb-2 max-w-[200px] h-auto object-contain" />
                       <span>No disbursement records found.</span>
                     </div>
                   </td>
@@ -391,7 +392,6 @@ const remainingBudget = useMemo(() => {
                     Previous
                   </button>
                 </li>
-
                 {[...Array(totalPages)].map((_, index) => (
                   <li key={index}>
                     <button
@@ -404,7 +404,6 @@ const remainingBudget = useMemo(() => {
                     </button>
                   </li>
                 ))}
-
                 <li>
                   <button
                     onClick={() => handlePageChange(currentPage + 1)}
@@ -421,6 +420,15 @@ const remainingBudget = useMemo(() => {
           </div>
         </div>
       </div>
+
+      {/* =================== Floating Scan Button =================== */}
+      <FloatingScanButton
+        bottom={-100}
+        right={20}
+        onClick={() => {
+          alert("Scan button clicked!"); // Future: open scan modal
+        }}
+      />
 
       {/* =================== Add/Edit Modal =================== */}
       {showModal && (
@@ -458,9 +466,7 @@ const remainingBudget = useMemo(() => {
             >
               <option value="">Select Office</option>
               {offices.map((o) => (
-                <option key={o} value={o}>
-                  {o}
-                </option>
+                <option key={o} value={o}>{o}</option>
               ))}
             </select>
             <select
@@ -470,9 +476,7 @@ const remainingBudget = useMemo(() => {
             >
               <option value="">Select Type</option>
               {expenses.map((e) => (
-                <option key={e.type} value={e.type}>
-                  {e.type}
-                </option>
+                <option key={e.type} value={e.type}>{e.type}</option>
               ))}
             </select>
             <input
@@ -482,16 +486,13 @@ const remainingBudget = useMemo(() => {
               readOnly
               className="border rounded-md p-2 w-full bg-gray-100"
             />
-
-             {/* Remaining Budget */}
             <input
               type="text"
               readOnly
               value={remainingBudget}
-              className="border rounded-md p-2 w-full bg-gray-100 "
+              className="border rounded-md p-2 w-full bg-gray-100"
               placeholder="Remaining Budget"
             />
-
             <input
               type="number"
               placeholder="Amount"
@@ -499,8 +500,6 @@ const remainingBudget = useMemo(() => {
               onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
               className="border rounded-md p-2 w-full"
             />
-
-           
 
             <button
               onClick={handleSave}
