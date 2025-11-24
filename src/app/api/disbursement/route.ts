@@ -36,7 +36,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { dvNo, payee, office, expenseType, expenseCategory, amount } = body;
+    const { dvNo, payee, office, expenseType, expenseCategory, amount, date } = body;
 
     const existingOffice = await prisma.office.findFirst({
       where: { name: office },
@@ -46,16 +46,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Office not found" }, { status: 400 });
     }
 
+    const createData: any = {
+      dvNo,
+      payee,
+      officeId: existingOffice.id,
+      officeName: existingOffice.name,
+      expenseType,
+      expenseCategory,
+      amount: parseFloat(amount),
+    };
+    if (date) {
+      const parsed = new Date(date);
+      if (!isNaN(parsed.getTime())) createData.dateCreated = parsed;
+    }
+
     const newDisbursement = await prisma.disbursement.create({
-      data: {
-        dvNo,
-        payee,
-        officeId: existingOffice.id,
-        officeName: existingOffice.name,
-        expenseType,
-        expenseCategory,
-        amount: parseFloat(amount),
-      },
+      data: createData,
       include: { office: true },
     });
 
@@ -82,7 +88,7 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   try {
     const body = await req.json();
-    const { id, dvNo, payee, office, expenseType, expenseCategory, amount } = body;
+    const { id, dvNo, payee, office, expenseType, expenseCategory, amount, date } = body;
 
     const existingOffice = await prisma.office.findFirst({
       where: { name: office },
@@ -92,17 +98,23 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "Office not found" }, { status: 400 });
     }
 
+    const updateData: any = {
+      dvNo,
+      payee,
+      officeId: existingOffice.id,
+      officeName: existingOffice.name,
+      expenseType,
+      expenseCategory,
+      amount: parseFloat(amount),
+    };
+    if (date) {
+      const parsed = new Date(date);
+      if (!isNaN(parsed.getTime())) updateData.dateCreated = parsed;
+    }
+
     const updated = await prisma.disbursement.update({
       where: { id },
-      data: {
-        dvNo,
-        payee,
-        officeId: existingOffice.id,
-        officeName: existingOffice.name,
-        expenseType,
-        expenseCategory,
-        amount: parseFloat(amount),
-      },
+      data: updateData,
       include: { office: true },
     });
 

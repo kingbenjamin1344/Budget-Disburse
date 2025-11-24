@@ -49,6 +49,7 @@ export default function DisbursementPage() {
     expenseType: "",
     expenseCategory: "",
     amount: "",
+    date: "",
   });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -152,27 +153,106 @@ export default function DisbursementPage() {
     }
   };
 
+  // Normalize various date formats to YYYY-MM-DD for <input type="date" />
+  const normalizeDate = (dateStr: string) => {
+    if (!dateStr) return "";
+    const s = dateStr.trim();
+    // Try ISO yyyy-mm-dd
+    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+    // Try dd/mm/yyyy
+    const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (dmy) {
+      const dd = dmy[1].padStart(2, "0");
+      const mm = dmy[2].padStart(2, "0");
+      return `${dmy[3]}-${mm}-${dd}`;
+    }
+    // Try formats like '25 Nov 2025' or '25 November 2025' or '25-Nov-2025'
+    const textDate = new Date(s);
+    if (!isNaN(textDate.getTime())) {
+      const y = textDate.getFullYear();
+      const m = String(textDate.getMonth() + 1).padStart(2, "0");
+      const d = String(textDate.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+    return "";
+  };
+
   const parseAndFillForm = (text: string) => {
-    // Extract DV Number (usually starts with numbers)
-    const dvMatch = text.match(/DV[:\s]*#?(\d+)/i) || text.match(/(\d{4,10})/);
+    // Normalize text
+    const raw = text || "";
+    const ltext = raw.toLowerCase();
+
+    // Extract DV Number (looks for DV: or DV No or standalone digits)
+    const dvMatch = raw.match(/dv[:\s]*#?(\d+)/i) || raw.match(/dv\s*no[:\s]*#?(\d+)/i) || raw.match(/(\d{4,10})/);
     const dvNo = dvMatch ? dvMatch[1] : "";
 
     // Extract Amount (looks for peso sign or common amount patterns)
-    const amountMatch = text.match(/(?:₱|P\.?|\$)\s*([\d,]+\.?\d*)/i) || 
-                       text.match(/amount[:\s]*([\d,]+\.?\d*)/i);
+    const amountMatch = raw.match(/(?:₱|p\.?|\$)\s*([\d,]+\.?\d*)/i) || raw.match(/amount[:\s]*([\d,]+\.?\d*)/i);
     const amount = amountMatch ? amountMatch[1].replace(/,/g, "") : "";
 
-    // Extract Payee (usually capitalized words or names)
-    const payeeMatch = text.match(/payee[:\s]*([A-Z][A-Z\s]+)/i) || 
-                       text.match(/([A-Z][A-Z\s]{5,50})/);
+    // Extract Payee (look for 'payee:' or lines with title-case words)
+    const payeeMatch = raw.match(/payee[:\s]*([A-Za-z\.&\-\s]{3,80})/i) || raw.match(/to[:\s]*([A-Za-z\.&\-\s]{3,80})/i) || raw.match(/received from[:\s]*([A-Za-z\.&\-\s]{3,80})/i);
     const payee = payeeMatch ? payeeMatch[1].trim() : "";
 
-    // Update form data with extracted values
+    // Detect Office by matching known office names
+    let office = "";
+    if (offices && offices.length) {
+      // find longest matching office name in text
+      const candidates = offices.filter((o) => o && ltext.includes(o.toLowerCase()));
+      if (candidates.length) {
+        candidates.sort((a, b) => b.length - a.length);
+        office = candidates[0];
+      }
+    }
+
+    // Detect Expense Type by matching known expense types
+    let expenseType = "";
+    let expenseCategory = "";
+    if (expenses && expenses.length) {
+      const found = expenses.find((e) => {
+        if (!e?.type) return false;
+        return ltext.includes(e.type.toLowerCase());
+      });
+      if (found) {
+        expenseType = found.type;
+        expenseCategory = found.category || "";
+      }
+    }
+
+    // Fallback: detect explicit category tokens (PS, MOOE, CO)
+    const catMatch = raw.match(/\b(MOOE|PS|CO)\b/i);
+    if (catMatch) {
+      expenseCategory = catMatch[1].toUpperCase();
+    }
+
+    // Extract Date (common formats)
+    let dateStr = "";
+    const datePatterns = [
+      /(\d{4}-\d{2}-\d{2})/, // 2025-11-25
+      /(\d{2}\/\d{2}\/\d{4})/, // 25/11/2025
+      /(\d{1,2}[-\s][A-Za-z]{3,9}[-\s]\d{4})/, // 25 Nov 2025
+      /(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})/, // 25 November 2025
+    ];
+    for (const p of datePatterns) {
+      const m = raw.match(p);
+      if (m) {
+        dateStr = m[1];
+        break;
+      }
+    }
+    const normalizedDate = normalizeDate(dateStr);
+
+    // Update form data with extracted values (preserve previous values if extraction empty)
     setFormData((prev) => ({
       ...prev,
       dvNo: dvNo || prev.dvNo,
       amount: amount || prev.amount,
       payee: payee || prev.payee,
+      office: office || prev.office,
+      expenseType: expenseType || prev.expenseType,
+      expenseCategory: expenseCategory || prev.expenseCategory,
+      date: normalizedDate || (prev as any).date || "",
     }));
   };
 
@@ -244,6 +324,7 @@ export default function DisbursementPage() {
       expenseType: "",
       expenseCategory: "",
       amount: "",
+      date: "",
     });
   };
 
@@ -306,7 +387,8 @@ export default function DisbursementPage() {
     const record = disbursements.find((d) => d.id === id);
     if (!record) return;
     setEditingId(id);
-    setFormData(record);
+    const recDate = (record as any).date || (record as any).dateCreated || "";
+    setFormData({ ...record, date: normalizeDate(String(recDate)) });
     setShowModal(true);
   };
 
@@ -604,6 +686,13 @@ export default function DisbursementPage() {
               placeholder="Remaining Budget"
             />
             <input
+              type="date"
+              placeholder="Date"
+              value={(formData as any).date || ""}
+              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              className="border rounded-md p-2 w-full"
+            />
+            <input
               type="number"
               placeholder="Amount"
               value={formData.amount}
@@ -790,12 +879,32 @@ export default function DisbursementPage() {
                         <span className="font-semibold">Payee:</span> {formData.payee}
                       </p>
                     )}
+                    {formData.office && (
+                      <p>
+                        <span className="font-semibold">Office:</span> {formData.office}
+                      </p>
+                    )}
+                    {formData.expenseType && (
+                      <p>
+                        <span className="font-semibold">Expense Type:</span> {formData.expenseType}
+                      </p>
+                    )}
+                    {formData.expenseCategory && (
+                      <p>
+                        <span className="font-semibold">Category:</span> {formData.expenseCategory}
+                      </p>
+                    )}
+                    {formData.date && (
+                      <p>
+                        <span className="font-semibold">Date:</span> {formData.date}
+                      </p>
+                    )}
                     {formData.amount && (
                       <p>
                         <span className="font-semibold">Amount:</span> ₱{parseFloat(formData.amount).toLocaleString()}
                       </p>
                     )}
-                    {!formData.dvNo && !formData.payee && !formData.amount && (
+                    {!formData.dvNo && !formData.payee && !formData.amount && !formData.office && !formData.expenseType && !formData.expenseCategory && !formData.date && (
                       <p className="text-gray-500 italic">
                         No fields extracted. Please review the OCR text above.
                       </p>
@@ -808,14 +917,14 @@ export default function DisbursementPage() {
               <div className="flex gap-2 pt-4 border-t">
                 <button
                   onClick={() => {
-                    if (formData.dvNo || formData.payee || formData.amount) {
+                    if (formData.dvNo || formData.payee || formData.amount || formData.office || formData.expenseType || formData.expenseCategory || formData.date) {
                       setShowModal(true);
                       closeScanModal();
                     } else {
                       alert("Please extract data first");
                     }
                   }}
-                  disabled={!ocrResult || (!formData.dvNo && !formData.payee && !formData.amount)}
+                  disabled={!ocrResult || (!formData.dvNo && !formData.payee && !formData.amount && !formData.office && !formData.expenseType && !formData.expenseCategory && !formData.date)}
                   className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
                   Use Extracted Data
