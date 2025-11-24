@@ -332,7 +332,7 @@ export default function AddExpensePage() {
                 onClick={handleAddExpense}
                 disabled={loading}
                 className={`px-4 py-2 rounded-lg text-white ${
-                  loading ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
+                  loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
                 }`}
               >
                 {loading ? "Adding..." : "Add Expense"}
