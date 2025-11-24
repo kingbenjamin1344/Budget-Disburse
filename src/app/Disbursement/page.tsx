@@ -622,93 +622,152 @@ export default function DisbursementPage() {
         }}
       />
 
-      {/* =================== Add/Edit Modal =================== */}
-      {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/30">
-          <div className="bg-white border shadow-xl p-6 rounded-lg w-full max-w-md relative flex flex-col gap-3">
-            <button
-              onClick={() => setShowModal(false)}
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
-            >
-              <X className="w-5 h-5" />
-            </button>
+{/* =================== Add/Edit Disbursement Modal =================== */}
+{showModal && (
+  <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+    {/* Overlay */}
+    <div
+      className="absolute inset-0 bg-black/20 pointer-events-auto"
+      onClick={() => setShowModal(false)}
+    ></div>
 
-            <h2 className="text-lg font-semibold mb-2 text-center">
-              {editingId ? "Edit Disbursement" : "Record Disbursement"}
-            </h2>
-
-            <input
-              type="text"
-              placeholder="DV No."
-              value={formData.dvNo}
-              onChange={(e) => setFormData({ ...formData, dvNo: e.target.value })}
-              className="border rounded-md p-2 w-full"
-            />
-            <input
-              type="text"
-              placeholder="Payee"
-              value={formData.payee}
-              onChange={(e) => setFormData({ ...formData, payee: e.target.value })}
-              className="border rounded-md p-2 w-full"
-            />
-            <select
-              value={formData.office}
-              onChange={(e) => setFormData({ ...formData, office: e.target.value })}
-              className="border rounded-md p-2 w-full"
-            >
-              <option value="">Select Office</option>
-              {offices.map((o) => (
-                <option key={o} value={o}>{o}</option>
-              ))}
-            </select>
-            <select
-              value={formData.expenseType}
-              onChange={(e) => setFormData({ ...formData, expenseType: e.target.value })}
-              className="border rounded-md p-2 w-full"
-            >
-              <option value="">Select Type</option>
-              {expenses.map((e) => (
-                <option key={e.type} value={e.type}>{e.type}</option>
-              ))}
-            </select>
-            <input
-              type="text"
-              placeholder="Category"
-              value={formData.expenseCategory}
-              readOnly
-              className="border rounded-md p-2 w-full bg-gray-100"
-            />
-            <input
-              type="text"
-              readOnly
-              value={remainingBudget}
-              className="border rounded-md p-2 w-full bg-gray-100"
-              placeholder="Remaining Budget"
-            />
-            <input
-              type="date"
-              placeholder="Date"
-              value={(formData as any).date || ""}
-              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-              className="border rounded-md p-2 w-full"
-            />
-            <input
-              type="number"
-              placeholder="Amount"
-              value={formData.amount}
-              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-              className="border rounded-md p-2 w-full"
-            />
-
-            <button
-              onClick={handleSave}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 mt-3"
-            >
-              Save
-            </button>
+    {/* Modal */}
+    <div
+      className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden z-10 pointer-events-auto"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 bg-[#1E3358]">
+        <div className="flex items-center gap-2">
+          <div className="bg-white p-2 rounded-full">
+            {editingId ? <Edit size={18} className="text-blue-600" /> : <Plus size={18} className="text-blue-600" />}
           </div>
+          <h2 className="text-white text-lg font-semibold">
+            {editingId ? "Edit Disbursement" : "Record Disbursement"}
+          </h2>
         </div>
-      )}
+        <button
+          onClick={() => setShowModal(false)}
+          className="text-white hover:text-gray-200"
+        >
+          <X size={20} />
+        </button>
+      </div>
+
+      {/* Body */}
+      <div className="p-5 space-y-4">
+        {/* DV No */}
+        <div className="bg-gray-100 rounded-lg p-3">
+          <label className="text-xs text-gray-500">DV No.</label>
+          <input
+            type="text"
+            placeholder="DV No."
+            value={formData.dvNo}
+            onChange={(e) => setFormData({ ...formData, dvNo: e.target.value })}
+            className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
+          />
+        </div>
+
+        {/* Payee */}
+        <div className="bg-gray-100 rounded-lg p-3">
+          <label className="text-xs text-gray-500">Payee</label>
+          <input
+            type="text"
+            placeholder="Payee"
+            value={formData.payee}
+            onChange={(e) => setFormData({ ...formData, payee: e.target.value })}
+            className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
+          />
+        </div>
+
+        {/* Office */}
+        <div className="bg-gray-100 rounded-lg p-3">
+          <label className="text-xs text-gray-500">Office</label>
+          <select
+            value={formData.office}
+            onChange={(e) => setFormData({ ...formData, office: e.target.value })}
+            className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
+          >
+            <option value="">Select Office</option>
+            {offices.map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Expense Type */}
+        <div className="bg-gray-100 rounded-lg p-3">
+          <label className="text-xs text-gray-500">Expense Type</label>
+          <select
+            value={formData.expenseType}
+            onChange={(e) => setFormData({ ...formData, expenseType: e.target.value })}
+            className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
+          >
+            <option value="">Select Type</option>
+            {expenses.map((e) => (
+              <option key={e.type} value={e.type}>
+                {e.type}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Category */}
+        <div className="bg-gray-100 rounded-lg p-3">
+          <label className="text-xs text-gray-500">Category</label>
+          <input
+            type="text"
+            value={formData.expenseCategory}
+            readOnly
+            className="w-full bg-gray-200 mt-1 outline-none font-semibold text-gray-700"
+          />
+        </div>
+
+        {/* Remaining Budget */}
+        <div className="bg-gray-100 rounded-lg p-3">
+          <label className="text-xs text-gray-500">Remaining Budget</label>
+          <input
+            type="text"
+            value={remainingBudget}
+            readOnly
+            className="w-full bg-gray-200 mt-1 outline-none font-semibold text-gray-700"
+          />
+        </div>
+
+        {/* Amount */}
+        <div className="bg-gray-100 rounded-lg p-3">
+          <label className="text-xs text-gray-500">Amount</label>
+          <input
+            type="number"
+            value={formData.amount}
+            onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+            className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
+          />
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="flex justify-end gap-3 px-4 py-3 bg-gray-50 border-t">
+        <button
+          onClick={() => setShowModal(false)}
+          className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSave}
+          className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+        >
+          {editingId ? "Save Changes" : "Save"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+
 
       {/* =================== Delete Modal =================== */}
       {showDeleteModal && (

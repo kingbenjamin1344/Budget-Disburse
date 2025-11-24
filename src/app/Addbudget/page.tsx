@@ -150,45 +150,40 @@ export default function AddBudgetPage() {
   return (
     <div className="w-full p-4">
       {/* === HEADER === */}
-<div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-  {/* Left: Title */}
-  <h1 className="text-3xl font-bold text-gray-800">Budget Allocation</h1>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+        <h1 className="text-3xl font-bold text-gray-800">Budget Allocation</h1>
 
-  {/* Right: Search + Add button */}
-  <div className="flex items-center space-x-2 mt-2 sm:mt-0">
-    {/* Search */}
-    <div className="relative">
-      <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
-      <input
-        type="text"
-        placeholder="Search office..."
-        value={searchTerm}
-        onChange={(e) => {
-          setSearchTerm(e.target.value);
-          setCurrentPage(1);
-        }}
-        className="pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-blue-200"
-      />
-    </div>
+        <div className="flex items-center space-x-2 mt-2 sm:mt-0">
+          <div className="relative">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search office..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-blue-200"
+            />
+          </div>
 
-    {/* Add Budget Button */}
-    <button
-      onClick={() => {
-        setShowModal(true);
-        setEditingId(null);
-        setOfficeId("");
-        setPs("");
-        setMooe("");
-        setCo("");
-      }}
-      className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
-    >
-      <Plus className="w-4 h-4 mr-2" /> Add Budget
-    </button>
-  </div>
-</div>
-<hr className="border-gray-300 mb-6" />
-
+          <button
+            onClick={() => {
+              setShowModal(true);
+              setEditingId(null);
+              setOfficeId("");
+              setPs("");
+              setMooe("");
+              setCo("");
+            }}
+            className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
+          >
+            <Plus className="w-4 h-4 mr-2" /> Add Budget
+          </button>
+        </div>
+      </div>
+      <hr className="border-gray-300 mb-6" />
 
       {/* Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[600px]">
@@ -229,9 +224,7 @@ export default function AddBudgetPage() {
                     <td className="px-6 py-3">₱{b.ps.toLocaleString()}</td>
                     <td className="px-6 py-3">₱{b.mooe.toLocaleString()}</td>
                     <td className="px-6 py-3">₱{b.co.toLocaleString()}</td>
-                    <td className="px-6 py-3 font-semibold">
-                      ₱{b.total.toLocaleString()}
-                    </td>
+                    <td className="px-6 py-3 font-semibold">₱{b.total.toLocaleString()}</td>
                     <td className="px-6 py-3">{b.dateCreated}</td>
                     <td className="px-6 py-3 text-center space-x-2">
                       <button
@@ -307,97 +300,110 @@ export default function AddBudgetPage() {
         </div>
       </div>
 
-      {/* Add/Edit Modal */}
+      {/* 🟩 Add/Edit Budget Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black opacity-20"></div>
-          <div className="bg-white rounded-lg shadow-lg w-96 p-6 z-10">
-            <div className="relative mb-4">
-              <h2 className="text-lg font-semibold text-center">
-                {editingId !== null ? "Edit Budget" : "Add Budget"}
-              </h2>
+        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+          <div
+            className="absolute inset-0 bg-black opacity-10 pointer-events-auto"
+            onClick={() => setShowModal(false)}
+          ></div>
+
+          <div
+            className="bg-white rounded-xl shadow-lg w-[420px] overflow-hidden z-10 pointer-events-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-[#1E3358] flex items-center justify-between px-4 py-3">
+              <div className="flex items-center gap-2">
+                <div className="bg-white text-blue-600 p-2 rounded-full">
+                  {editingId !== null ? <Edit size={18} /> : <Plus size={18} />}
+                </div>
+                <h2 className="text-white text-lg font-semibold">
+                  {editingId !== null ? "Edit Budget" : "Add Budget"}
+                </h2>
+              </div>
               <button
                 onClick={() => setShowModal(false)}
-                className="absolute right-0 top-1/2 -translate-y-1/2"
+                className="text-white hover:text-gray-200"
               >
-                <X className="w-5 h-5 text-gray-500" />
+                <X size={20} />
               </button>
             </div>
 
-            <select
-              value={officeId}
-              onChange={(e) => setOfficeId(Number(e.target.value))}
-              className="w-full border px-3 py-2 rounded-md mb-3"
-            >
-              <option value="">Select Office</option>
-              {offices.map((office) => {
-                const alreadyBudgeted = budgets.some(
-                  (b) => b.office === office.name
-                );
-                return (
-                  <option
-                    key={office.id}
-                    value={office.id}
-                    disabled={alreadyBudgeted && editingId === null}
-                  >
-                    {office.name}{" "}
-                    {alreadyBudgeted && editingId === null
-                      ? "(Already Budgeted)"
-                      : ""}
-                  </option>
-                );
-              })}
-            </select>
+            <div className="p-5 space-y-4">
+              <select
+                value={officeId}
+                onChange={(e) => setOfficeId(Number(e.target.value))}
+                className="w-full bg-gray-100 rounded-lg p-3"
+              >
+                <option value="">Select Office</option>
+                {offices.map((office) => {
+                  const alreadyBudgeted = budgets.some(
+                    (b) => b.office === office.name
+                  );
+                  return (
+                    <option
+                      key={office.id}
+                      value={office.id}
+                      disabled={alreadyBudgeted && editingId === null}
+                    >
+                      {office.name}{" "}
+                      {alreadyBudgeted && editingId === null ? "(Already Budgeted)" : ""}
+                    </option>
+                  );
+                })}
+              </select>
 
-            <input
-              type="number"
-              placeholder="PS"
-              value={ps}
-              onChange={(e) => setPs(e.target.value)}
-              className="w-full border px-3 py-2 rounded-md mb-3"
-            />
-            <input
-              type="number"
-              placeholder="MOOE"
-              value={mooe}
-              onChange={(e) => setMooe(e.target.value)}
-              className="w-full border px-3 py-2 rounded-md mb-3"
-            />
-            <input
-              type="number"
-              placeholder="CO"
-              value={co}
-              onChange={(e) => setCo(e.target.value)}
-              className="w-full border px-3 py-2 rounded-md mb-3"
-            />
+              <input
+                type="number"
+                placeholder="PS"
+                value={ps}
+                onChange={(e) => setPs(e.target.value)}
+                className="w-full bg-gray-100 rounded-lg p-3"
+              />
+              <input
+                type="number"
+                placeholder="MOOE"
+                value={mooe}
+                onChange={(e) => setMooe(e.target.value)}
+                className="w-full bg-gray-100 rounded-lg p-3"
+              />
+              <input
+                type="number"
+                placeholder="CO"
+                value={co}
+                onChange={(e) => setCo(e.target.value)}
+                className="w-full bg-gray-100 rounded-lg p-3"
+              />
 
-            <p className="mb-4 font-semibold">
-              Total Budget: ₱{totalBudget.toLocaleString()}
-            </p>
+              <p className="font-semibold">Total Budget: ₱{totalBudget.toLocaleString()}</p>
+            </div>
 
-            <div className="flex justify-end space-x-2">
+            <div className="flex justify-end gap-3 px-4 py-3 bg-gray-50 border-t">
               <button
                 onClick={() => setShowModal(false)}
-                className="px-4 py-2 border rounded-md hover:bg-gray-100"
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveBudget}
-                className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600"
+                className="px-4 py-2 rounded-lg text-white bg-blue-600 hover:bg-green-700"
               >
-                {editingId !== null ? "Update" : "Add"}
+                {editingId !== null ? "Save Changes" : "Add Budget"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* 🟥 Delete Confirmation Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <div className="absolute inset-0 bg-black opacity-20 pointer-events-auto"></div>
-          <div className="bg-white rounded-lg shadow-lg w-96 p-6 z-10 pointer-events-auto">
+          <div
+            className="absolute inset-0 bg-black opacity-20 pointer-events-auto"
+            onClick={() => setShowDeleteModal(false)}
+          ></div>
+          <div className="bg-white rounded-xl shadow-lg w-[420px] p-6 z-10 pointer-events-auto">
             <h2 className="text-lg font-semibold mb-3 text-center text-red-600">
               Confirm Delete
             </h2>
@@ -408,16 +414,16 @@ export default function AddBudgetPage() {
               </span>
               ?
             </p>
-            <div className="flex justify-end space-x-2">
+            <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-100 transition"
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmDelete}
-                className="px-4 py-2 rounded-md bg-red-500 text-white hover:bg-red-600 transition"
+                className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600"
               >
                 Delete
               </button>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, Plus, Edit, Trash2 } from "lucide-react";
+import { Search, Plus, Edit, Trash2, X } from "lucide-react";
 
 export default function AddExpensePage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -100,14 +100,12 @@ export default function AddExpensePage() {
     } else alert("Failed to update expense");
   };
 
-  // ✅ Apply both search + category filter
   const filteredExpenses = expenses.filter((exp) => {
     const matchesSearch = exp.type.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = filterCategory === "All" || exp.category === filterCategory;
     return matchesSearch && matchesCategory;
   });
 
-  // 🟩 Pagination logic
   const totalPages = Math.ceil(filteredExpenses.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentItems = filteredExpenses.slice(startIndex, startIndex + itemsPerPage);
@@ -118,61 +116,54 @@ export default function AddExpensePage() {
 
   return (
     <div className="w-full p-4">
-    {/* === HEADER WITH CONTROLS INLINE === */}
-<div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-  {/* Left: Title */}
-  <div>
-    <h1 className="text-3xl font-bold text-gray-800">
-      Expense
-    </h1>
-  </div>
+      {/* === HEADER WITH CONTROLS INLINE === */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800">Expense</h1>
+        </div>
 
-  {/* Right: Search, Filter, and Add Button */}
-  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto mt-4 sm:mt-0">
-    {/* Search Input */}
-    <div className="relative">
-      <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
-      <input
-        type="text"
-        placeholder="Search expense..."
-        value={searchTerm}
-        onChange={(e) => {
-          setSearchTerm(e.target.value);
-          setCurrentPage(1);
-        }}
-        className="pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-blue-200"
-      />
-    </div>
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto mt-4 sm:mt-0">
+          {/* Search Input */}
+          <div className="relative">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search expense..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-blue-200"
+            />
+          </div>
 
-    {/* Category Filter */}
-    <select
-      value={filterCategory}
-      onChange={(e) => {
-        setFilterCategory(e.target.value);
-        setCurrentPage(1);
-      }}
-      className="border border-gray-300 px-3 py-2 rounded-md focus:outline-none focus:ring focus:ring-blue-200"
-    >
-      <option value="All">All Categories</option>
-      <option value="PS">Personnel Services (PS)</option>
-      <option value="MOOE">Maintenance of Office Expenditure (MOOE)</option>
-      <option value="CO">Capital Outlay (CO)</option>
-    </select>
+          {/* Category Filter */}
+          <select
+            value={filterCategory}
+            onChange={(e) => {
+              setFilterCategory(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="border border-gray-300 px-3 py-2 rounded-md focus:outline-none focus:ring focus:ring-blue-200"
+          >
+            <option value="All">All Categories</option>
+            <option value="PS">Personnel Services (PS)</option>
+            <option value="MOOE">Maintenance of Office Expenditure (MOOE)</option>
+            <option value="CO">Capital Outlay (CO)</option>
+          </select>
 
-    {/* Add Expense Button */}
-    <button
-      onClick={() => setShowAddModal(true)}
-      className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
-    >
-      <Plus className="w-4 h-4 mr-2" />
-      Add Expense
-    </button>
-  </div>
-</div>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Expense
+          </button>
+        </div>
+      </div>
 
-{/* Divider line */}
-<hr className="border-gray-300 mt-4 mb-6" />
-
+      <hr className="border-gray-300 mt-4 mb-6" />
 
       {/* Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[600px]">
@@ -183,7 +174,9 @@ export default function AddExpensePage() {
               style={{ backgroundImage: "url('/img/blue.jpg')" }}
             >
               <tr>
-                <th className="px-6 py-2 text-left font-semibold border-b border-gray-300 ">Type of Expense</th>
+                <th className="px-6 py-2 text-left font-semibold border-b border-gray-300">
+                  Type of Expense
+                </th>
                 <th className="px-3 py-2 text-left font-semibold border-b border-gray-300">Category</th>
                 <th className="px-3 py-2 text-left font-semibold border-b border-gray-300">Date Created</th>
                 <th className="px-3 py-2 text-center font-semibold border-b border-gray-300">Action</th>
@@ -277,110 +270,175 @@ export default function AddExpensePage() {
         </div>
       </div>
 
-      {/* ✅ Delete Modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <div className="absolute inset-0 bg-black opacity-20 pointer-events-auto"></div>
-          <div className="bg-white rounded-lg shadow-lg w-96 p-6 z-10 pointer-events-auto">
-            <h2 className="text-lg font-semibold mb-3 text-center text-red-600">Confirm Delete</h2>
-            <p className="text-gray-700 text-center mb-5">
-              Are you sure you want to delete{" "}
-              <span className="font-semibold">{deleteType}</span>?
-            </p>
-            <div className="flex justify-end space-x-2">
-              <button
-                onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-100 transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmDelete}
-                className="px-4 py-2 rounded-md bg-red-500 text-white hover:bg-red-600 transition"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add Modal */}
+      {/* 🟩 Add Expense Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <div className="absolute inset-0 bg-black opacity-20 pointer-events-auto"></div>
-          <div className="bg-white rounded-lg shadow-lg w-96 p-6 z-10 pointer-events-auto">
-            <h2 className="text-lg font-semibold mb-3 text-center">Add Expense</h2>
-            <input
-              type="text"
-              placeholder="Type of Expense"
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              className="w-full border px-3 py-2 rounded-md mb-3 focus:outline-none focus:ring focus:ring-blue-200"
-            />
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full border px-3 py-2 rounded-md mb-4 focus:outline-none focus:ring focus:ring-blue-200"
-            >
-              <option value="PS">Personnel Services (PS)</option>
-              <option value="MOOE">Maintenance of Office Expenditure (MOOE)</option>
-              <option value="CO">Capital Outlay (CO)</option>
-            </select>
-            <div className="flex justify-end space-x-2">
+        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+          <div
+            className="absolute inset-0 bg-black opacity-10 pointer-events-auto"
+            onClick={() => setShowAddModal(false)}
+          ></div>
+
+          <div
+            className="bg-white rounded-xl shadow-lg w-[420px] overflow-hidden z-10 pointer-events-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-[#1E3358] flex items-center justify-between px-4 py-3">
+              <div className="flex items-center gap-2">
+                <div className="bg-white text-blue-600 p-2 rounded-full">
+                  <Plus size={18} />
+                </div>
+                <h2 className="text-white text-lg font-semibold">Add Expense</h2>
+              </div>
               <button
                 onClick={() => setShowAddModal(false)}
-                className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-100 transition"
+                className="text-white hover:text-gray-200"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="bg-gray-100 rounded-lg p-3">
+                <label className="text-xs text-gray-500">Type of Expense</label>
+                <input
+                  type="text"
+                  value={type}
+                  onChange={(e) => setType(e.target.value)}
+                  className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
+                />
+              </div>
+              <div className="bg-gray-100 rounded-lg p-3">
+                <label className="text-xs text-gray-500">Category</label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
+                >
+                  <option value="PS">Personnel Services (PS)</option>
+                  <option value="MOOE">Maintenance of Office Expenditure (MOOE)</option>
+                  <option value="CO">Capital Outlay (CO)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 px-4 py-3 bg-gray-50 border-t">
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddExpense}
                 disabled={loading}
-                className="px-4 py-2 rounded-md bg-green-500 text-white hover:bg-green-600 transition"
+                className={`px-4 py-2 rounded-lg text-white ${
+                  loading ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
+                }`}
               >
-                {loading ? "Adding..." : "Add"}
+                {loading ? "Adding..." : "Add Expense"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Edit Modal */}
+      {/* 🟩 Edit Expense Modal */}
       {showEditModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <div className="absolute inset-0 bg-black opacity-20 pointer-events-auto"></div>
-          <div className="bg-white rounded-lg shadow-lg w-96 p-6 z-10 pointer-events-auto">
-            <h2 className="text-lg font-semibold mb-3 text-center">Edit Expense</h2>
-            <input
-              type="text"
-              placeholder="Type of Expense"
-              value={editType}
-              onChange={(e) => setEditType(e.target.value)}
-              className="w-full border px-3 py-2 rounded-md mb-3 focus:outline-none focus:ring focus:ring-blue-200"
-            />
-            <select
-              value={editCategory}
-              onChange={(e) => setEditCategory(e.target.value)}
-              className="w-full border px-3 py-2 rounded-md mb-4 focus:outline-none focus:ring focus:ring-blue-200"
-            >
-              <option value="PS">Personnel Services (PS)</option>
-              <option value="MOOE">Maintenance of Office Expenditure (MOOE)</option>
-              <option value="CO">Capital Outlay (CO)</option>
-            </select>
-            <div className="flex justify-end space-x-2">
+        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+          <div
+            className="absolute inset-0 bg-black opacity-10 pointer-events-auto"
+            onClick={() => setShowEditModal(false)}
+          ></div>
+
+          <div
+            className="bg-white rounded-xl shadow-lg w-[420px] overflow-hidden z-10 pointer-events-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-[#1E3358] flex items-center justify-between px-4 py-3">
+              <div className="flex items-center gap-2">
+                <div className="bg-white text-blue-600 p-2 rounded-full">
+                  <Edit size={18} />
+                </div>
+                <h2 className="text-white text-lg font-semibold">Edit Expense</h2>
+              </div>
               <button
                 onClick={() => setShowEditModal(false)}
-                className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-100 transition"
+                className="text-white hover:text-gray-200"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="bg-gray-100 rounded-lg p-3">
+                <label className="text-xs text-gray-500">Type of Expense</label>
+                <input
+                  type="text"
+                  value={editType}
+                  onChange={(e) => setEditType(e.target.value)}
+                  className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
+                />
+              </div>
+              <div className="bg-gray-100 rounded-lg p-3">
+                <label className="text-xs text-gray-500">Category</label>
+                <select
+                  value={editCategory}
+                  onChange={(e) => setEditCategory(e.target.value)}
+                  className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
+                >
+                  <option value="PS">Personnel Services (PS)</option>
+                  <option value="MOOE">Maintenance of Office Expenditure (MOOE)</option>
+                  <option value="CO">Capital Outlay (CO)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 px-4 py-3 bg-gray-50 border-t">
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveEdit}
                 disabled={loading}
-                className="px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 transition"
+                className={`px-4 py-2 rounded-lg text-white ${
+                  loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+                }`}
               >
-                {loading ? "Saving..." : "Save"}
+                {loading ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🟥 Delete Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div
+            className="absolute inset-0 bg-black opacity-20 pointer-events-auto"
+            onClick={() => setShowDeleteModal(false)}
+          ></div>
+          <div className="bg-white rounded-xl shadow-lg w-[420px] p-6 z-10 pointer-events-auto">
+            <h2 className="text-lg font-semibold mb-3 text-center text-red-600">Confirm Delete</h2>
+            <p className="text-gray-700 text-center mb-5">
+              Are you sure you want to delete{" "}
+              <span className="font-semibold">{deleteType}</span>?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600"
+              >
+                Delete
               </button>
             </div>
           </div>

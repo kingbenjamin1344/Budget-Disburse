@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Search, Plus, Edit, Trash2 } from "lucide-react";
+import { Search, Plus, Edit, Trash2, X } from "lucide-react";
 
 export default function AddOfficePage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -257,69 +257,136 @@ export default function AddOfficePage() {
         </div>
       </div>
 
-      {/* 🟩 Add Office Modal */}
-      {addModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <div className="absolute inset-0 bg-black opacity-20 pointer-events-auto"></div>
-          <div className="bg-white rounded-lg shadow-lg w-96 p-6 z-10 pointer-events-auto">
-            <h2 className="text-lg font-semibold mb-3 text-center">Add Office</h2>
-            <input
-              type="text"
-              placeholder="Office Name"
-              value={newOffice}
-              onChange={(e) => setNewOffice(e.target.value)}
-              className="w-full border px-3 py-2 rounded-md mb-4 focus:outline-none focus:ring focus:ring-blue-200"
-            />
-            <div className="flex justify-end space-x-2">
-              <button
-                onClick={() => setAddModal(false)}
-                className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-100 transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAddOffice}
-                disabled={loading}
-                className="px-4 py-2 rounded-md bg-green-500 text-white hover:bg-green-600 transition"
-              >
-                {loading ? "Adding..." : "Add"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+{/* 🟩 Add Office Modal (Subtle Overlay) */}
+{addModal && (
+  <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+    {/* Subtle background overlay */}
+    <div
+      className="absolute inset-0 bg-black opacity-10 pointer-events-auto"
+      onClick={() => setAddModal(false)}
+    ></div>
 
-      {/* 🟩 Edit Modal */}
-      {editModal && editingOffice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <div className="absolute inset-0 bg-black opacity-20 pointer-events-auto"></div>
-          <div className="bg-white rounded-lg shadow-lg w-96 p-6 z-10 pointer-events-auto">
-            <h2 className="text-lg font-semibold mb-3 text-center">Edit Office</h2>
-            <input
-              type="text"
-              placeholder="Office Name"
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              className="w-full border px-3 py-2 rounded-md mb-4 focus:outline-none focus:ring focus:ring-blue-200"
-            />
-            <div className="flex justify-end space-x-2">
-              <button
-                onClick={() => setEditModal(false)}
-                className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-100 transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveEdit}
-                disabled={loading}
-                className="px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 transition"
-              >
-                {loading ? "Saving..." : "Save"}
-              </button>
-            </div>
+    {/* Modal */}
+    <div
+      className="bg-white rounded-xl shadow-lg w-[420px] overflow-hidden z-10 pointer-events-auto"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* HEADER */}
+      <div className="bg-[#1E3358] flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-2">
+          <div className="bg-white text-blue-600 p-2 rounded-full">
+            <Plus size={18} />
           </div>
+          <h2 className="text-white text-lg font-semibold">Add Office</h2>
         </div>
-      )}
+        <button
+          onClick={() => setAddModal(false)}
+          className="text-white hover:text-gray-200"
+        >
+          <X size={20} />
+        </button>
+      </div>
+
+      {/* BODY */}
+      <div className="p-5 space-y-4">
+        <div className="bg-gray-100 rounded-lg p-3">
+          <label className="text-xs text-gray-500">Office Name</label>
+          <input
+            type="text"
+            value={newOffice}
+            onChange={(e) => setNewOffice(e.target.value)}
+            className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
+          />
+        </div>
+      </div>
+
+      {/* FOOTER */}
+      <div className="flex justify-end gap-3 px-4 py-3 bg-gray-50 border-t">
+        <button
+          onClick={() => setAddModal(false)}
+          className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleAddOffice}
+          disabled={loading}
+          className={`px-4 py-2 rounded-lg text-white ${
+            loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-green-600"
+          }`}
+        >
+          {loading ? "Adding..." : "Add Office"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+{/* 🟩 Edit Office Modal (Subtle Overlay) */}
+{editModal && editingOffice && (
+  <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+    {/* Subtle background overlay */}
+    <div
+      className="absolute inset-0 bg-black opacity-10 pointer-events-auto"
+      onClick={() => setEditModal(false)}
+    ></div>
+
+    {/* Modal */}
+    <div
+      className="bg-white rounded-xl shadow-lg w-[420px] overflow-hidden z-10 pointer-events-auto"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* HEADER */}
+      <div className="bg-[#1E3358] flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-2">
+          <div className="bg-white text-blue-600 p-2 rounded-full">
+            <Edit size={18} />
+          </div>
+          <h2 className="text-white text-lg font-semibold">Edit Office</h2>
+        </div>
+        <button
+          onClick={() => setEditModal(false)}
+          className="text-white hover:text-gray-200"
+        >
+          <X size={20} />
+        </button>
+      </div>
+
+      {/* BODY */}
+      <div className="p-5 space-y-4">
+        <div className="bg-gray-100 rounded-lg p-3">
+          <label className="text-xs text-gray-500">Office Name</label>
+          <input
+            type="text"
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
+          />
+        </div>
+      </div>
+
+      {/* FOOTER */}
+      <div className="flex justify-end gap-3 px-4 py-3 bg-gray-50 border-t">
+        <button
+          onClick={() => setEditModal(false)}
+          className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSaveEdit}
+          disabled={loading}
+          className={`px-4 py-2 rounded-lg text-white ${
+            loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+          }`}
+        >
+          {loading ? "Saving..." : "Save Changes"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
 
       {/* 🟥 Delete Confirmation Modal */}
       {deleteModal && officeToDelete && (
