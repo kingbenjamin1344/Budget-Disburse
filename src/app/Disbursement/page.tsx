@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { Search, Plus, Edit, Trash2, X, ScanEye } from "lucide-react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { Search, Plus, Edit, Trash2, X, ScanEye, Camera, Upload, Loader } from "lucide-react";
+import Tesseract from "tesseract.js";
 
 // =================== Floating Scan Button ===================
 interface FloatingScanButtonProps {
@@ -52,6 +53,16 @@ export default function DisbursementPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  // ====== OCR Scanner States ======
+  const [showScanModal, setShowScanModal] = useState(false);
+  const [scanMode, setScanMode] = useState<"camera" | "upload">("camera");
+  const [cameraActive, setCameraActive] = useState(false);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrResult, setOcrResult] = useState("");
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // ====== Fetch Offices, Expenses, Budgets ======
   useEffect(() => {
     async function loadData() {
@@ -74,6 +85,104 @@ export default function DisbursementPage() {
     }
     loadData();
   }, []);
+
+  // ====== OCR Functions ======
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+      });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        setCameraActive(true);
+      }
+    } catch (err) {
+      alert("Unable to access camera. Please check permissions.");
+      console.error(err);
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoRef.current?.srcObject) {
+      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+      tracks.forEach((track) => track.stop());
+      setCameraActive(false);
+    }
+  };
+
+  const capturePhoto = async () => {
+    if (videoRef.current && canvasRef.current) {
+      const context = canvasRef.current.getContext("2d");
+      canvasRef.current.width = videoRef.current.videoWidth;
+      canvasRef.current.height = videoRef.current.videoHeight;
+      context?.drawImage(videoRef.current, 0, 0);
+      
+      const imageData = canvasRef.current.toDataURL("image/jpeg");
+      await performOCR(imageData);
+      stopCamera();
+    }
+  };
+
+  const handleImageUpload = async (file: File) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const imageData = e.target?.result as string;
+      await performOCR(imageData);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const performOCR = async (imageData: string) => {
+    setOcrLoading(true);
+    try {
+      const result = await Tesseract.recognize(imageData, "eng", {
+        logger: (m) => console.log("OCR Progress:", m),
+      });
+      
+      const text = result.data.text;
+      setOcrResult(text);
+      
+      // Parse disbursement data from OCR text
+      parseAndFillForm(text);
+    } catch (err) {
+      alert("OCR failed. Please try again.");
+      console.error(err);
+    } finally {
+      setOcrLoading(false);
+    }
+  };
+
+  const parseAndFillForm = (text: string) => {
+    // Extract DV Number (usually starts with numbers)
+    const dvMatch = text.match(/DV[:\s]*#?(\d+)/i) || text.match(/(\d{4,10})/);
+    const dvNo = dvMatch ? dvMatch[1] : "";
+
+    // Extract Amount (looks for peso sign or common amount patterns)
+    const amountMatch = text.match(/(?:₱|P\.?|\$)\s*([\d,]+\.?\d*)/i) || 
+                       text.match(/amount[:\s]*([\d,]+\.?\d*)/i);
+    const amount = amountMatch ? amountMatch[1].replace(/,/g, "") : "";
+
+    // Extract Payee (usually capitalized words or names)
+    const payeeMatch = text.match(/payee[:\s]*([A-Z][A-Z\s]+)/i) || 
+                       text.match(/([A-Z][A-Z\s]{5,50})/);
+    const payee = payeeMatch ? payeeMatch[1].trim() : "";
+
+    // Update form data with extracted values
+    setFormData((prev) => ({
+      ...prev,
+      dvNo: dvNo || prev.dvNo,
+      amount: amount || prev.amount,
+      payee: payee || prev.payee,
+    }));
+  };
+
+  const closeScanModal = () => {
+    stopCamera();
+    setShowScanModal(false);
+    setScanMode("camera");
+    setOcrResult("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   // ====== Load Disbursements ======
   useEffect(() => {
@@ -426,7 +535,8 @@ export default function DisbursementPage() {
         bottom={-100}
         right={20}
         onClick={() => {
-          alert("Scan button clicked!"); // Future: open scan modal
+          setShowScanModal(true);
+          setScanMode("camera");
         }}
       />
 
@@ -540,6 +650,190 @@ export default function DisbursementPage() {
           </div>
         </div>
       )}
+
+      {/* =================== OCR Scanner Modal =================== */}
+      {showScanModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-gray-100 border-b p-4 flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Disbursement Document Scanner</h2>
+              <button
+                onClick={closeScanModal}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Mode Selection */}
+              <div className="flex gap-3 mb-4">
+                <button
+                  onClick={() => setScanMode("camera")}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition ${
+                    scanMode === "camera"
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-gray-300 hover:border-gray-400"
+                  }`}
+                >
+                  <Camera className="w-5 h-5" /> Camera
+                </button>
+                <button
+                  onClick={() => setScanMode("upload")}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition ${
+                    scanMode === "upload"
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-gray-300 hover:border-gray-400"
+                  }`}
+                >
+                  <Upload className="w-5 h-5" /> Upload
+                </button>
+              </div>
+
+              {/* Camera Mode */}
+              {scanMode === "camera" && (
+                <div className="space-y-3">
+                  {!cameraActive ? (
+                    <button
+                      onClick={startCamera}
+                      className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-semibold flex items-center justify-center gap-2"
+                    >
+                      <Camera className="w-5 h-5" /> Start Camera
+                    </button>
+                  ) : (
+                    <>
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        className="w-full bg-black rounded-lg"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={capturePhoto}
+                          disabled={ocrLoading}
+                          className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-semibold disabled:bg-gray-400 flex items-center justify-center gap-2"
+                        >
+                          {ocrLoading ? (
+                            <>
+                              <Loader className="w-5 h-5 animate-spin" /> Processing...
+                            </>
+                          ) : (
+                            <>
+                              <Camera className="w-5 h-5" /> Capture Photo
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={stopCamera}
+                          className="flex-1 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 font-semibold"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Upload Mode */}
+              {scanMode === "upload" && (
+                <div className="space-y-3">
+                  <label className="block">
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition">
+                      <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                      <p className="font-semibold text-gray-700">Click to upload image</p>
+                      <p className="text-sm text-gray-500">or drag and drop</p>
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        if (e.target.files?.[0]) {
+                          handleImageUpload(e.target.files[0]);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                  {ocrLoading && (
+                    <div className="flex items-center justify-center gap-2 text-blue-600 font-semibold py-4">
+                      <Loader className="w-5 h-5 animate-spin" /> Processing image...
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* OCR Result Display */}
+              {ocrResult && (
+                <div className="bg-gray-50 border rounded-lg p-4 space-y-3">
+                  <h3 className="font-semibold text-gray-800">Extracted Data</h3>
+                  <div className="max-h-32 overflow-y-auto bg-white p-3 border rounded text-sm text-gray-700 font-mono whitespace-pre-wrap">
+                    {ocrResult}
+                  </div>
+                </div>
+              )}
+
+              {/* Extracted Form Fields */}
+              {ocrResult && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+                  <h3 className="font-semibold text-gray-800">Auto-filled Fields</h3>
+                  <div className="grid grid-cols-1 gap-2 text-sm">
+                    {formData.dvNo && (
+                      <p>
+                        <span className="font-semibold">DV No.:</span> {formData.dvNo}
+                      </p>
+                    )}
+                    {formData.payee && (
+                      <p>
+                        <span className="font-semibold">Payee:</span> {formData.payee}
+                      </p>
+                    )}
+                    {formData.amount && (
+                      <p>
+                        <span className="font-semibold">Amount:</span> ₱{parseFloat(formData.amount).toLocaleString()}
+                      </p>
+                    )}
+                    {!formData.dvNo && !formData.payee && !formData.amount && (
+                      <p className="text-gray-500 italic">
+                        No fields extracted. Please review the OCR text above.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-4 border-t">
+                <button
+                  onClick={() => {
+                    if (formData.dvNo || formData.payee || formData.amount) {
+                      setShowModal(true);
+                      closeScanModal();
+                    } else {
+                      alert("Please extract data first");
+                    }
+                  }}
+                  disabled={!ocrResult || (!formData.dvNo && !formData.payee && !formData.amount)}
+                  className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  Use Extracted Data
+                </button>
+                <button
+                  onClick={closeScanModal}
+                  className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 font-semibold"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden canvas for photo capture */}
+      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
 }
