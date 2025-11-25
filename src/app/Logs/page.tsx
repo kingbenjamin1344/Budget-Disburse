@@ -86,7 +86,7 @@ export default function LogsPage() {
             <option value="Expense">Expense</option>
             <option value="Office">Office</option>
           </select>
-
+          {/* Actor filter (text) */}
           
         </div>
       </div>

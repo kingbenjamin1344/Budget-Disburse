@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
 
     const expense = await prisma.expense.create({ data: { type, category } });
     const actor = getUserNameFromRequest(request);
-    await logAction({ message: `Created expense ${type} / ${category} (id: ${expense.id})`, type: "Expense", action: "create", performedBy: actor || undefined });
+    await logAction({ message: `Created Expense ${type} under ${category} `, type: "Expense", action: "create", performedBy: actor || undefined });
     return NextResponse.json(expense, { status: 201 });
   } catch (error) {
     console.error("POST /expenses error:", error);
@@ -49,7 +49,7 @@ export async function PUT(request: NextRequest) {
       data: { type, category },
     });
     const actor = getUserNameFromRequest(request);
-    await logAction({ message: `Updated expense ${updated.type} / ${updated.category} (id: ${updated.id})`, type: "Expense", action: "update", performedBy: actor || undefined });
+    await logAction({ message: `Updated Expense to "${updated.type}" under ${updated.category} `, type: "Expense", action: "update", performedBy: actor || undefined });
     return NextResponse.json(updated);
   } catch (error) {
     console.error("PUT /expenses error:", error);
@@ -64,12 +64,32 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
     }
 
+    // Fetch the expense first
+    const existing = await prisma.expense.findUnique({
+      where: { id: Number(id) },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: "Expense not found" }, { status: 404 });
+    }
+
+    // Delete the expense
     await prisma.expense.delete({ where: { id: Number(id) } });
+
+    // Create better log message
     const actor = getUserNameFromRequest(request);
-    await logAction({ message: `Deleted expense (id: ${id})`, type: "Expense", action: "delete", performedBy: actor || undefined });
+    await logAction({
+      message: `Deleted Expense "${existing.type}" under ${existing.category} `,
+      type: "Expense",
+      action: "delete",
+      performedBy: actor || undefined,
+    });
+
     return NextResponse.json({ success: true });
+
   } catch (error) {
     console.error("DELETE /expenses error:", error);
     return NextResponse.json({ error: "Failed to delete expense" }, { status: 500 });
   }
 }
+

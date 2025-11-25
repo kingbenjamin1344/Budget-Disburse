@@ -68,7 +68,7 @@ export async function POST(req: Request) {
 
     const actor = getUserNameFromRequest(req);
     await logAction({
-      message: `Created disbursement DV# ${newDisbursement.dvNo} (id: ${newDisbursement.id})`,
+      message: `Created disbursement voucher ${newDisbursement.dvNo} (id: ${newDisbursement.id})`,
       type: "Disbursement",
       action: "create",
       performedBy: actor || undefined,
@@ -129,7 +129,7 @@ export async function PUT(req: Request) {
 
     const actor = getUserNameFromRequest(req);
     await logAction({
-      message: `Updated disbursement DV# ${updated.dvNo} (id: ${updated.id})`,
+      message: `Updated disbursement voucher ${updated.dvNo} (id: ${updated.id})`,
       type: "Disbursement",
       action: "update",
       performedBy: actor || undefined,
