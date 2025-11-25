@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../../../lib/prisma";
+import logAction from "../../../lib/log";
+import { getUserNameFromRequest } from "../../../lib/auth";
 
-const prisma = new PrismaClient();
 
 // ✅ GET all disbursements
 export async function GET() {
@@ -65,6 +66,14 @@ export async function POST(req: Request) {
       include: { office: true },
     });
 
+    const actor = getUserNameFromRequest(req);
+    await logAction({
+      message: `Created disbursement DV# ${newDisbursement.dvNo} (id: ${newDisbursement.id})`,
+      type: "Disbursement",
+      action: "create",
+      performedBy: actor || undefined,
+    });
+
     return NextResponse.json({
       id: newDisbursement.id,
       dvNo: newDisbursement.dvNo,
@@ -118,6 +127,14 @@ export async function PUT(req: Request) {
       include: { office: true },
     });
 
+    const actor = getUserNameFromRequest(req);
+    await logAction({
+      message: `Updated disbursement DV# ${updated.dvNo} (id: ${updated.id})`,
+      type: "Disbursement",
+      action: "update",
+      performedBy: actor || undefined,
+    });
+
     return NextResponse.json({
       id: updated.id,
       dvNo: updated.dvNo,
@@ -144,6 +161,14 @@ export async function DELETE(req: Request) {
 
     await prisma.disbursement.delete({
       where: { id },
+    });
+
+    const actor = getUserNameFromRequest(req);
+    await logAction({
+      message: `Deleted disbursement (id: ${id})`,
+      type: "Disbursement",
+      action: "delete",
+      performedBy: actor || undefined,
     });
 
     return NextResponse.json({ message: "Disbursement deleted successfully" });

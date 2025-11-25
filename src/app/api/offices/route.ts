@@ -1,7 +1,7 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from "../../../lib/prisma";
 import { NextResponse } from "next/server";
-
-const prisma = new PrismaClient();
+import logAction from "../../../lib/log";
+import { getUserNameFromRequest } from "../../../lib/auth";
 
 
 export async function GET() {
@@ -23,6 +23,9 @@ export async function POST(request: Request) {
     data: { name },
   });
 
+  const actor = getUserNameFromRequest(request);
+  await logAction({ message: `Created office ${office.name} (id: ${office.id})`, type: "Office", action: "create", performedBy: actor || undefined });
+
   return NextResponse.json(office);
 }
 
@@ -40,6 +43,8 @@ export async function PUT(request: Request) {
       where: { id },
       data: { name },
     });
+    const actor = getUserNameFromRequest(request);
+    await logAction({ message: `Updated office ${updatedOffice.name} (id: ${updatedOffice.id})`, type: "Office", action: "update", performedBy: actor || undefined });
     return NextResponse.json(updatedOffice);
   } catch (error) {
     console.error(error);
@@ -57,6 +62,9 @@ export async function DELETE(request: Request) {
   await prisma.office.delete({
     where: { id },
   });
+
+  const actor = getUserNameFromRequest(request);
+  await logAction({ message: `Deleted office (id: ${id})`, type: "Office", action: "delete", performedBy: actor || undefined });
 
   return NextResponse.json({ message: "Office deleted successfully" });
 }

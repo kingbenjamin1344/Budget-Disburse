@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../../../lib/prisma";
+import logAction from "../../../lib/log";
+import { getUserNameFromRequest } from "../../../lib/auth";
 
-const prisma = new PrismaClient();
 
 // GET all budgets (with office name)
 export async function GET() {
@@ -57,6 +58,14 @@ export async function POST(req: Request) {
       include: { office: true },
     });
 
+    const actor = getUserNameFromRequest(req);
+    await logAction({
+      message: `Created budget for ${newBudget.officeName} (id: ${newBudget.id})`,
+      type: "Budget",
+      action: "create",
+      performedBy: actor || undefined,
+    });
+
     return NextResponse.json({
       message: "Budget added successfully",
       data: {
@@ -103,6 +112,14 @@ export async function PUT(req: Request) {
       include: { office: true },
     });
 
+    const actor = getUserNameFromRequest(req);
+    await logAction({
+      message: `Updated budget for ${updated.officeName} (id: ${updated.id})`,
+      type: "Budget",
+      action: "update",
+      performedBy: actor || undefined,
+    });
+
     return NextResponse.json({
       message: "Budget updated successfully",
       data: {
@@ -128,6 +145,14 @@ export async function DELETE(req: Request) {
 
     await prisma.budget.delete({
       where: { id },
+    });
+
+    const actor = getUserNameFromRequest(req);
+    await logAction({
+      message: `Deleted budget (id: ${id})`,
+      type: "Budget",
+      action: "delete",
+      performedBy: actor || undefined,
     });
 
     return NextResponse.json({ message: "Budget deleted successfully" });

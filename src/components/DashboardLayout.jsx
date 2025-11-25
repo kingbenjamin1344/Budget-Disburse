@@ -16,6 +16,7 @@ import {
   UserStar,
   LogOut,
   CirclePlus,
+  BellRing,
 } from "lucide-react";
 
 export default function DashboardLayout({ children }) {
@@ -31,6 +32,7 @@ export default function DashboardLayout({ children }) {
     { name: "Add Budget", icon: <HandCoins size={20} />, path: "/Addbudget" },
     { name: "Disbursement", icon: <Tickets size={20} />, path: "/Disbursement" },
     { name: "SOE", icon: <AppWindowMac size={20} />, path: "/Soe" },
+    { name: "Logs", icon: <BellRing size={20} />, path: "/Logs" },
   ];
 
   const adminLinks = [

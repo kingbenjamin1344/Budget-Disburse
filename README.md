@@ -19,3 +19,19 @@ npm install
 npm run dev
 ```
 
+## New: Logging (Audit trail)
+
+This project now includes a `log` Prisma model and a server-side logging utility that records create/update/delete operations for budgets, disbursements, expenses, and offices.
+
+To enable the new `log` table in your database, run:
+
+```powershell
+npx prisma migrate dev --name add_log_model
+npx prisma generate
+```
+
+This creates the new table and regenerates the Prisma client so the TypeScript types for `log` are available.
+
+When the addition `performedBy` is required to capture who performed an action, the migration will also add the `performedBy` field to `log` table automatically.
+
+

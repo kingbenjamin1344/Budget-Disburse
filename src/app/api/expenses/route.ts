@@ -1,8 +1,9 @@
 // src/app/api/expenses/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../../../lib/prisma";
+import logAction from "../../../lib/log";
+import { getUserNameFromRequest } from "../../../lib/auth";
 
-const prisma = new PrismaClient();
 
 export async function GET() {
   try {
@@ -22,6 +23,8 @@ export async function POST(request: NextRequest) {
     }
 
     const expense = await prisma.expense.create({ data: { type, category } });
+    const actor = getUserNameFromRequest(request);
+    await logAction({ message: `Created expense ${type} / ${category} (id: ${expense.id})`, type: "Expense", action: "create", performedBy: actor || undefined });
     return NextResponse.json(expense, { status: 201 });
   } catch (error) {
     console.error("POST /expenses error:", error);
@@ -45,6 +48,8 @@ export async function PUT(request: NextRequest) {
       where: { id: Number(id) },
       data: { type, category },
     });
+    const actor = getUserNameFromRequest(request);
+    await logAction({ message: `Updated expense ${updated.type} / ${updated.category} (id: ${updated.id})`, type: "Expense", action: "update", performedBy: actor || undefined });
     return NextResponse.json(updated);
   } catch (error) {
     console.error("PUT /expenses error:", error);
@@ -60,6 +65,8 @@ export async function DELETE(request: NextRequest) {
     }
 
     await prisma.expense.delete({ where: { id: Number(id) } });
+    const actor = getUserNameFromRequest(request);
+    await logAction({ message: `Deleted expense (id: ${id})`, type: "Expense", action: "delete", performedBy: actor || undefined });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("DELETE /expenses error:", error);
