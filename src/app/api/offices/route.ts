@@ -19,12 +19,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Office name is required" }, { status: 400 });
   }
 
-  const office = await prisma.office.create({
-    data: { name },
-  });
-
+  const office = await prisma.office.create({ data: { name } });
   const actor = getUserNameFromRequest(request);
-  await logAction({ message: `Created office ${office.name} (id: ${office.id})`, type: "Office", action: "create", performedBy: actor || undefined });
+  await logAction({ message: `${office.name} (id: ${office.id})`, type: "Office", action: "create", performedBy: actor || undefined });
 
   return NextResponse.json(office);
 }
@@ -39,12 +36,10 @@ export async function PUT(request: Request) {
   }
 
   try {
-    const updatedOffice = await prisma.office.update({
-      where: { id },
-      data: { name },
-    });
+    const existing = await prisma.office.findUnique({ where: { id } });
+    const updatedOffice = await prisma.office.update({ where: { id }, data: { name } });
     const actor = getUserNameFromRequest(request);
-    await logAction({ message: `Updated office ${updatedOffice.name} (id: ${updatedOffice.id})`, type: "Office", action: "update", performedBy: actor || undefined });
+    await logAction({ message: `(id: ${id}): name "${existing?.name || "<unknown>"}" -> "${updatedOffice.name}"`, type: "Office", action: "update", performedBy: actor || undefined });
     return NextResponse.json(updatedOffice);
   } catch (error) {
     console.error(error);
@@ -59,12 +54,10 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Office ID is required" }, { status: 400 });
   }
 
-  await prisma.office.delete({
-    where: { id },
-  });
-
+  const toDelete = await prisma.office.findUnique({ where: { id } });
+  await prisma.office.delete({ where: { id } });
   const actor = getUserNameFromRequest(request);
-  await logAction({ message: `Deleted office (id: ${id})`, type: "Office", action: "delete", performedBy: actor || undefined });
+  await logAction({ message: `${toDelete?.name || "<unknown>"} (id: ${id})`, type: "Office", action: "delete", performedBy: actor || undefined });
 
   return NextResponse.json({ message: "Office deleted successfully" });
 }

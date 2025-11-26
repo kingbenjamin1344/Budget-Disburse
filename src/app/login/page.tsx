@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
 import { Eye, EyeOff } from "lucide-react"; // For eye toggle
 
 // Replace these with your actual image URLs or imports
@@ -142,7 +140,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <ToastContainer position="top-right" autoClose={3000} />
+      {/* ToastContainer moved to ClientLayout; toast() still usable here */}
     </div>
   );
 }

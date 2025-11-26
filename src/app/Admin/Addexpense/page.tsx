@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Search, Plus, Edit, Trash2, X } from "lucide-react";
+import { toast } from "react-toastify";
 
 export default function AddExpensePage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -41,7 +42,7 @@ export default function AddExpensePage() {
   }, []);
 
   const handleAddExpense = async () => {
-    if (!type.trim() || !category.trim()) return alert("Please fill in both fields");
+    if (!type.trim() || !category.trim()) return toast.error("Please fill in both fields");
     setLoading(true);
     const res = await fetch("/api/expenses", {
       method: "POST",
@@ -53,7 +54,8 @@ export default function AddExpensePage() {
       setCategory("PS");
       setShowAddModal(false);
       fetchExpenses();
-    } else alert("Failed to add expense");
+      toast.success("Expense created successfully");
+    } else toast.error("Failed to add expense");
     setLoading(false);
   };
 
@@ -73,6 +75,7 @@ export default function AddExpensePage() {
     setShowDeleteModal(false);
     setDeleteId(null);
     fetchExpenses();
+    toast.success("Expense deleted successfully");
   };
 
   const handleEdit = (expense: any) => {
@@ -83,7 +86,7 @@ export default function AddExpensePage() {
   };
 
   const handleSaveEdit = async () => {
-    if (!editType.trim() || !editCategory.trim()) return alert("Please fill in both fields");
+    if (!editType.trim() || !editCategory.trim()) return toast.error("Please fill in both fields");
     const res = await fetch("/api/expenses", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -97,7 +100,8 @@ export default function AddExpensePage() {
       setShowEditModal(false);
       setEditingId(null);
       fetchExpenses();
-    } else alert("Failed to update expense");
+      toast.success("Expense updated successfully");
+    } else toast.error("Failed to update expense");
   };
 
   const filteredExpenses = expenses.filter((exp) => {

@@ -68,7 +68,7 @@ export async function POST(req: Request) {
 
     const actor = getUserNameFromRequest(req);
     await logAction({
-      message: `Created disbursement voucher ${newDisbursement.dvNo} (id: ${newDisbursement.id})`,
+      message: `${newDisbursement.dvNo}, payee="${newDisbursement.payee}", amount=${newDisbursement.amount}, office="${newDisbursement.officeName}", category="${newDisbursement.expenseCategory}" (id: ${newDisbursement.id})`,
       type: "Disbursement",
       action: "create",
       performedBy: actor || undefined,
@@ -121,6 +121,7 @@ export async function PUT(req: Request) {
       if (!isNaN(parsed.getTime())) updateData.dateCreated = parsed;
     }
 
+    const existing = await prisma.disbursement.findUnique({ where: { id } });
     const updated = await prisma.disbursement.update({
       where: { id },
       data: updateData,
@@ -129,7 +130,7 @@ export async function PUT(req: Request) {
 
     const actor = getUserNameFromRequest(req);
     await logAction({
-      message: `Updated disbursement voucher ${updated.dvNo} (id: ${updated.id})`,
+      message: `id=${updated.id}: DV# "${existing?.dvNo || "<unknown>"}" -> "${updated.dvNo}", payee "${existing?.payee || "<unknown>"}" -> "${updated.payee}", amount ${existing?.amount || "<unknown>"} -> ${updated.amount}`,
       type: "Disbursement",
       action: "update",
       performedBy: actor || undefined,
@@ -159,13 +160,11 @@ export async function DELETE(req: Request) {
   try {
     const { id } = await req.json();
 
-    await prisma.disbursement.delete({
-      where: { id },
-    });
-
+    const toDelete = await prisma.disbursement.findUnique({ where: { id } });
+    await prisma.disbursement.delete({ where: { id } });
     const actor = getUserNameFromRequest(req);
     await logAction({
-      message: `Deleted disbursement (id: ${id})`,
+      message: ` DV#${toDelete?.dvNo || "<unknown>"}, payee="${toDelete?.payee || "<unknown>"}", amount=${toDelete?.amount || "<unknown>"} (id: ${id})`,
       type: "Disbursement",
       action: "delete",
       performedBy: actor || undefined,

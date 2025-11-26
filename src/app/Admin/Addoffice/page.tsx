@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Search, Plus, Edit, Trash2, X } from "lucide-react";
+import { toast } from "react-toastify";
 
 export default function AddOfficePage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -31,7 +32,7 @@ export default function AddOfficePage() {
   }, []);
 
   const handleAddOffice = async () => {
-    if (!newOffice.trim()) return alert("Please enter an office name.");
+    if (!newOffice.trim()) return toast.error("Please enter an office name.");
     setLoading(true);
     const res = await fetch("/api/offices", {
       method: "POST",
@@ -42,6 +43,7 @@ export default function AddOfficePage() {
       setNewOffice("");
       setAddModal(false);
       fetchOffices();
+      toast.success("Office created successfully");
     }
     setLoading(false);
   };
@@ -53,7 +55,7 @@ export default function AddOfficePage() {
   };
 
   const handleSaveEdit = async () => {
-    if (!editName.trim() || !editingOffice) return alert("Please enter a name");
+    if (!editName.trim() || !editingOffice) return toast.error("Please enter a name");
     setLoading(true);
     const res = await fetch("/api/offices", {
       method: "PUT",
@@ -64,8 +66,9 @@ export default function AddOfficePage() {
       setEditModal(false);
       setEditingOffice(null);
       fetchOffices();
+      toast.success("Office updated successfully");
     } else {
-      alert("Failed to update office");
+      toast.error("Failed to update office");
     }
     setLoading(false);
   };
@@ -88,9 +91,10 @@ export default function AddOfficePage() {
       setDeleteModal(false);
       setOfficeToDelete(null);
       fetchOffices();
+      toast.success("Office deleted successfully");
     } catch (error) {
       console.error(error);
-      alert("Error deleting office");
+      toast.error("Error deleting office");
     }
   };
 

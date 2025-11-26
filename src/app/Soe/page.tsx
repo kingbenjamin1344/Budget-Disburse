@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { RotateCcw, Printer, Minimize2, Maximize2, Save } from "lucide-react";
+import { toast } from "react-toastify";
 
 // PDF / export libs
 import html2canvas from "html2canvas";
@@ -210,7 +211,7 @@ export default function SoePage() {
   // Download the PDF file
   const downloadPdf = async (filename?: string) => {
     const blob = await generatePdfBlob();
-    if (!blob) return alert('Unable to generate PDF');
+    if (!blob) return toast.error('Unable to generate PDF') as any;
 
     const finalFilename = filename || `SOE_${new Date().toISOString().split('T')[0]}.pdf`;
     const url = URL.createObjectURL(blob);
@@ -281,7 +282,7 @@ export default function SoePage() {
       return true;
     } catch (e) {
       console.error('Save PDF error', e);
-      alert('Failed to save PDF: ' + (e as any)?.message || e);
+      toast.error('Failed to save PDF: ' + (e as any)?.message || String(e));
       return false;
     } finally {
       setSaving(false);
@@ -291,7 +292,7 @@ export default function SoePage() {
   // View PDF in a new tab
   const viewPdf = async () => {
     const blob = await generatePdfBlob();
-    if (!blob) return alert('Unable to generate PDF');
+    if (!blob) return toast.error('Unable to generate PDF') as any;
     const url = URL.createObjectURL(blob);
     window.open(url, '_blank');
   };
@@ -299,7 +300,7 @@ export default function SoePage() {
   // Download ZIP containing PDF (requires jszip). If jszip not installed, fallback to PDF download.
   const downloadZipWithPdf = async () => {
     const blob = await generatePdfBlob();
-    if (!blob) return alert('Unable to generate PDF');
+    if (!blob) return toast.error('Unable to generate PDF') as any;
 
     try {
       const JSZip = (await import('jszip')).default;
@@ -475,7 +476,7 @@ export default function SoePage() {
               <button
                 className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
                 onClick={async () => {
-                  if (!saveFilename) return alert('Please provide a filename.');
+                  if (!saveFilename) return toast.error('Please provide a filename.') as any;
                   const ok = await savePdfWithFilename(saveFilename.endsWith('.pdf') ? saveFilename : saveFilename + '.pdf');
                   if (ok) setSaveModalOpen(false);
                 }}
