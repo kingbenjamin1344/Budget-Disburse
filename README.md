@@ -12,26 +12,33 @@ Notes:
 - The middleware protects routes by checking for the presence of `auth-token`. `/api/auth/check` validates the token signature.
 - For hardening, use `ADMIN_PASSWORD_HASH` and a proper `AUTH_SECRET` in production.
 
-Run locally:
 
-```powershell
+
+
+
+
+
+## powershell
+
 npm install
 npm run dev
-```
 
-## New: Logging (Audit trail)
+## to migrate db
 
-This project now includes a `log` Prisma model and a server-side logging utility that records create/update/delete operations for budgets, disbursements, expenses, and offices.
+## step 1 run this command in terminal
+npm install prisma @prisma/client mysql2
 
-To enable the new `log` table in your database, run:
+## make a .env file and copy-paste
+DATABASE_URL="mysql://root:password@localhost:3306/budget_disburse"
 
-```powershell
-npx prisma migrate dev --name add_log_model
-npx prisma generate
-```
+## open Heidi Sql 
+create session
+user:root
+password:password
+port:3306
 
-This creates the new table and regenerates the Prisma client so the TypeScript types for `log` are available.
+## create db name
+budget_disburse and run finaldisburse.sql in query
 
-When the addition `performedBy` is required to capture who performed an action, the migration will also add the `performedBy` field to `log` table automatically.
-
-
+## run 
+npm run dev
