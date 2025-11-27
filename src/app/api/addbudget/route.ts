@@ -60,7 +60,7 @@ export async function POST(req: Request) {
 
     const actor = getUserNameFromRequest(req);
     await logAction({
-      message: `Created budget for ${newBudget.officeName} (id: ${newBudget.id})`,
+      message: `id=${newBudget.id}, office="${newBudget.officeName}", PS=${newBudget.ps}, MOOE=${newBudget.mooe}, CO=${newBudget.co}, total=${newBudget.total}`,
       type: "Budget",
       action: "create",
       performedBy: actor || undefined,
@@ -99,6 +99,7 @@ export async function PUT(req: Request) {
     }
 
     // Update both fields so officeName stays in sync
+    const existing = await prisma.budget.findUnique({ where: { id } });
     const updated = await prisma.budget.update({
       where: { id },
       data: {
@@ -114,7 +115,7 @@ export async function PUT(req: Request) {
 
     const actor = getUserNameFromRequest(req);
     await logAction({
-      message: `Updated budget for ${updated.officeName} (id: ${updated.id})`,
+      message: `id=${updated.id}: office "${existing?.officeName || "<unknown>"}" -> "${updated.officeName}", PS ${existing?.ps} -> ${updated.ps}, MOOE ${existing?.mooe} -> ${updated.mooe}, CO ${existing?.co} -> ${updated.co}, total ${existing?.total} -> ${updated.total}`,
       type: "Budget",
       action: "update",
       performedBy: actor || undefined,
@@ -143,13 +144,11 @@ export async function DELETE(req: Request) {
   try {
     const { id } = await req.json();
 
-    await prisma.budget.delete({
-      where: { id },
-    });
-
+    const existingBudget = await prisma.budget.findUnique({ where: { id } });
+    await prisma.budget.delete({ where: { id } });
     const actor = getUserNameFromRequest(req);
     await logAction({
-      message: `Deleted budget (id: ${id})`,
+      message: `id=${id}, office="${existingBudget?.officeName || "<unknown>"}", PS=${existingBudget?.ps}, MOOE=${existingBudget?.mooe}, CO=${existingBudget?.co}, total=${existingBudget?.total}`,
       type: "Budget",
       action: "delete",
       performedBy: actor || undefined,

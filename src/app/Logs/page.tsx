@@ -102,12 +102,10 @@ export default function LogsPage() {
               style={{ backgroundImage: "url('/img/blue.jpg')" }}
             >
               <tr>
-                <th className="px-6 py-2 text-left font-semibold border-b border-gray-300">Notification ID</th>
+               <th className="px-3 py-2 text-center font-semibold border-b border-gray-300">Log Type</th>
+                <th className="px-3 py-2 text-center font-semibold border-b border-gray-300">Action</th>
                 <th className="px-6 py-2 text-left font-semibold border-b border-gray-300">Message</th>
                 <th className="px-6 py-2 text-left font-semibold border-b border-gray-300">Date Created</th>
-                <th className="px-3 py-2 text-left font-semibold border-b border-gray-300">User</th>
-                <th className="px-3 py-2 text-center font-semibold border-b border-gray-300">Action</th>
-                <th className="px-3 py-2 text-center font-semibold border-b border-gray-300">Type</th>
               </tr>
             </thead>
 
@@ -124,12 +122,11 @@ export default function LogsPage() {
               ) : (
                 currentItems.map((log) => (
                   <tr key={log.id} className="border-b hover:bg-gray-200">
-                    <td className="px-6 py-3 text-gray-700">{log.id}</td>
+
+                   <td className="px-6 py-3 text-center">{log.type}</td>
+                    <td className="px-6 py-3 text-center">{log.action}</td>
                     <td className="px-6 py-3 text-gray-700">{log.message}</td>
                     <td className="px-6 py-3 text-gray-700">{new Date(log.createdAt).toLocaleString()}</td>
-                    <td className="px-6 py-3 text-gray-700">{log.performedBy || '-'}</td>
-                    <td className="px-6 py-3 text-center">{log.action}</td>
-                    <td className="px-6 py-3 text-center">{log.type}</td>
                   </tr>
                 ))
               )}

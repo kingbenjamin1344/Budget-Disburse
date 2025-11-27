@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
+import { toast } from "react-toastify";
 import { Search, Plus, Edit, Trash2, X, ScanEye, Camera, Upload, Loader } from "lucide-react";
 import Tesseract from "tesseract.js";
 
@@ -98,7 +99,7 @@ export default function DisbursementPage() {
         setCameraActive(true);
       }
     } catch (err) {
-      alert("Unable to access camera. Please check permissions.");
+      toast.error("Unable to access camera. Please check permissions.");
       console.error(err);
     }
   };
@@ -146,7 +147,7 @@ export default function DisbursementPage() {
       // Parse disbursement data from OCR text
       parseAndFillForm(text);
     } catch (err) {
-      alert("OCR failed. Please try again.");
+      toast.error("OCR failed. Please try again.");
       console.error(err);
     } finally {
       setOcrLoading(false);
@@ -330,12 +331,12 @@ export default function DisbursementPage() {
 
   const handleSave = async () => {
     if (!formData.dvNo || !formData.payee || !formData.office || !formData.expenseType || !formData.amount) {
-      alert("Please fill all required fields");
+      toast.error("Please fill all required fields");
       return;
     }
     const budget = budgets.find((b) => b.office.toLowerCase() === formData.office.toLowerCase());
     if (!budget) {
-      alert("No budget found for this office!");
+      toast.error("No budget found for this office!");
       return;
     }
 
@@ -357,7 +358,7 @@ export default function DisbursementPage() {
     const newDisburseTotal = disbursedAmount + parseFloat(formData.amount);
     if (newDisburseTotal > budgetAmount) {
       const remaining = (budgetAmount - disbursedAmount).toLocaleString();
-      alert(`Budget exceeded!\nYou only have ₱${remaining} remaining for ${formData.expenseCategory}.`);
+      toast.error(`Budget exceeded!\nYou only have ₱${remaining} remaining for ${formData.expenseCategory}.`);
       return;
     }
 
@@ -377,9 +378,10 @@ export default function DisbursementPage() {
         editingId ? prev.map((d) => (d.id === editingId ? updated : d)) : [updated, ...prev]
       );
       setShowModal(false);
+      toast.success(editingId ? "Disbursement updated successfully" : "Disbursement created successfully");
     } catch (err) {
       console.error(err);
-      alert("Error saving disbursement.");
+      toast.error("Error saving disbursement.");
     }
   };
 
@@ -409,9 +411,10 @@ export default function DisbursementPage() {
       if (!res.ok) throw new Error("Failed to delete");
       setDisbursements((prev) => prev.filter((d) => d.id !== deleteId));
       setShowDeleteModal(false);
+      toast.success("Disbursement deleted successfully");
     } catch (err) {
       console.error(err);
-      alert("Error deleting disbursement.");
+      toast.error("Error deleting disbursement.");
     }
   };
 
@@ -980,7 +983,7 @@ export default function DisbursementPage() {
                       setShowModal(true);
                       closeScanModal();
                     } else {
-                      alert("Please extract data first");
+                      toast.error("Please extract data first");
                     }
                   }}
                   disabled={!ocrResult || (!formData.dvNo && !formData.payee && !formData.amount && !formData.office && !formData.expenseType && !formData.expenseCategory && !formData.date)}

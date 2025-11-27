@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { toast } from "react-toastify";
 import { Search, Plus, X, Edit, Trash2 } from "lucide-react";
 
 export default function AddBudgetPage() {
@@ -48,7 +49,7 @@ export default function AddBudgetPage() {
   }, []);
 
   const handleSaveBudget = async () => {
-    if (!officeId) return alert("Please select an office");
+    if (!officeId) return toast.error("Please select an office");
 
     const selectedOffice = offices.find((o) => o.id === officeId);
 
@@ -56,7 +57,7 @@ export default function AddBudgetPage() {
       editingId === null &&
       budgets.some((b) => b.office === selectedOffice?.name)
     ) {
-      return alert("This office already has a budget allocated.");
+      return toast.error("This office already has a budget allocated.") as any;
     }
 
     const budgetData = {
@@ -90,8 +91,9 @@ export default function AddBudgetPage() {
       const refreshed = await fetch("/api/addbudget");
       const refreshedData = await refreshed.json();
       setBudgets(refreshedData);
+      toast.success(editingId !== null ? "Budget updated successfully" : "Budget created successfully");
     } catch (error) {
-      alert("Failed to save budget");
+      toast.error("Failed to save budget");
       console.error(error);
     }
   };
@@ -127,8 +129,10 @@ export default function AddBudgetPage() {
       const refreshed = await fetch("/api/addbudget");
       const refreshedData = await refreshed.json();
       setBudgets(refreshedData);
+      toast.success("Budget deleted successfully");
     } catch (error) {
       console.error(error);
+      toast.error("Failed to delete budget");
     } finally {
       setShowDeleteModal(false);
       setDeleteIndex(null);
@@ -387,7 +391,7 @@ export default function AddBudgetPage() {
               </button>
               <button
                 onClick={handleSaveBudget}
-                className="px-4 py-2 rounded-lg text-white bg-blue-600 hover:bg-green-700"
+                className="px-4 py-2 rounded-lg text-white bg-blue-600 hover:bg-blue-700"
               >
                 {editingId !== null ? "Save Changes" : "Add Budget"}
               </button>

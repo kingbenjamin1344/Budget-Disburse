@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
 
     const expense = await prisma.expense.create({ data: { type, category } });
     const actor = getUserNameFromRequest(request);
-    await logAction({ message: `Created Expense ${type} under ${category} `, type: "Expense", action: "create", performedBy: actor || undefined });
+    await logAction({ message: `id=${expense.id}, type="${expense.type}", category="${expense.category}"`, type: "Expense", action: "create", performedBy: actor || undefined });
     return NextResponse.json(expense, { status: 201 });
   } catch (error) {
     console.error("POST /expenses error:", error);
@@ -49,7 +49,7 @@ export async function PUT(request: NextRequest) {
       data: { type, category },
     });
     const actor = getUserNameFromRequest(request);
-    await logAction({ message: `Updated Expense to "${updated.type}" under ${updated.category} `, type: "Expense", action: "update", performedBy: actor || undefined });
+    await logAction({ message: ` id=${updated.id}: type "${existing.type}" -> "${updated.type}", category "${existing.category}" -> "${updated.category}"`, type: "Expense", action: "update", performedBy: actor || undefined });
     return NextResponse.json(updated);
   } catch (error) {
     console.error("PUT /expenses error:", error);
@@ -79,7 +79,7 @@ export async function DELETE(request: NextRequest) {
     // Create better log message
     const actor = getUserNameFromRequest(request);
     await logAction({
-      message: `Deleted Expense "${existing.type}" under ${existing.category} `,
+      message: `id=${existing.id}, type="${existing.type}", category="${existing.category}"`,
       type: "Expense",
       action: "delete",
       performedBy: actor || undefined,
