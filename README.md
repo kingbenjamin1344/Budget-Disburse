@@ -15,6 +15,12 @@ Notes:
 
 
 
+requirements 
+
+MYSQL
+HeidiSQL
+Prisma
+
 
 
 
