@@ -89,20 +89,21 @@ export default function DisbursementPage() {
   }, []);
 
   // ====== OCR Functions ======
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        setCameraActive(true);
-      }
-    } catch (err) {
-      toast.error("Unable to access camera. Please check permissions.");
-      console.error(err);
+const startCamera = async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" },
+    });
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play(); // ensure video starts
+      setCameraActive(true);
     }
-  };
+  } catch (err) {
+    toast.error("Unable to access camera. Please check permissions.");
+    console.error(err);
+  }
+};
 
   const stopCamera = () => {
     if (videoRef.current?.srcObject) {
@@ -841,51 +842,56 @@ export default function DisbursementPage() {
                 </button>
               </div>
 
-              {/* Camera Mode */}
-              {scanMode === "camera" && (
-                <div className="space-y-3">
-                  {!cameraActive ? (
-                    <button
-                      onClick={startCamera}
-                      className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-semibold flex items-center justify-center gap-2"
-                    >
-                      <Camera className="w-5 h-5" /> Start Camera
-                    </button>
-                  ) : (
-                    <>
-                      <video
-                        ref={videoRef}
-                        autoPlay
-                        playsInline
-                        className="w-full bg-black rounded-lg"
-                      />
-                      <div className="flex gap-2">
-                        <button
-                          onClick={capturePhoto}
-                          disabled={ocrLoading}
-                          className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-semibold disabled:bg-gray-400 flex items-center justify-center gap-2"
-                        >
-                          {ocrLoading ? (
-                            <>
-                              <Loader className="w-5 h-5 animate-spin" /> Processing...
-                            </>
-                          ) : (
-                            <>
-                              <Camera className="w-5 h-5" /> Capture Photo
-                            </>
-                          )}
-                        </button>
-                        <button
-                          onClick={stopCamera}
-                          className="flex-1 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 font-semibold"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
+                     {/* Camera Mode */}
+{scanMode === "camera" && (
+  <div className="space-y-3">
+    {/* Video Preview */}
+    <video
+      ref={videoRef}
+      autoPlay
+      playsInline
+      muted
+      className={`w-full max-h-96 bg-black rounded-lg object-cover mb-2 transition-opacity ${
+        cameraActive ? "opacity-100" : "opacity-0"
+      }`}
+    />
+
+    {!cameraActive ? (
+      <button
+        onClick={startCamera}
+        className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-semibold flex items-center justify-center gap-2"
+      >
+        <Camera className="w-5 h-5" /> Start Camera
+      </button>
+    ) : (
+      <div className="flex gap-2">
+        <button
+          onClick={capturePhoto}
+          disabled={ocrLoading}
+          className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-semibold disabled:bg-gray-400 flex items-center justify-center gap-2"
+        >
+          {ocrLoading ? (
+            <>
+              <Loader className="w-5 h-5 animate-spin" /> Processing...
+            </>
+          ) : (
+            <>
+              <Camera className="w-5 h-5" /> Capture Photo
+            </>
+          )}
+        </button>
+        <button
+          onClick={stopCamera}
+          className="flex-1 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 font-semibold"
+        >
+          Cancel
+        </button>
+      </div>
+    )}
+  </div>
+)}
+
+
 
               {/* Upload Mode */}
               {scanMode === "upload" && (
