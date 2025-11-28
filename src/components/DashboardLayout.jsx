@@ -108,67 +108,77 @@ export default function DashboardLayout({ children }) {
           style={{ backgroundColor: "#0b1a44ff" }}
         >
           <nav className="flex-1 space-y-1">
-            {/* ADMIN DROPDOWN */}
-            <div className="flex flex-col">
-              <button
-                onClick={() => setAdminOpen(!adminOpen)}
-                className={`flex items-center justify-between px-3 py-2 rounded-md w-full transition-all
-                ${sidebarMini ? "justify-center" : ""} text-white`}
-              >
-                <div className="flex items-center space-x-3">
-                  <UserStar size={20} color="white" />
-                  {!sidebarMini && <span>Admin</span>}
-                </div>
+           {/* MAIN LINKS (Dashboard first) */}
+{links.map((link) =>
+  link.name === "Dashboard" ? (
+    <button
+      key={link.name}
+      onClick={() => router.push(link.path)}
+      className={`flex items-center space-x-3 px-3 py-2 rounded-md w-full text-left transition-all
+      ${sidebarMini ? "justify-center" : ""} text-white
+      ${pathname === link.path ? "bg-[#0000FF]" : "hover:bg-white/20"}`}
+    >
+      {link.icon}
+      {!sidebarMini && <span>{link.name}</span>}
+    </button>
+  ) : null
+)}
 
-                {!sidebarMini && (
-                  <ChevronRight
-                    size={18}
-                    color="white"
-                    className={`transition-transform duration-200 ${adminOpen ? "rotate-90" : ""}`}
-                  />
-                )}
-              </button>
+{/* ADMIN DROPDOWN (now second) */}
+<div className="flex flex-col">
+  <button
+    onClick={() => setAdminOpen(!adminOpen)}
+    className={`flex items-center justify-between px-3 py-2 rounded-md w-full transition-all
+    ${sidebarMini ? "justify-center" : ""} text-white`}
+  >
+    <div className="flex items-center space-x-3">
+      <UserStar size={20} color="white" />
+      {!sidebarMini && <span>Admin</span>}
+    </div>
 
-              {!sidebarMini && adminOpen && (
-                <div className="flex flex-col mt-1 space-y-1 ml-3">
-                  {adminLinks.map((sub) => (
-                    <button
-                      key={sub.name}
-                      onClick={() => router.push(sub.path)}
-                      className={`flex items-center space-x-3 px-3 py-2 rounded-md w-full text-left transition-all text-white
-                      ${pathname === sub.path ? "bg-[#0000FF]" : "hover:bg-white/20"}`}
-                    >
-                      {sub.icon}
-                      <span>{sub.name}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+    {!sidebarMini && (
+      <ChevronRight
+        size={18}
+        color="white"
+        className={`transition-transform duration-200 ${adminOpen ? "rotate-90" : ""}`}
+      />
+    )}
+  </button>
 
-            {/* Other sidebar links */}
-            {links.map((link) => (
-              <button
-                key={link.name}
-                onClick={() => router.push(link.path)}
-                className={`flex items-center space-x-3 px-3 py-2 rounded-md w-full text-left transition-all
-                ${sidebarMini ? "justify-center" : ""} text-white
-                ${pathname === link.path ? "bg-[#0000FF]" : "hover:bg-white/20"}`}
-              >
-                {link.icon}
-                {!sidebarMini && <span>{link.name}</span>}
-              </button>
-            ))}
+  {!sidebarMini && adminOpen && (
+    <div className="flex flex-col mt-1 space-y-1 ml-3">
+      {adminLinks.map((sub) => (
+        <button
+          key={sub.name}
+          onClick={() => router.push(sub.path)}
+          className={`flex items-center space-x-3 px-3 py-2 rounded-md w-full text-left transition-all text-white
+          ${pathname === sub.path ? "bg-[#0000FF]" : "hover:bg-white/20"}`}
+        >
+          {sub.icon}
+          <span>{sub.name}</span>
+        </button>
+      ))}
+    </div>
+  )}
+</div>
 
-            {/* Logout Button */}
-            <button
-              onClick={() => setShowLogoutModal(true)}
-              className={`flex items-center space-x-3 px-3 py-2 mt-3 rounded-md w-full text-left transition-all text-white
-              ${sidebarMini ? "justify-center" : ""} hover:bg-white/20`}
-            >
-              <LogOut size={20} color="white" />
-              {!sidebarMini && <span>Logout</span>}
-            </button>
+{/* Other sidebar links (excluding Dashboard) */}
+{links.map((link) =>
+  link.name !== "Dashboard" ? (
+    <button
+      key={link.name}
+      onClick={() => router.push(link.path)}
+      className={`flex items-center space-x-3 px-3 py-2 rounded-md w-full text-left transition-all
+      ${sidebarMini ? "justify-center" : ""} text-white
+      ${pathname === link.path ? "bg-[#0000FF]" : "hover:bg-white/20"}`}
+    >
+      {link.icon}
+      {!sidebarMini && <span>{link.name}</span>}
+    </button>
+  ) : null
+)}
+
+
           </nav>
 
           {/* Bottom Logo */}
@@ -185,6 +195,15 @@ export default function DashboardLayout({ children }) {
                 LGU Magallanes
               </p>
             )}
+            {/* Logout Button */}
+<button
+  onClick={() => setShowLogoutModal(true)}
+  className={`flex items-center justify-center space-x-3 px-3 py-2 mt-3 rounded-md w-full text-white transition-all
+  bg-red-600 hover:bg-red-700`}
+>
+  <LogOut size={20} color="white" />
+  {!sidebarMini && <span>Log Out</span>}
+</button>
           </div>
 
           {/* TOGGLE BUTTON */}
