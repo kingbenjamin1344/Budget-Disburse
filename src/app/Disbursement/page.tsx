@@ -91,19 +91,34 @@ export default function DisbursementPage() {
   // ====== OCR Functions ======
 const startCamera = async () => {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment" },
-    });
+    let stream;
+
+    // Try back camera first (mobile)
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false,
+      });
+    } catch {
+      // Fallback to ANY camera
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: false,
+      });
+    }
+
     if (videoRef.current) {
       videoRef.current.srcObject = stream;
-      await videoRef.current.play(); // ensure video starts
+      await videoRef.current.play();
       setCameraActive(true);
     }
   } catch (err) {
-    toast.error("Unable to access camera. Please check permissions.");
-    console.error(err);
+    toast.error("Camera error: " + String(err));
+    console.error("Camera start error:", err);
   }
 };
+
+
 
   const stopCamera = () => {
     if (videoRef.current?.srcObject) {

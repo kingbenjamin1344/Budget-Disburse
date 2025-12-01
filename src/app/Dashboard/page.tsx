@@ -133,6 +133,28 @@ export default function DashboardPage() {
     }
   };
 
+  // === RECENT LOGS ===
+type Log = {
+  id: number;
+  type: string;
+  action: string;
+  message: string;
+  createdAt: string;
+};
+
+const [recentLogs, setRecentLogs] = useState<Log[]>([]);
+
+const fetchRecentLogs = async () => {
+  try {
+    const res = await fetch("/api/logs?limit=3&page=1");
+    const data = await res.json();
+    setRecentLogs(data.logs);
+  } catch (error) {
+    console.error("Failed to fetch logs:", error);
+  }
+};
+
+
   // === UPDATE PIE CHART WHENEVER STATS CHANGE ===
   useEffect(() => {
     const totalBudgetSum =
@@ -151,6 +173,7 @@ export default function DashboardPage() {
     fetchBudgets();
     fetchExpenses();
     fetchDisbursements();
+    fetchRecentLogs(); 
   }, []);
 
   const COLORS = ["#2563eb", "#22c55e", "#f59e0b"];
@@ -235,11 +258,12 @@ export default function DashboardPage() {
       {/* === SIDE BY SIDE CHARTS === */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* === OFFICE BUDGET BAR CHART === */}
-        <div className="bg-white p-6 rounded-xl shadow-md">
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
           <h3 className="text-lg font-semibold mb-4 text-gray-700">
             Office-wise Budget Distribution
           </h3>
-          <div className="space-y-3 max-h-96 overflow-y-auto">
+<div className="space-y-3 max-h-60 overflow-y-auto">
+
             {officeBudgets.map((b, index) => {
               const widthPercent = (b.total / maxTotal) * 100;
               return (
@@ -272,11 +296,11 @@ export default function DashboardPage() {
         </div>
 
         {/* === PIE CHART === */}
-        <div className="bg-white rounded-xl shadow p-6">
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
           <h3 className="text-lg font-semibold mb-4 text-gray-700">
             Budget Appropriation - Actual Expenditure = Variance
           </h3>
-          <div className="h-80">
+         <div className="h-60">
             <ResponsiveContainer width="100%" height="100%">
               <RePieChart>
                 <Pie
@@ -285,7 +309,7 @@ export default function DashboardPage() {
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  outerRadius={110}
+                  outerRadius={70}
                   label={({ name, value }) =>
                     `${name}: ₱${Number(value || 0).toLocaleString()}`
                   }
@@ -307,6 +331,98 @@ export default function DashboardPage() {
             </ResponsiveContainer>
           </div>
         </div>
+
+{/* === RECENT LOGS FULL-WIDTH CARD === */}
+<div className="col-span-full w-full">
+  <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4 w-full">
+
+    <div className="flex items-center justify-between mb-3">
+      <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
+        <span className="bg-blue-100 p-2 rounded-full border border-blue-400">
+          <svg xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5 text-blue-600"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+          </svg>
+        </span>
+        Recent Logs
+      </h3>
+
+      <a
+        href="/logs"
+        className="text-blue-600 hover:text-blue-800 text-sm font-semibold underline"
+      >
+        View All Logs
+      </a>
+    </div>
+
+    {/* FULL WIDTH TABLE - COMPACT HEIGHT */}
+    <div className="overflow-x-auto w-full max-h-[260px] overflow-y-hidden rounded-lg">
+      <table className="w-full min-w-max border-collapse">
+        <thead
+          className="text-white border-b bg-cover bg-center"
+          style={{ backgroundImage: "url('/img/blue.jpg')" }}
+        >
+          <tr>
+            <th className="px-2 py-2 text-center font-semibold border-b border-gray-300">Log Type</th>
+            <th className="px-2 py-2 text-center font-semibold border-b border-gray-300">Action</th>
+            <th className="px-4 py-2 text-left font-semibold border-b border-gray-300">Message</th>
+            <th className="px-4 py-2 text-left font-semibold border-b border-gray-300">Date Created</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {recentLogs.length === 0 ? (
+            <tr>
+              <td colSpan={4} className="py-5 text-gray-500 italic text-center">
+                <div className="flex flex-col items-center justify-center">
+                  <img src="/img/logs.png" alt="No data" className="mb-1 max-w-[150px]" />
+                  <span>No recent logs.</span>
+                </div>
+              </td>
+            </tr>
+          ) : (
+            recentLogs.map((log) => (
+              <tr key={log.id} className="border-b hover:bg-gray-200">
+                <td className="px-4 py-2 text-center text-sm">{log.type}</td>
+
+                <td className="px-4 py-2 text-center text-sm">
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-semibold border-2 ${
+                      log.action?.toLowerCase() === "create"
+                        ? "bg-green-200 border-green-700"
+                        : log.action?.toLowerCase() === "delete"
+                        ? "bg-red-200 border-red-700"
+                        : log.action?.toLowerCase() === "update"
+                        ? "bg-blue-200 border-blue-700"
+                        : "bg-gray-300 border-gray-600"
+                    }`}
+                  >
+                    {log.action?.charAt(0).toUpperCase() + log.action?.slice(1)}
+                  </span>
+                </td>
+
+                <td className="px-4 py-2 text-gray-700 text-sm">{log.message}</td>
+
+                <td className="px-4 py-2 text-gray-700 text-sm">
+                  {new Date(log.createdAt).toLocaleString()}
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+
+
+
       </div>
     </div>
   );
