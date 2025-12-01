@@ -146,7 +146,7 @@ const [recentLogs, setRecentLogs] = useState<Log[]>([]);
 
 const fetchRecentLogs = async () => {
   try {
-    const res = await fetch("/api/logs?limit=3&page=1");
+    const res = await fetch("/api/logs?limit=4&page=1");
     const data = await res.json();
     setRecentLogs(data.logs);
   } catch (error) {
@@ -360,7 +360,7 @@ const fetchRecentLogs = async () => {
     </div>
 
     {/* FULL WIDTH TABLE - COMPACT HEIGHT */}
-    <div className="overflow-x-auto w-full max-h-[260px] overflow-y-hidden rounded-lg">
+    <div className="overflow-x-auto w-full max-h-[360px] overflow-y-hidden rounded-lg">
       <table className="w-full min-w-max border-collapse">
         <thead
           className="text-white border-b bg-cover bg-center"
