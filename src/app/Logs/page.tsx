@@ -124,7 +124,24 @@ export default function LogsPage() {
                   <tr key={log.id} className="border-b hover:bg-gray-200">
 
                    <td className="px-6 py-3 text-center">{log.type}</td>
-                    <td className="px-6 py-3 text-center">{log.action}</td>
+<td className="px-6 py-3 text-center">
+  <span
+    className={`px-2 py-1 rounded-full text-gray text-sm font-semibold border-2 ${
+      log.action?.toLowerCase() === "create"
+        ? "bg-green-200 border-green-700"
+        : log.action?.toLowerCase() === "delete"
+        ? "bg-red-200 border-red-700"
+        : log.action?.toLowerCase() === "update"
+        ? "bg-blue-200 border-blue-700"
+        : "bg-gray-300 border-gray-600"
+    }`}
+  >
+    {log.action?.charAt(0).toUpperCase() + log.action?.slice(1)}
+  </span>
+</td>
+
+
+
                     <td className="px-6 py-3 text-gray-700">{log.message}</td>
                     <td className="px-6 py-3 text-gray-700">{new Date(log.createdAt).toLocaleString()}</td>
                   </tr>

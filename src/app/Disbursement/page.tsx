@@ -542,7 +542,11 @@ const startCamera = async () => {
                     <td className="px-6 py-3">{d.office}</td>
                     <td className="px-6 py-3">{d.expenseType}</td>
                     <td className="px-6 py-3">{d.expenseCategory}</td>
-                    <td className="px-6 py-3">₱{parseFloat(d.amount).toLocaleString()}</td>
+                   <td className="px-6 py-3">
+  <span className="px-3 py-1 rounded-full bg-green-100 text-gray-700 border border-gray-700 font-semibold">
+    ₱{parseFloat(d.amount).toLocaleString()}
+  </span>
+</td>
                     <td className="px-6 py-3">{new Date(d.dateCreated).toLocaleDateString()}</td>
                     <td className="px-6 py-3 text-center space-x-2">
                       <button onClick={() => handleEdit(d.id)} className="text-blue-600 hover:text-blue-800">

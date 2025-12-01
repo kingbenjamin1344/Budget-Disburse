@@ -660,16 +660,16 @@ export default function SoePage() {
           </td>
 
           {/* Variance */}
-          <td className="border border-gray-300 px-3 py-2 text-red-600">
+          <td className="border border-gray-300 px-3 py-2 text-black-600">
             {formatPeso(row.variance.ps)}
           </td>
-          <td className="border border-gray-300 px-3 py-2 text-red-600">
+          <td className="border border-gray-300 px-3 py-2 text-black-600">
             {formatPeso(row.variance.mooe)}
           </td>
-          <td className="border border-gray-300 px-3 py-2 text-red-600">
+          <td className="border border-gray-300 px-3 py-2 text-black-600">
             {formatPeso(row.variance.co)}
           </td>
-          <td className="border border-gray-300 px-3 py-2 font-bold text-red-600 bg-indigo-100">
+          <td className="border border-gray-300 px-3 py-2 font-bold text-black-600 bg-indigo-100">
             {formatPeso(row.variance.total)}
           </td>
         </tr>
@@ -708,13 +708,13 @@ export default function SoePage() {
         </td>
 
         {/* Variance Totals */}
-        <td className="border border-gray-300 px-3 py-2 text-red-600">
+        <td className="border border-gray-300 px-3 py-2 text-black-600">
           {formatPeso(data.reduce((sum, r) => sum + r.variance.ps, 0))}
         </td>
-        <td className="border border-gray-300 px-3 py-2 text-red-600">
+        <td className="border border-gray-300 px-3 py-2 text-black-600">
           {formatPeso(data.reduce((sum, r) => sum + r.variance.mooe, 0))}
         </td>
-        <td className="border border-gray-300 px-3 py-2 text-red-600">
+        <td className="border border-gray-300 px-3 py-2 text-black-600">
           {formatPeso(data.reduce((sum, r) => sum + r.variance.co, 0))}
         </td>
         <td className="border border-gray-300 px-3 py-2 text-red-600 bg-indigo-300">

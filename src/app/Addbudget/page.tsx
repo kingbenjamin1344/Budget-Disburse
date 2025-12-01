@@ -228,7 +228,12 @@ export default function AddBudgetPage() {
                     <td className="px-6 py-3">₱{b.ps.toLocaleString()}</td>
                     <td className="px-6 py-3">₱{b.mooe.toLocaleString()}</td>
                     <td className="px-6 py-3">₱{b.co.toLocaleString()}</td>
-                    <td className="px-6 py-3 font-semibold">₱{b.total.toLocaleString()}</td>
+   <td className="px-6 py-3">
+  <span className="px-3 py-1 rounded-full bg-green-100 text-gray-700 border border-gray-700 font-semibold">
+    ₱{b.total.toLocaleString()}
+  </span>
+</td>
+
                     <td className="px-6 py-3">{b.dateCreated}</td>
                     <td className="px-6 py-3 text-center space-x-2">
                       <button

@@ -199,7 +199,7 @@ export default function DashboardLayout({ children }) {
 <button
   onClick={() => setShowLogoutModal(true)}
   className={`flex items-center justify-center space-x-3 px-3 py-2 mt-3 rounded-md w-full text-white transition-all
-  bg-red-600 hover:bg-red-700`}
+  bg-red-700 hover:bg-red-800`}
 >
   <LogOut size={20} color="white" />
   {!sidebarMini && <span>Log Out</span>}
