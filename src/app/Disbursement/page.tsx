@@ -201,16 +201,18 @@ const startCamera = async () => {
     const ltext = raw.toLowerCase();
 
     // Extract DV Number (looks for DV: or DV No or standalone digits)
-    const dvMatch = raw.match(/dv[:\s]*#?(\d+)/i) || raw.match(/dv\s*no[:\s]*#?(\d+)/i) || raw.match(/(\d{4,10})/);
-    const dvNo = dvMatch ? dvMatch[1] : "";
+    const dvMatch = raw.match(/dv\s*(no\.?|number)?[:\s]*([0-9]{3,5}-[0-9]{3,5})/i);
+    const dvNo = dvMatch ? dvMatch[2] : "";
+
 
     // Extract Amount (looks for peso sign or common amount patterns)
     const amountMatch = raw.match(/(?:₱|p\.?|\$)\s*([\d,]+\.?\d*)/i) || raw.match(/amount[:\s]*([\d,]+\.?\d*)/i);
     const amount = amountMatch ? amountMatch[1].replace(/,/g, "") : "";
 
     // Extract Payee (look for 'payee:' or lines with title-case words)
-    const payeeMatch = raw.match(/payee[:\s]*([A-Za-z\.&\-\s]{3,80})/i) || raw.match(/to[:\s]*([A-Za-z\.&\-\s]{3,80})/i) || raw.match(/received from[:\s]*([A-Za-z\.&\-\s]{3,80})/i);
+    const payeeMatch = raw.match(/payee[:\s]*([A-Za-z0-9 .,&'-]{2,80})/i);
     const payee = payeeMatch ? payeeMatch[1].trim() : "";
+
 
     // Detect Office by matching known office names
     let office = "";
@@ -807,7 +809,7 @@ const startCamera = async () => {
             <div className="flex justify-end space-x-2">
               <button
                 onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-100 transition"
+                className="px-4 py-2 rounded-md border bg-gray-200 border-gray-300 hover:bg-gray-100 transition"
               >
                 Cancel
               </button>

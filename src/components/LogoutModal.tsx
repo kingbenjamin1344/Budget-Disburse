@@ -13,13 +13,13 @@ export default function LogoutModal({ isOpen, onCancel, onConfirm }: any) {
         <div className="flex justify-center space-x-4">
           <button
             onClick={onCancel}
-            className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition"
+            className="px-4 py-2 rounded-lg border bg-gray-100 bg-gray-200 text-gray-700 hover:bg-gray-300 transition"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            className="px-4 py-2 rounded-lg bg-red-700 text-white hover:bg-red-800 transition"
+            className="px-4 py-2 rounded-lg bg-green-700 text-white hover:bg-green-800 transition"
           >
             Yes
           </button>

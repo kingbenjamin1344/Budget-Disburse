@@ -17,7 +17,6 @@ export default function AddOfficePage() {
   const [editingOffice, setEditingOffice] = useState<{ id: number; name: string } | null>(null);
   const [editName, setEditName] = useState("");
 
-  // 🟩 Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -407,7 +406,7 @@ export default function AddOfficePage() {
             <div className="flex justify-end space-x-2">
               <button
                 onClick={() => setDeleteModal(false)}
-                className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-100 transition"
+                className="px-4 py-2 rounded-md border bg-gray-200 border-gray-300 hover:bg-gray-300 transition"
               >
                 Cancel
               </button>
