@@ -40,7 +40,7 @@ DATABASE_URL="mysql://root:password@localhost:3306/budget_disburse"
 ## open Heidi Sql 
 create session
 user:root
-password:password
+password:k
 port:3306
 
 ## create db name
@@ -48,3 +48,12 @@ budget_disburse and run finaldisburse.sql in query
 
 ## run 
 npm run dev
+
+
+
+
+
+
+
+
+

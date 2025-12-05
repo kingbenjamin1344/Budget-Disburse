@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "react-toastify";
 import { Search, Plus, Edit, Trash2, X, ScanEye, Camera, Upload, Loader } from "lucide-react";
-import Tesseract from "tesseract.js";
+import { performOCR, initTesseractWorker, terminateTesseractWorker } from "@/lib/offlineTesseract";
 
 // =================== Floating Scan Button ===================
 interface FloatingScanButtonProps {
@@ -86,6 +86,16 @@ export default function DisbursementPage() {
       }
     }
     loadData();
+
+    // Initialize Tesseract worker on component mount for offline OCR
+    initTesseractWorker().catch((err) => {
+      console.warn("Tesseract initialization delayed (will load on first OCR use):", err);
+    });
+
+    // Cleanup: terminate Tesseract worker on unmount
+    return () => {
+      terminateTesseractWorker().catch(console.error);
+    };
   }, []);
 
   // ====== OCR Functions ======
@@ -136,7 +146,7 @@ const startCamera = async () => {
       context?.drawImage(videoRef.current, 0, 0);
       
       const imageData = canvasRef.current.toDataURL("image/jpeg");
-      await performOCR(imageData);
+      await handlePerformOCR(imageData);
       stopCamera();
     }
   };
@@ -145,26 +155,25 @@ const startCamera = async () => {
     const reader = new FileReader();
     reader.onload = async (e) => {
       const imageData = e.target?.result as string;
-      await performOCR(imageData);
+      await handlePerformOCR(imageData);
     };
     reader.readAsDataURL(file);
   };
 
-  const performOCR = async (imageData: string) => {
+  const handlePerformOCR = async (imageData: string) => {
     setOcrLoading(true);
     try {
-      const result = await Tesseract.recognize(imageData, "eng", {
-        logger: (m) => console.log("OCR Progress:", m),
-      });
-      
-      const text = result.data.text;
+      // Initialize worker if not already done
+      await initTesseractWorker();
+
+      const text = await performOCR(imageData);
       setOcrResult(text);
       
       // Parse disbursement data from OCR text
       parseAndFillForm(text);
     } catch (err) {
-      toast.error("OCR failed. Please try again.");
-      console.error(err);
+      toast.error("OCR failed. Please try again or check internet connection for language data.");
+      console.error("OCR Error:", err);
     } finally {
       setOcrLoading(false);
     }
