@@ -54,6 +54,7 @@ export default function DashboardLayout({ children }) {
     }
   };
 
+  // Check auth only once on mount, not on every pathname change
   useEffect(() => {
     let isMounted = true;
     const checkAuth = async () => {
@@ -74,7 +75,7 @@ export default function DashboardLayout({ children }) {
     return () => {
       isMounted = false;
     };
-  }, [pathname]);
+  }, []); // Empty dependency array - only run once on mount
 
   return (
     <div id="dashboard-layout" className="flex flex-col h-screen bg-gray-100">

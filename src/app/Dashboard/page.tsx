@@ -63,81 +63,6 @@ export default function DashboardPage() {
   const [officeBudgets, setOfficeBudgets] = useState<OfficeBudget[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
 
-  // === FETCH OFFICES ===
-  const fetchOffices = async () => {
-    try {
-      const res = await fetch("/api/offices");
-      const data = await res.json();
-      setStats((prev) => ({ ...prev, offices: data.length }));
-    } catch (error) {
-      console.error("Failed to fetch offices:", error);
-    }
-  };
-
-  // === FETCH BUDGETS ===
-  const fetchBudgets = async () => {
-    try {
-      const res = await fetch("/api/addbudget");
-      const data: Budget[] = await res.json();
-
-      const totalPS = data.reduce((sum, b) => sum + (b.ps || 0), 0);
-      const totalMOOE = data.reduce((sum, b) => sum + (b.mooe || 0), 0);
-      const totalCO = data.reduce((sum, b) => sum + (b.co || 0), 0);
-
-      const officeTotals = data.map((b) => ({
-        office: b.office,
-        total: b.total,
-      }));
-
-      setStats((prev) => ({
-        ...prev,
-        totalBudget: { ps: totalPS, mooe: totalMOOE, co: totalCO },
-      }));
-
-      setOfficeBudgets(officeTotals);
-    } catch (error) {
-      console.error("Failed to fetch budgets:", error);
-    }
-  };
-
-  // === FETCH DISBURSEMENTS ===
-  const fetchDisbursements = async () => {
-    try {
-      const res = await fetch("/api/disbursement");
-      const data: Disbursement[] = await res.json();
-
-      const totalExpenditure = data.reduce(
-        (sum, d) => sum + (d.amount || 0),
-        0
-      );
-
-      setStats((prev) => ({ ...prev, totalExpenditure }));
-    } catch (error) {
-      console.error("Failed to fetch disbursements:", error);
-    }
-  };
-
-  // === FETCH EXPENSES ===
-  const fetchExpenses = async () => {
-    try {
-      const res = await fetch("/api/expenses");
-      const data: Expense[] = await res.json();
-      setExpenses(data);
-
-      const psCount = data.filter((e) => e.category === "PS").length;
-      const mooeCount = data.filter((e) => e.category === "MOOE").length;
-      const coCount = data.filter((e) => e.category === "CO").length;
-
-      setStats((prev) => ({
-        ...prev,
-        expenseTypes: data.length,
-        expenseCounts: { ps: psCount, mooe: mooeCount, co: coCount },
-      }));
-    } catch (error) {
-      console.error("Failed to fetch expenses:", error);
-    }
-  };
-
   // === RECENT LOGS ===
 type Log = {
   id: number;
@@ -173,12 +98,72 @@ const fetchRecentLogs = async () => {
     ]);
   }, [stats.totalBudget, stats.totalExpenditure]);
 
+  // === FETCH ALL DATA IN PARALLEL ===
   useEffect(() => {
-    fetchOffices();
-    fetchBudgets();
-    fetchExpenses();
-    fetchDisbursements();
-    fetchRecentLogs(); 
+    const fetchAllData = async () => {
+      try {
+        // Make all requests in parallel instead of sequentially
+        const [officesRes, budgetsRes, expensesRes, disbursementsRes, logsRes] = await Promise.all([
+          fetch("/api/offices"),
+          fetch("/api/addbudget"),
+          fetch("/api/expenses"),
+          fetch("/api/disbursement"),
+          fetch("/api/logs?limit=4&page=1"),
+        ]);
+
+        if (officesRes.ok) {
+          const data = await officesRes.json();
+          setStats((prev) => ({ ...prev, offices: data.length }));
+        }
+
+        if (budgetsRes.ok) {
+          const data = await budgetsRes.json();
+          const totalPS = data.reduce((sum: number, b: any) => sum + (b.ps || 0), 0);
+          const totalMOOE = data.reduce((sum: number, b: any) => sum + (b.mooe || 0), 0);
+          const totalCO = data.reduce((sum: number, b: any) => sum + (b.co || 0), 0);
+          const officeTotals = data.map((b: any) => ({
+            office: b.office,
+            total: b.total,
+          }));
+          setStats((prev) => ({
+            ...prev,
+            totalBudget: { ps: totalPS, mooe: totalMOOE, co: totalCO },
+          }));
+          setOfficeBudgets(officeTotals);
+        }
+
+        if (expensesRes.ok) {
+          const data = await expensesRes.json();
+          setExpenses(data);
+          const psCount = data.filter((e: Expense) => e.category === "PS").length;
+          const mooeCount = data.filter((e: Expense) => e.category === "MOOE").length;
+          const coCount = data.filter((e: Expense) => e.category === "CO").length;
+          setStats((prev) => ({
+            ...prev,
+            expenseTypes: data.length,
+            expenseCounts: { ps: psCount, mooe: mooeCount, co: coCount },
+          }));
+        }
+
+        if (disbursementsRes.ok) {
+          const data = await disbursementsRes.json();
+          const totalExpenditure = data.reduce(
+            (sum: number, d: any) => sum + (d.amount || 0),
+            0
+          );
+          setStats((prev) => ({ ...prev, totalExpenditure }));
+        }
+
+        if (logsRes.ok) {
+          const data = await logsRes.json();
+          setRecentLogs(data.logs);
+        }
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error);
+      }
+    };
+
+    fetchAllData();
   }, []);
 
   const COLORS = ["#2563eb", "#22c55e", "#f59e0b"];

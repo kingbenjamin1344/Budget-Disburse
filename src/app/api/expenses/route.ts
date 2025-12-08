@@ -8,7 +8,11 @@ import { getUserNameFromRequest } from "../../../lib/auth";
 export async function GET() {
   try {
     const expenses = await prisma.expense.findMany({ orderBy: { dateCreated: "desc" } });
-    return NextResponse.json(expenses);
+    return NextResponse.json(expenses, {
+      headers: {
+        'Cache-Control': 'private, s-maxage=60, stale-while-revalidate=120',
+      },
+    });
   } catch (error) {
     console.error("GET /expenses error:", error);
     return NextResponse.json({ error: "Failed to fetch expenses" }, { status: 500 });

@@ -8,7 +8,11 @@ export async function GET() {
   const offices = await prisma.office.findMany({
     orderBy: { id: "desc" },
   });
-  return NextResponse.json(offices);
+  return NextResponse.json(offices, {
+    headers: {
+      'Cache-Control': 'private, s-maxage=60, stale-while-revalidate=120',
+    },
+  });
 }
 
 export async function POST(request: Request) {

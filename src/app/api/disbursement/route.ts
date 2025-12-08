@@ -23,7 +23,11 @@ export async function GET() {
       dateCreated: d.dateCreated,
     }));
 
-    return NextResponse.json(formatted);
+    return NextResponse.json(formatted, {
+      headers: {
+        'Cache-Control': 'private, s-maxage=60, stale-while-revalidate=120',
+      },
+    });
   } catch (error) {
     console.error("GET /api/disbursement error:", error);
     return NextResponse.json(

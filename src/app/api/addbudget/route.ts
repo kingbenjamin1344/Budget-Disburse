@@ -23,7 +23,12 @@ export async function GET() {
       dateCreated: b.dateCreated.toLocaleDateString(),
     }));
 
-    return NextResponse.json(formatted);
+    // Add cache headers - revalidate every 60 seconds for fresh data
+    return NextResponse.json(formatted, {
+      headers: {
+        'Cache-Control': 'private, s-maxage=60, stale-while-revalidate=120',
+      },
+    });
   } catch (error) {
     console.error("GET /addbudget error:", error);
     return NextResponse.json({ error: "Failed to fetch budgets" }, { status: 500 });

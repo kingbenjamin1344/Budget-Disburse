@@ -33,7 +33,11 @@ export async function GET(request: Request) {
       take: limit,
     });
 
-    return NextResponse.json({ logs, total, totalPages, page });
+    return NextResponse.json({ logs, total, totalPages, page }, {
+      headers: {
+        'Cache-Control': 'private, s-maxage=30, stale-while-revalidate=60',
+      },
+    });
   } catch (error) {
     // If the `log` table doesn't exist yet (P2021), return an empty page instead of failing the frontend.
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2021") {
