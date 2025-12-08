@@ -7,23 +7,19 @@ import { performOCR, initTesseractWorker, terminateTesseractWorker } from "@/lib
 
 // =================== Floating Scan Button ===================
 interface FloatingScanButtonProps {
-  bottom?: number;
-  right?: number;
   onClick?: () => void;
 }
 
 const FloatingScanButton: React.FC<FloatingScanButtonProps> = ({
-  bottom = 90,
-  right = 20,
   onClick,
 }) => {
   return (
     <button
       onClick={onClick}
-      className="absolute bg-white border border-gray-300 rounded-xl p-3 shadow-lg cursor-pointer hover:scale-105 transition flex items-center justify-center"
-      style={{ bottom: `${bottom}px`, right: `${right}px` }}
+      className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-40 bg-white border-2 border-blue-500 rounded-full p-4 shadow-2xl cursor-pointer hover:scale-110 hover:shadow-3xl transition-all duration-200 flex items-center justify-center"
+      title="Open OCR Scanner"
     >
-      <ScanEye className="w-16 h-16 text-gray-800" />
+      <ScanEye className="w-8 h-8 text-blue-600" />
     </button>
   );
 };
@@ -648,8 +644,6 @@ const startCamera = async () => {
 
       {/* =================== Floating Scan Button =================== */}
       <FloatingScanButton
-        bottom={-100}
-        right={20}
         onClick={() => {
           setShowScanModal(true);
           setScanMode("camera");
