@@ -401,84 +401,42 @@ export default function AddExpensePage() {
         </div>
       )}
 
-{/* 🟦 Expense Details Modal */}
+{/* 🟦 Expense Details Slide-in Panel */}
 {showDetailsModal && selectedExpense && (
-  <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
-    {/* Subtle Background Overlay */}
-    <div
-      className="absolute inset-0 bg-black opacity-10 pointer-events-auto"
-      onClick={() => setShowDetailsModal(false)}
-    ></div>
-
-    {/* Modal */}
-    <div
-      className="bg-white rounded-xl shadow-lg w-[420px] overflow-hidden z-10 pointer-events-auto"
+  <div className="fixed inset-0 z-50 flex">
+    <div className="absolute inset-0 bg-black opacity-10" onClick={() => setShowDetailsModal(false)}></div>
+    <aside
+      className="ml-auto w-full sm:w-[420px] h-full bg-white shadow-2xl z-10 pointer-events-auto transform transition-transform duration-300"
       onClick={(e) => e.stopPropagation()}
     >
-      {/* HEADER — centered title */}
-      <div className="bg-[#1E3358] relative px-4 py-3">
-        <h2 className="text-white text-lg font-semibold text-center">
-          Expense Details
-        </h2>
-
-        <button
-          onClick={() => setShowDetailsModal(false)}
-          className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-200"
-        >
-          <X size={20} />
-        </button>
-      </div>
-
-      {/* BODY */}
-      <div className="p-5 space-y-4 text-sm text-gray-700">
-        <div>
-          <div className="text-xs text-gray-500">Type</div>
-          <div className="font-semibold">{selectedExpense.type}</div>
+      <div className="p-6 flex flex-col h-full">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold">Expense Details</h2>
+          <button onClick={() => setShowDetailsModal(false)} className="text-gray-500 hover:text-gray-700"><X className="w-5 h-5" /></button>
         </div>
 
-        <div>
-          <div className="text-xs text-gray-500">Category</div>
-          <div className="font-semibold">{selectedExpense.category}</div>
-        </div>
-
-        <div>
-          <div className="text-xs text-gray-500">Created</div>
-          <div className="font-semibold">
-            {new Date(selectedExpense.dateCreated).toLocaleString()}
+        <div className="text-sm text-gray-700 mb-4">
+          <div>
+            <div className="text-xs text-gray-500">Type</div>
+            <div className="font-semibold">{selectedExpense.type}</div>
+          </div>
+          <div>
+            <div className="text-xs text-gray-500">Category</div>
+            <div className="font-semibold">{selectedExpense.category}</div>
+          </div>
+          <div>
+            <div className="text-xs text-gray-500">Created</div>
+            <div className="font-semibold">{new Date(selectedExpense.dateCreated).toLocaleString()}</div>
           </div>
         </div>
+
+        <div className="mt-auto flex justify-end gap-3 px-4 py-3 bg-gray-50 border-t">
+          <button onClick={() => setShowDetailsModal(false)} className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300">Close</button>
+          <button onClick={() => { setShowDetailsModal(false); handleEdit(selectedExpense); }} className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"><Edit/></button>
+          <button onClick={() => { setShowDetailsModal(false); openDeleteModal(selectedExpense); }} className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600"><Trash2/></button>
+        </div>
       </div>
-
-      {/* FOOTER */}
-      <div className="flex justify-end gap-3 px-4 py-3 bg-gray-50 border-t">
-        <button
-          onClick={() => setShowDetailsModal(false)}
-          className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
-        >
-          Close
-        </button>
-
-        <button
-          onClick={() => {
-            setShowDetailsModal(false);
-            handleEdit(selectedExpense);
-          }}
-          className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-        >
-          <Edit/>
-        </button>
-
-        <button
-          onClick={() => {
-            setShowDetailsModal(false);
-            openDeleteModal(selectedExpense);
-          }}
-          className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600"
-        >
-          <Trash2/>
-        </button>
-      </div>
-    </div>
+    </aside>
   </div>
 )}
 

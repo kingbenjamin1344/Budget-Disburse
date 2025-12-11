@@ -789,106 +789,61 @@ const startCamera = async () => {
 
 
 
-{/* 🟦 Disbursement Details Modal */}
+{/* 🟦 Disbursement Details Panel */}
 {showDetailsModal && selectedDisbursement && (
-  <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
-    {/* Subtle Background Overlay */}
-    <div
-      className="absolute inset-0 bg-black opacity-10 pointer-events-auto"
-      onClick={() => setShowDetailsModal(false)}
-    ></div>
-
-    {/* Modal */}
-    <div
-      className="bg-white rounded-xl shadow-lg w-full max-w-lg overflow-hidden z-10 pointer-events-auto"
+  <div className="fixed inset-0 z-50 flex">
+    <div className="absolute inset-0 bg-black opacity-10" onClick={() => setShowDetailsModal(false)}></div>
+    <aside
+      className="ml-auto w-full sm:w-[520px] h-full bg-white shadow-2xl z-10 pointer-events-auto transform transition-transform duration-300"
       onClick={(e) => e.stopPropagation()}
     >
-      {/* HEADER — centered title */}
-      <div className="bg-[#1E3358] relative px-4 py-3">
-        <h2 className="text-white text-xl font-semibold text-center">
-          Disbursement Details
-        </h2>
-
-        <button
-          onClick={() => setShowDetailsModal(false)}
-          className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-200"
-        >
-          <X className="w-5 h-5" />
-        </button>
-      </div>
-
-      {/* BODY */}
-      <div className="p-5 grid grid-cols-2 gap-4 text-sm text-gray-700">
-        <div>
-          <div className="text-xs text-gray-500">DV No.</div>
-          <div className="font-semibold">{selectedDisbursement.dvNo}</div>
+      <div className="p-6 flex flex-col h-full">
+        {/* HEADER */}
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold">Disbursement Details</h2>
+          <button onClick={() => setShowDetailsModal(false)} className="text-gray-500 hover:text-gray-700"><X className="w-5 h-5" /></button>
         </div>
 
-        <div>
-          <div className="text-xs text-gray-500">Payee</div>
-          <div className="font-semibold">{selectedDisbursement.payee}</div>
-        </div>
-
-        <div>
-          <div className="text-xs text-gray-500">Office</div>
-          <div className="font-semibold">{selectedDisbursement.office}</div>
-        </div>
-
-        <div>
-          <div className="text-xs text-gray-500">Amount</div>
-          <div className="font-semibold">
-            ₱{parseFloat(selectedDisbursement.amount).toLocaleString()}
+        {/* BODY */}
+        <div className="grid grid-cols-2 gap-4 text-sm text-gray-700">
+          <div>
+            <div className="text-xs text-gray-500">DV No.</div>
+            <div className="font-semibold">{selectedDisbursement.dvNo}</div>
+          </div>
+          <div>
+            <div className="text-xs text-gray-500">Payee</div>
+            <div className="font-semibold">{selectedDisbursement.payee}</div>
+          </div>
+          <div>
+            <div className="text-xs text-gray-500">Office</div>
+            <div className="font-semibold">{selectedDisbursement.office}</div>
+          </div>
+          <div>
+            <div className="text-xs text-gray-500">Amount</div>
+            <div className="font-semibold">₱{parseFloat(selectedDisbursement.amount).toLocaleString()}</div>
+          </div>
+          <div>
+            <div className="text-xs text-gray-500">Type</div>
+            <div className="font-semibold">{selectedDisbursement.expenseType}</div>
+          </div>
+          <div>
+            <div className="text-xs text-gray-500">Category</div>
+            <div className="font-semibold">{selectedDisbursement.expenseCategory}</div>
+          </div>
+          <div className="col-span-2">
+            <div className="text-xs text-gray-500">Date</div>
+            <div className="font-semibold">{new Date(selectedDisbursement.dateCreated).toLocaleString()}</div>
           </div>
         </div>
 
-        <div>
-          <div className="text-xs text-gray-500">Type</div>
-          <div className="font-semibold">{selectedDisbursement.expenseType}</div>
-        </div>
-
-        <div>
-          <div className="text-xs text-gray-500">Category</div>
-          <div className="font-semibold">{selectedDisbursement.expenseCategory}</div>
-        </div>
-
-        <div className="col-span-2">
-          <div className="text-xs text-gray-500">Date</div>
-          <div className="font-semibold">
-            {new Date(selectedDisbursement.dateCreated).toLocaleString()}
-          </div>
+        {/* FOOTER */}
+        <div className="mt-auto flex justify-end gap-3 px-4 py-3 bg-gray-50 border-t">
+          <button onClick={() => setShowDetailsModal(false)} className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300">Close</button>
+          <button onClick={() => { setShowDetailsModal(false); handleEdit(selectedDisbursement.id); }} className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"><Edit/></button>
+          <button onClick={() => { setShowDetailsModal(false); openDeleteModal(selectedDisbursement.id, selectedDisbursement.payee); }} className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600"><Trash2/></button>
         </div>
       </div>
-
-      {/* FOOTER */}
-      <div className="flex justify-end gap-3 px-4 py-3 bg-gray-50 border-t">
-        <button
-          onClick={() => setShowDetailsModal(false)}
-          className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
-        >
-          Close
-        </button>
-
-        <button
-          onClick={() => {
-            setShowDetailsModal(false);
-            handleEdit(selectedDisbursement.id);
-          }}
-          className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-        >
-          <Edit/>
-        </button>
-
-        <button
-          onClick={() => {
-            setShowDetailsModal(false);
-            openDeleteModal(selectedDisbursement.id, selectedDisbursement.payee);
-          }}
-          className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600"
-        >
-          <Trash2/>
-        </button>
-      </div>
-    </div>
+    </aside>
   </div>
 )}
 

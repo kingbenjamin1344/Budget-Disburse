@@ -394,18 +394,12 @@ export default function AddBudgetPage() {
 
 {/* 🟦 Budget Details Modal */}
 {showDetailsModal && selectedBudget && (
-  <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
-    {/* Subtle Background Overlay */}
-    <div
-      className="absolute inset-0 bg-black opacity-10 pointer-events-auto"
-      onClick={() => setShowDetailsModal(false)}
-    ></div>
+  <div className="fixed inset-0 z-50 flex">
+    <div className="absolute inset-0 bg-black opacity-10" onClick={() => setShowDetailsModal(false)}></div>
 
-    {/* Modal */}
-    <div
-      className="bg-white rounded-xl shadow-lg w-[520px] overflow-hidden z-10 pointer-events-auto"
-      onClick={(e) => e.stopPropagation()}
-    >
+    {/* Slide-in panel */}
+    <aside className="ml-auto w-full sm:w-[520px] h-full bg-white shadow-2xl z-10 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+      <div className="p-6 flex flex-col h-full">
       {/* HEADER — centered title */}
       <div className="bg-[#1E3358] relative px-4 py-3">
         <h2 className="text-white text-lg font-semibold text-center">
@@ -456,7 +450,7 @@ export default function AddBudgetPage() {
       </div>
 
       {/* FOOTER */}
-      <div className="flex justify-end gap-3 px-4 py-3 bg-gray-50 border-t">
+      <div className="mt-auto flex justify-end gap-3 px-4 py-3 bg-gray-50 border-t">
         <button
           onClick={() => setShowDetailsModal(false)}
           className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
@@ -485,6 +479,7 @@ export default function AddBudgetPage() {
         </button>
       </div>
     </div>
+    </aside>
   </div>
 )}
 
