@@ -14,6 +14,10 @@ export default function AddOfficePage() {
   const [deleteModal, setDeleteModal] = useState(false);
   const [officeToDelete, setOfficeToDelete] = useState<{ id: number; name: string } | null>(null);
 
+  // Details modal
+  const [selectedOffice, setSelectedOffice] = useState<any | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+
   const [editingOffice, setEditingOffice] = useState<{ id: number; name: string } | null>(null);
   const [editName, setEditName] = useState("");
 
@@ -162,11 +166,10 @@ export default function AddOfficePage() {
               className="text-white border-b bg-cover bg-center"
               style={{ backgroundImage: "url('/img/blue.jpg')" }}
             >
-              <tr>
-                  <th className="px-6 py-2 text-left font-semibold w-2/5">List of Office</th>
-                  <th className="px-4 py-2 text-left font-semibold w-2/5">Date Created</th>
-                  <th className="px-4 py-2 text-center font-semibold w-1/5">Action</th>
-              </tr>
+                <tr>
+                  <th className="px-8 py-3 text-left font-semibold ">List of Office</th>
+                  <th className="px-8 py-3 text-left font-semibold w-2/5">Date Created</th>
+                </tr>
             </thead>
             <tbody>
               {currentItems.length === 0 ? (
@@ -184,25 +187,9 @@ export default function AddOfficePage() {
                 </tr>
               ) : (
                 currentItems.map((office) => (
-                  <tr key={office.id} className="border-b hover:bg-gray-200">
-                    <td className="px-4 py-2">{office.name}</td>
-                    <td className="px-6 py-3">
-                      {new Date(office.dateCreated).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-3 text-center space-x-4">
-                      <button
-                        onClick={() => handleEdit(office)}
-                        className="text-blue-500 hover:text-blue-700 transition"
-                      >
-                        <Edit className="w-4 h-4 inline" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteClick(office)}
-                        className="text-red-500 hover:text-red-700 transition"
-                      >
-                        <Trash2 className="w-4 h-4 inline" />
-                      </button>
-                    </td>
+                  <tr key={office.id} onClick={() => { setSelectedOffice(office); setShowDetailsModal(true); }} className="border-b hover:bg-gray-200 cursor-pointer">
+                    <td className="px-10 py-3">{office.name}</td>
+                    <td className="px-10 py-3">{new Date(office.dateCreated).toLocaleDateString()}</td>
                   </tr>
                 ))
               )}
@@ -294,10 +281,10 @@ export default function AddOfficePage() {
       {/* BODY */}
       <div className="p-5 space-y-4">
         <div className="bg-gray-100 rounded-lg p-3">
-          <label className="text-xs text-gray-500">Office Name</label>
           <input
             type="text"
             value={newOffice}
+            placeholder="Enter Office Name"
             onChange={(e) => setNewOffice(e.target.value)}
             className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
           />
@@ -391,6 +378,82 @@ export default function AddOfficePage() {
   </div>
 )}
 
+{/* 🟦 Office Details Modal */}
+{showDetailsModal && selectedOffice && (
+  <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+    {/* Subtle Background Overlay */}
+    <div
+      className="absolute inset-0 bg-black opacity-10 pointer-events-auto"
+      onClick={() => setShowDetailsModal(false)}
+    ></div>
+
+    {/* Modal */}
+    <div
+      className="bg-white rounded-xl shadow-lg w-[420px] overflow-hidden z-10 pointer-events-auto"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* HEADER — centered title */}
+      <div className="bg-[#1E3358] relative px-4 py-3">
+        <h2 className="text-white text-lg font-semibold text-center">
+          Office Details
+        </h2>
+
+        <button
+          onClick={() => setShowDetailsModal(false)}
+          className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-200"
+        >
+          <X size={20} />
+        </button>
+      </div>
+
+      {/* BODY */}
+      <div className="p-5 space-y-4 text-sm text-gray-700">
+        <div>
+          <div className="text-xs text-gray-500">Name</div>
+          <div className="font-semibold">{selectedOffice.name}</div>
+        </div>
+
+        <div>
+          <div className="text-xs text-gray-500">Created</div>
+          <div className="font-semibold">
+            {new Date(selectedOffice.dateCreated).toLocaleString()}
+          </div>
+        </div>
+      </div>
+
+      {/* FOOTER */}
+      <div className="flex justify-end gap-3 px-4 py-3 bg-gray-50 border-t">
+        <button
+          onClick={() => setShowDetailsModal(false)}
+          className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+        >
+          Close
+        </button>
+
+        <button
+          onClick={() => {
+            setShowDetailsModal(false);
+            handleEdit(selectedOffice);
+          }}
+          className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+        >
+          <Edit size={18} />
+        </button>
+
+        <button
+          onClick={() => {
+            setShowDetailsModal(false);
+            handleDeleteClick(selectedOffice);
+          }}
+          className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600"
+        >
+          <Trash2 size={18} />
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
 
       {/* 🟥 Delete Confirmation Modal */}
       {deleteModal && officeToDelete && (
@@ -424,3 +487,4 @@ export default function AddOfficePage() {
     </div>
   );
 }
+

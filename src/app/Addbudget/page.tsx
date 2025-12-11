@@ -17,6 +17,10 @@ export default function AddBudgetPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
 
+  // Details modal
+  const [selectedBudget, setSelectedBudget] = useState<any | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+
   const totalBudget =
     (parseFloat(ps) || 0) + (parseFloat(mooe) || 0) + (parseFloat(co) || 0);
 
@@ -204,7 +208,6 @@ export default function AddBudgetPage() {
                 <th className="px-3 py-2 text-left font-semibold">CO</th>
                 <th className="px-3 py-2 text-left font-semibold">Total</th>
                 <th className="px-3 py-2 text-left font-semibold">Date Created</th>
-                <th className="px-3 py-2 text-center font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -223,7 +226,7 @@ export default function AddBudgetPage() {
                 </tr>
               ) : (
                 currentItems.map((b, i) => (
-                  <tr key={b.id} className="border-b hover:bg-gray-200">
+                  <tr key={b.id} onClick={() => { setSelectedBudget({ item: b, index: startIndex + i }); setShowDetailsModal(true); }} className="border-b hover:bg-gray-200 cursor-pointer">
                     <td className="px-6 py-3">{b.office}</td>
                     <td className="px-6 py-3">₱{b.ps.toLocaleString()}</td>
                     <td className="px-6 py-3">₱{b.mooe.toLocaleString()}</td>
@@ -235,22 +238,6 @@ export default function AddBudgetPage() {
 </td>
 
                     <td className="px-6 py-3">{b.dateCreated}</td>
-                    <td className="px-6 py-3 text-center space-x-2">
-                      <button
-                        onClick={() => handleEdit(startIndex + i)}
-                        className="text-blue-500 hover:text-blue-700 transition"
-                        title="Edit"
-                      >
-                        <Edit className="w-4 h-4 inline" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteClick(startIndex + i)}
-                        className="text-red-500 hover:text-red-700 transition"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-4 h-4 inline" />
-                      </button>
-                    </td>
                   </tr>
                 ))
               )}
@@ -404,6 +391,103 @@ export default function AddBudgetPage() {
           </div>
         </div>
       )}
+
+{/* 🟦 Budget Details Modal */}
+{showDetailsModal && selectedBudget && (
+  <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+    {/* Subtle Background Overlay */}
+    <div
+      className="absolute inset-0 bg-black opacity-10 pointer-events-auto"
+      onClick={() => setShowDetailsModal(false)}
+    ></div>
+
+    {/* Modal */}
+    <div
+      className="bg-white rounded-xl shadow-lg w-[520px] overflow-hidden z-10 pointer-events-auto"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* HEADER — centered title */}
+      <div className="bg-[#1E3358] relative px-4 py-3">
+        <h2 className="text-white text-lg font-semibold text-center">
+          Budget Details
+        </h2>
+
+        <button
+          onClick={() => setShowDetailsModal(false)}
+          className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-200"
+        >
+          <X size={20} />
+        </button>
+      </div>
+
+      {/* BODY */}
+      <div className="p-5 grid grid-cols-2 gap-4 text-sm text-gray-700">
+        <div>
+          <div className="text-xs text-gray-500">Office</div>
+          <div className="font-semibold">{selectedBudget.item.office}</div>
+        </div>
+
+        <div>
+          <div className="text-xs text-gray-500">Total</div>
+          <div className="font-semibold">₱{selectedBudget.item.total.toLocaleString()}</div>
+        </div>
+
+        <div>
+          <div className="text-xs text-gray-500">PS</div>
+          <div className="font-semibold">₱{selectedBudget.item.ps.toLocaleString()}</div>
+        </div>
+
+        <div>
+          <div className="text-xs text-gray-500">MOOE</div>
+          <div className="font-semibold">₱{selectedBudget.item.mooe.toLocaleString()}</div>
+        </div>
+
+        <div>
+          <div className="text-xs text-gray-500">CO</div>
+          <div className="font-semibold">₱{selectedBudget.item.co.toLocaleString()}</div>
+        </div>
+
+        <div>
+          <div className="text-xs text-gray-500">Date</div>
+          <div className="font-semibold">
+            {selectedBudget.item.dateCreated}
+          </div>
+        </div>
+      </div>
+
+      {/* FOOTER */}
+      <div className="flex justify-end gap-3 px-4 py-3 bg-gray-50 border-t">
+        <button
+          onClick={() => setShowDetailsModal(false)}
+          className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+        >
+          Close
+        </button>
+
+        <button
+          onClick={() => {
+            setShowDetailsModal(false);
+            handleEdit(selectedBudget.index);
+          }}
+          className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+        >
+          <Edit/>
+        </button>
+
+        <button
+          onClick={() => {
+            setShowDetailsModal(false);
+            handleDeleteClick(selectedBudget.index);
+          }}
+          className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600"
+        >
+          <Trash2/>
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
 
       {/* 🟥 Delete Confirmation Modal */}
       {showDeleteModal && (

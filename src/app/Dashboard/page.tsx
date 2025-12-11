@@ -354,8 +354,8 @@ const fetchRecentLogs = async () => {
             cx="50%"
             cy="50%"
             outerRadius={70}
-            label={({ name, value }) =>
-              `${name}: ₱${Number(value || 0).toLocaleString()}`
+            label={({  value }) =>
+              `₱${Number(value || 0).toLocaleString()}`
             }
           >
             {chartData.map((entry, index) => (

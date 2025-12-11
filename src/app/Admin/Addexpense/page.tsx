@@ -22,6 +22,10 @@ export default function AddExpensePage() {
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleteType, setDeleteType] = useState("");
 
+  // Details modal
+  const [selectedExpense, setSelectedExpense] = useState<any | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+
   const [filterCategory, setFilterCategory] = useState("All");
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -178,12 +182,9 @@ export default function AddExpensePage() {
               style={{ backgroundImage: "url('/img/blue.jpg')" }}
             >
               <tr>
-                <th className="px-6 py-2 text-left font-semibold border-b border-gray-300">
-                  Type of Expense
-                </th>
+                <th className="px-6 py-2 text-left font-semibold border-b border-gray-300">Type of Expense</th>
                 <th className="px-3 py-2 text-left font-semibold border-b border-gray-300">Category</th>
                 <th className="px-3 py-2 text-left font-semibold border-b border-gray-300">Date Created</th>
-                <th className="px-3 py-2 text-center font-semibold border-b border-gray-300">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -198,28 +199,10 @@ export default function AddExpensePage() {
                 </tr>
               ) : (
                 currentItems.map((expense) => (
-                  <tr key={expense.id} className="border-b hover:bg-gray-200">
-                    <td className="px-6 py-3 text-gray-700">{expense.type}</td>
-                    <td className="px-6 py-3 text-gray-700">{expense.category}</td>
-                    <td className="px-6 py-3 text-gray-700">
-                      {new Date(expense.dateCreated).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-3 text-center">
-                      <div className="flex justify-center items-center space-x-4">
-                        <button
-                          onClick={() => handleEdit(expense)}
-                          className="text-blue-500 hover:text-blue-700 transition"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => openDeleteModal(expense)}
-                          className="text-red-500 hover:text-red-700 transition"
-                        >
-                          <Trash2 className="w-4 h-4 inline" />
-                        </button>
-                      </div>
-                    </td>
+                  <tr key={expense.id} onClick={() => { setSelectedExpense(expense); setShowDetailsModal(true); }} className="border-b hover:bg-gray-200 cursor-pointer">
+                    <td className="px-8 py-3 text-gray-700">{expense.type}</td>
+                    <td className="px-8 py-3 text-gray-700">{expense.category}</td>
+                    <td className="px-4 py-3 text-gray-700">{new Date(expense.dateCreated).toLocaleDateString()}</td>
                   </tr>
                 ))
               )}
@@ -303,9 +286,9 @@ export default function AddExpensePage() {
 
             <div className="p-5 space-y-4">
               <div className="bg-gray-100 rounded-lg p-3">
-                <label className="text-xs text-gray-500">Type of Expense</label>
                 <input
                   type="text"
+                  placeholder="Enter Type of Expense"
                   value={type}
                   onChange={(e) => setType(e.target.value)}
                   className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
@@ -417,6 +400,87 @@ export default function AddExpensePage() {
           </div>
         </div>
       )}
+
+{/* 🟦 Expense Details Modal */}
+{showDetailsModal && selectedExpense && (
+  <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+    {/* Subtle Background Overlay */}
+    <div
+      className="absolute inset-0 bg-black opacity-10 pointer-events-auto"
+      onClick={() => setShowDetailsModal(false)}
+    ></div>
+
+    {/* Modal */}
+    <div
+      className="bg-white rounded-xl shadow-lg w-[420px] overflow-hidden z-10 pointer-events-auto"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* HEADER — centered title */}
+      <div className="bg-[#1E3358] relative px-4 py-3">
+        <h2 className="text-white text-lg font-semibold text-center">
+          Expense Details
+        </h2>
+
+        <button
+          onClick={() => setShowDetailsModal(false)}
+          className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-200"
+        >
+          <X size={20} />
+        </button>
+      </div>
+
+      {/* BODY */}
+      <div className="p-5 space-y-4 text-sm text-gray-700">
+        <div>
+          <div className="text-xs text-gray-500">Type</div>
+          <div className="font-semibold">{selectedExpense.type}</div>
+        </div>
+
+        <div>
+          <div className="text-xs text-gray-500">Category</div>
+          <div className="font-semibold">{selectedExpense.category}</div>
+        </div>
+
+        <div>
+          <div className="text-xs text-gray-500">Created</div>
+          <div className="font-semibold">
+            {new Date(selectedExpense.dateCreated).toLocaleString()}
+          </div>
+        </div>
+      </div>
+
+      {/* FOOTER */}
+      <div className="flex justify-end gap-3 px-4 py-3 bg-gray-50 border-t">
+        <button
+          onClick={() => setShowDetailsModal(false)}
+          className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+        >
+          Close
+        </button>
+
+        <button
+          onClick={() => {
+            setShowDetailsModal(false);
+            handleEdit(selectedExpense);
+          }}
+          className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+        >
+          <Edit/>
+        </button>
+
+        <button
+          onClick={() => {
+            setShowDetailsModal(false);
+            openDeleteModal(selectedExpense);
+          }}
+          className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600"
+        >
+          <Trash2/>
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* 🟥 Delete Modal */}
       {showDeleteModal && (

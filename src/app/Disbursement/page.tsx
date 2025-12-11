@@ -35,6 +35,9 @@ export default function DisbursementPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deletePayee, setDeletePayee] = useState("");
+  // Selected item for details modal
+  const [selectedDisbursement, setSelectedDisbursement] = useState<any | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [disbursements, setDisbursements] = useState<any[]>([]);
   const [offices, setOffices] = useState<string[]>([]);
   const [expenses, setExpenses] = useState<{ type: string; category: string }[]>([]);
@@ -552,13 +555,12 @@ const startCamera = async () => {
                 <th className="px-3 py-2 text-left">Category</th>
                 <th className="px-3 py-2 text-left">Amount</th>
                 <th className="px-3 py-2 text-left">Date</th>
-                <th className="px-3 py-2 text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
               {currentItems.length > 0 ? (
                 currentItems.map((d) => (
-                  <tr key={d.id} className="border-b hover:bg-gray-200">
+                  <tr key={d.id} onClick={() => { setSelectedDisbursement(d); setShowDetailsModal(true); }} className="border-b hover:bg-gray-200 cursor-pointer">
                     <td className="px-6 py-3">{d.dvNo}</td>
                     <td className="px-6 py-3">{d.payee}</td>
                     <td className="px-6 py-3">{d.office}</td>
@@ -570,17 +572,7 @@ const startCamera = async () => {
   </span>
 </td>
                     <td className="px-6 py-3">{new Date(d.dateCreated).toLocaleDateString()}</td>
-                    <td className="px-6 py-3 text-center space-x-2">
-                      <button onClick={() => handleEdit(d.id)} className="text-blue-600 hover:text-blue-800">
-                        <Edit className="w-4 h-4 inline" />
-                      </button>
-                      <button
-                        onClick={() => openDeleteModal(d.id, d.payee)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <Trash2 className="w-4 h-4 inline" />
-                      </button>
-                    </td>
+                   
                   </tr>
                 ))
               ) : (
@@ -795,6 +787,110 @@ const startCamera = async () => {
   </div>
 )}
 
+
+
+{/* 🟦 Disbursement Details Modal */}
+{showDetailsModal && selectedDisbursement && (
+  <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+    {/* Subtle Background Overlay */}
+    <div
+      className="absolute inset-0 bg-black opacity-10 pointer-events-auto"
+      onClick={() => setShowDetailsModal(false)}
+    ></div>
+
+    {/* Modal */}
+    <div
+      className="bg-white rounded-xl shadow-lg w-full max-w-lg overflow-hidden z-10 pointer-events-auto"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* HEADER — centered title */}
+      <div className="bg-[#1E3358] relative px-4 py-3">
+        <h2 className="text-white text-xl font-semibold text-center">
+          Disbursement Details
+        </h2>
+
+        <button
+          onClick={() => setShowDetailsModal(false)}
+          className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-200"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* BODY */}
+      <div className="p-5 grid grid-cols-2 gap-4 text-sm text-gray-700">
+        <div>
+          <div className="text-xs text-gray-500">DV No.</div>
+          <div className="font-semibold">{selectedDisbursement.dvNo}</div>
+        </div>
+
+        <div>
+          <div className="text-xs text-gray-500">Payee</div>
+          <div className="font-semibold">{selectedDisbursement.payee}</div>
+        </div>
+
+        <div>
+          <div className="text-xs text-gray-500">Office</div>
+          <div className="font-semibold">{selectedDisbursement.office}</div>
+        </div>
+
+        <div>
+          <div className="text-xs text-gray-500">Amount</div>
+          <div className="font-semibold">
+            ₱{parseFloat(selectedDisbursement.amount).toLocaleString()}
+          </div>
+        </div>
+
+        <div>
+          <div className="text-xs text-gray-500">Type</div>
+          <div className="font-semibold">{selectedDisbursement.expenseType}</div>
+        </div>
+
+        <div>
+          <div className="text-xs text-gray-500">Category</div>
+          <div className="font-semibold">{selectedDisbursement.expenseCategory}</div>
+        </div>
+
+        <div className="col-span-2">
+          <div className="text-xs text-gray-500">Date</div>
+          <div className="font-semibold">
+            {new Date(selectedDisbursement.dateCreated).toLocaleString()}
+          </div>
+        </div>
+      </div>
+
+      {/* FOOTER */}
+      <div className="flex justify-end gap-3 px-4 py-3 bg-gray-50 border-t">
+        <button
+          onClick={() => setShowDetailsModal(false)}
+          className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+        >
+          Close
+        </button>
+
+        <button
+          onClick={() => {
+            setShowDetailsModal(false);
+            handleEdit(selectedDisbursement.id);
+          }}
+          className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+        >
+          <Edit/>
+        </button>
+
+        <button
+          onClick={() => {
+            setShowDetailsModal(false);
+            openDeleteModal(selectedDisbursement.id, selectedDisbursement.payee);
+          }}
+          className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600"
+        >
+          <Trash2/>
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
 
       {/* =================== Delete Modal =================== */}
