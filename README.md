@@ -1,4 +1,4 @@
-# Project: Budget-Disburse
+# Project: Budget-Disbursement
 
 Environment variables required for secure admin-only login:
 
