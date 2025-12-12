@@ -8,7 +8,7 @@ import {
   Cell,
   Tooltip,
   Legend,
-  ResponsiveContainer,
+  ResponsiveContainer, BarChart, XAxis, YAxis, Bar, LabelList
 } from "recharts";
 
 // --- TYPES ---
@@ -54,84 +54,36 @@ export default function DashboardPage() {
     { name: "Actual Expenditure", value: 0 },
     { name: "Variance", value: 0 },
   ]);
+  const categoryData = [
+  { name: "PS", value: stats.totalBudget.ps },
+  { name: "MOOE", value: stats.totalBudget.mooe },
+  { name: "CO", value: stats.totalBudget.co },
+];
 
   const [officeBudgets, setOfficeBudgets] = useState<OfficeBudget[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
 
-  // === FETCH OFFICES ===
-  const fetchOffices = async () => {
-    try {
-      const res = await fetch("/api/offices");
-      const data = await res.json();
-      setStats((prev) => ({ ...prev, offices: data.length }));
-    } catch (error) {
-      console.error("Failed to fetch offices:", error);
-    }
-  };
+  // === RECENT LOGS ===
+type Log = {
+  id: number;
+  type: string;
+  action: string;
+  message: string;
+  createdAt: string;
+};
 
-  // === FETCH BUDGETS ===
-  const fetchBudgets = async () => {
-    try {
-      const res = await fetch("/api/addbudget");
-      const data: Budget[] = await res.json();
+const [recentLogs, setRecentLogs] = useState<Log[]>([]);
 
-      const totalPS = data.reduce((sum, b) => sum + (b.ps || 0), 0);
-      const totalMOOE = data.reduce((sum, b) => sum + (b.mooe || 0), 0);
-      const totalCO = data.reduce((sum, b) => sum + (b.co || 0), 0);
+const fetchRecentLogs = async () => {
+  try {
+    const res = await fetch("/api/logs?limit=4&page=1");
+    const data = await res.json();
+    setRecentLogs(data.logs);
+  } catch (error) {
+    console.error("Failed to fetch logs:", error);
+  }
+};
 
-      const officeTotals = data.map((b) => ({
-        office: b.office,
-        total: b.total,
-      }));
-
-      setStats((prev) => ({
-        ...prev,
-        totalBudget: { ps: totalPS, mooe: totalMOOE, co: totalCO },
-      }));
-
-      setOfficeBudgets(officeTotals);
-    } catch (error) {
-      console.error("Failed to fetch budgets:", error);
-    }
-  };
-
-  // === FETCH DISBURSEMENTS ===
-  const fetchDisbursements = async () => {
-    try {
-      const res = await fetch("/api/disbursement");
-      const data: Disbursement[] = await res.json();
-
-      const totalExpenditure = data.reduce(
-        (sum, d) => sum + (d.amount || 0),
-        0
-      );
-
-      setStats((prev) => ({ ...prev, totalExpenditure }));
-    } catch (error) {
-      console.error("Failed to fetch disbursements:", error);
-    }
-  };
-
-  // === FETCH EXPENSES ===
-  const fetchExpenses = async () => {
-    try {
-      const res = await fetch("/api/expenses");
-      const data: Expense[] = await res.json();
-      setExpenses(data);
-
-      const psCount = data.filter((e) => e.category === "PS").length;
-      const mooeCount = data.filter((e) => e.category === "MOOE").length;
-      const coCount = data.filter((e) => e.category === "CO").length;
-
-      setStats((prev) => ({
-        ...prev,
-        expenseTypes: data.length,
-        expenseCounts: { ps: psCount, mooe: mooeCount, co: coCount },
-      }));
-    } catch (error) {
-      console.error("Failed to fetch expenses:", error);
-    }
-  };
 
   // === UPDATE PIE CHART WHENEVER STATS CHANGE ===
   useEffect(() => {
@@ -146,11 +98,72 @@ export default function DashboardPage() {
     ]);
   }, [stats.totalBudget, stats.totalExpenditure]);
 
+  // === FETCH ALL DATA IN PARALLEL ===
   useEffect(() => {
-    fetchOffices();
-    fetchBudgets();
-    fetchExpenses();
-    fetchDisbursements();
+    const fetchAllData = async () => {
+      try {
+        // Make all requests in parallel instead of sequentially
+        const [officesRes, budgetsRes, expensesRes, disbursementsRes, logsRes] = await Promise.all([
+          fetch("/api/offices"),
+          fetch("/api/addbudget"),
+          fetch("/api/expenses"),
+          fetch("/api/disbursement"),
+          fetch("/api/logs?limit=4&page=1"),
+        ]);
+
+        if (officesRes.ok) {
+          const data = await officesRes.json();
+          setStats((prev) => ({ ...prev, offices: data.length }));
+        }
+
+        if (budgetsRes.ok) {
+          const data = await budgetsRes.json();
+          const totalPS = data.reduce((sum: number, b: any) => sum + (b.ps || 0), 0);
+          const totalMOOE = data.reduce((sum: number, b: any) => sum + (b.mooe || 0), 0);
+          const totalCO = data.reduce((sum: number, b: any) => sum + (b.co || 0), 0);
+          const officeTotals = data.map((b: any) => ({
+            office: b.office,
+            total: b.total,
+          }));
+          setStats((prev) => ({
+            ...prev,
+            totalBudget: { ps: totalPS, mooe: totalMOOE, co: totalCO },
+          }));
+          setOfficeBudgets(officeTotals);
+        }
+
+        if (expensesRes.ok) {
+          const data = await expensesRes.json();
+          setExpenses(data);
+          const psCount = data.filter((e: Expense) => e.category === "PS").length;
+          const mooeCount = data.filter((e: Expense) => e.category === "MOOE").length;
+          const coCount = data.filter((e: Expense) => e.category === "CO").length;
+          setStats((prev) => ({
+            ...prev,
+            expenseTypes: data.length,
+            expenseCounts: { ps: psCount, mooe: mooeCount, co: coCount },
+          }));
+        }
+
+        if (disbursementsRes.ok) {
+          const data = await disbursementsRes.json();
+          const totalExpenditure = data.reduce(
+            (sum: number, d: any) => sum + (d.amount || 0),
+            0
+          );
+          setStats((prev) => ({ ...prev, totalExpenditure }));
+        }
+
+        if (logsRes.ok) {
+          const data = await logsRes.json();
+          setRecentLogs(data.logs);
+        }
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error);
+      }
+    };
+
+    fetchAllData();
   }, []);
 
   const COLORS = ["#2563eb", "#22c55e", "#f59e0b"];
@@ -167,6 +180,16 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      {/* === HEADER === */}
+    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-800">
+          Dashboard
+        </h1>
+      </div>     
+    </div>
+    {/* Divider line */}
+<hr className="border-gray-300 mt-4 mb-6" />
       {/* === TOP CARDS === */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Offices */}
@@ -222,81 +245,228 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* === SIDE BY SIDE CHARTS === */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* === OFFICE BUDGET BAR CHART === */}
-        <div className="bg-white p-6 rounded-xl shadow-md">
-          <h3 className="text-lg font-semibold mb-4 text-gray-700">
-            Office-wise Budget Distribution
-          </h3>
-          <div className="space-y-3 max-h-96 overflow-y-auto">
-            {officeBudgets.map((b, index) => {
-              const widthPercent = (b.total / maxTotal) * 100;
-              return (
-                <div key={index}>
-                  <div className="flex justify-between mb-1 text-sm">
-                    <span className="font-medium text-gray-700">{b.office}</span>
-                    <span className="text-gray-500">{currency(b.total)}</span>
-                  </div>
-                  <div className="bg-gray-200 rounded-full h-3">
-                    <div
-                      className="bg-purple-600 h-3 rounded-full transition-all duration-500"
-                      style={{ width: `${widthPercent}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-              {officeBudgets.length === 0 && (
-                <div className="py-6 text-gray-500 italic flex flex-col items-center justify-center">
-                  <img
-                    src="/img/disburse.png"
-                    alt="No data"
-                    className="mb-2 max-w-[200px] h-auto object-contain"
-                  />
-                  <span>No disbursement records yet.</span>
-                </div>
-              )}
+    {/* === SIDE BY SIDE CHARTS === */}
+<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-          </div>
-        </div>
+  {/* === OFFICE BUDGET BAR CHART === */}
+  <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+    <h3 className="text-lg font-semibold mb-4 text-gray-700">
+      Office-wise Budget Distribution
+    </h3>
 
-        {/* === PIE CHART === */}
-        <div className="bg-white rounded-xl shadow p-6">
-          <h3 className="text-lg font-semibold mb-4 text-gray-700">
-            Budget Appropriation - Actual Expenditure = Variance
-          </h3>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <RePieChart>
-                <Pie
-                  data={chartData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={110}
-                  label={({ name, value }) =>
-                    `${name}: ₱${Number(value || 0).toLocaleString()}`
-                  }
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={COLORS[index % COLORS.length]}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(value: number) =>
-                    `₱${Number(value || 0).toLocaleString()}`
-                  }
-                />
-                <Legend />
-              </RePieChart>
-            </ResponsiveContainer>
+    <div className="space-y-3 max-h-60 overflow-y-auto">
+      {officeBudgets.map((b, index) => {
+        const widthPercent = (b.total / maxTotal) * 100;
+        return (
+          <div key={index}>
+            <div className="flex justify-between mb-1 text-sm">
+              <span className="font-medium text-gray-700">{b.office}</span>
+              <span className="text-gray-500">{currency(b.total)}</span>
+            </div>
+            <div className="bg-gray-200 rounded-full h-3">
+              <div
+                className="bg-purple-600 h-3 rounded-full transition-all duration-500"
+                style={{ width: `${widthPercent}%` }}
+              />
+            </div>
           </div>
+        );
+      })}
+
+      {officeBudgets.length === 0 && (
+        <div className="py-6 text-gray-500 italic flex flex-col items-center justify-center">
+          <img
+            src="/img/disburse.png"
+            alt="No data"
+            className="mb-2 max-w-[200px] h-auto object-contain"
+          />
+          <span>No disbursement records yet.</span>
         </div>
+      )}
+    </div>
+  </div>
+
+{/* === BUDGET ALLOCATION BY CATEGORY (VERTICAL BAR CHART WITH LABELS) === */}
+<div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+  <h3 className="text-lg font-semibold mb-4 text-gray-700">
+    Budget Allocation by Category
+  </h3>
+
+  {totalBudgetSum === 0 ? (
+    <div className="py-6 text-gray-500 italic flex flex-col items-center justify-center">
+      <img
+        src="/img/disburse.png"
+        alt="No data"
+        className="mb-2 max-w-[200px] h-auto object-contain"
+      />
+      <span>No budget data available.</span>
+    </div>
+  ) : (
+    <div className="h-64">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart
+          data={categoryData}
+          margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+        >
+          <XAxis dataKey="name" />
+          <YAxis />
+          <Tooltip formatter={(value) => currency(value as number)} />
+          <Bar dataKey="value">
+            {categoryData.map((entry, index) => (
+              <Cell
+                key={index}
+                fill={
+                  index === 0
+                    ? "#2563eb" // PS
+                    : index === 1
+                    ? "#16a34a" // MOOE
+                    : "#f97316" // CO
+                }
+              />
+            ))}
+            <LabelList
+              dataKey="value"
+              position="top"
+              formatter={(value) => currency(value as number)}
+            />
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  )}
+</div>
+
+
+
+  {/* === PIE CHART === */}
+  <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+    <h3 className="text-lg font-semibold mb-4 text-gray-700">
+      Budget Appropriation - Actual Expenditure = Variance
+    </h3>
+
+    <div className="h-60">
+      <ResponsiveContainer width="100%" height="100%">
+        <RePieChart>
+          <Pie
+            data={chartData}
+            dataKey="value"
+            nameKey="name"
+            cx="50%"
+            cy="50%"
+            outerRadius={70}
+            label={({  value }) =>
+              `₱${Number(value || 0).toLocaleString()}`
+            }
+          >
+            {chartData.map((entry, index) => (
+              <Cell key={index} fill={COLORS[index % COLORS.length]} />
+            ))}
+          </Pie>
+          <Tooltip
+            formatter={(value: number) =>
+              `₱${Number(value || 0).toLocaleString()}`
+            }
+          />
+          <Legend />
+        </RePieChart>
+      </ResponsiveContainer>
+    </div>
+  </div>
+
+
+
+
+{/* === RECENT LOGS FULL-WIDTH CARD === */}
+<div className="col-span-full w-full">
+  <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4 w-full">
+
+    <div className="flex items-center justify-between mb-3">
+      <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
+        <span className="bg-blue-100 p-2 rounded-full border border-blue-400">
+          <svg xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5 text-blue-600"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+          </svg>
+        </span>
+        Recent Logs
+      </h3>
+
+      <a
+        href="/Logs"
+        className="text-blue-600 hover:text-blue-800 text-sm font-semibold underline"
+      >
+        View All Logs
+      </a>
+    </div>
+
+    {/* FULL WIDTH TABLE - COMPACT HEIGHT */}
+    <div className="overflow-x-auto w-full max-h-[360px] overflow-y-hidden rounded-lg">
+      <table className="w-full min-w-max border-collapse">
+        <thead
+          className="text-white border-b bg-cover bg-center"
+          style={{ backgroundImage: "url('/img/blue.jpg')" }}
+        >
+          <tr>
+            <th className="px-2 py-2 text-center font-semibold border-b border-gray-300">Log Type</th>
+            <th className="px-2 py-2 text-center font-semibold border-b border-gray-300">Action</th>
+            <th className="px-4 py-2 text-left font-semibold border-b border-gray-300">Message</th>
+            <th className="px-4 py-2 text-left font-semibold border-b border-gray-300">Date Created</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {recentLogs.length === 0 ? (
+            <tr>
+              <td colSpan={4} className="py-5 text-gray-500 italic text-center">
+                <div className="flex flex-col items-center justify-center">
+                  <img src="/img/logs.png" alt="No data" className="mb-1 max-w-[150px]" />
+                  <span>No recent logs.</span>
+                </div>
+              </td>
+            </tr>
+          ) : (
+            recentLogs.map((log) => (
+              <tr key={log.id} className="border-b hover:bg-gray-200">
+                <td className="px-4 py-2 text-center text-sm">{log.type}</td>
+
+                <td className="px-4 py-2 text-center text-sm">
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-semibold border-2 ${
+                      log.action?.toLowerCase() === "create"
+                        ? "bg-green-200 border-green-700"
+                        : log.action?.toLowerCase() === "delete"
+                        ? "bg-red-200 border-red-700"
+                        : log.action?.toLowerCase() === "update"
+                        ? "bg-blue-200 border-blue-700"
+                        : "bg-gray-300 border-gray-600"
+                    }`}
+                  >
+                    {log.action?.charAt(0).toUpperCase() + log.action?.slice(1)}
+                  </span>
+                </td>
+
+                <td className="px-4 py-2 text-gray-700 text-sm">{log.message}</td>
+
+                <td className="px-4 py-2 text-gray-700 text-sm">
+                  {new Date(log.createdAt).toLocaleString()}
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+
+
+
       </div>
     </div>
   );

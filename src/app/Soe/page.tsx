@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { RotateCcw, Printer, Minimize2, Maximize2, Save } from "lucide-react";
+import { toast } from "react-toastify";
 
 // PDF / export libs
 import html2canvas from "html2canvas";
@@ -210,7 +211,7 @@ export default function SoePage() {
   // Download the PDF file
   const downloadPdf = async (filename?: string) => {
     const blob = await generatePdfBlob();
-    if (!blob) return alert('Unable to generate PDF');
+    if (!blob) return toast.error('Unable to generate PDF') as any;
 
     const finalFilename = filename || `SOE_${new Date().toISOString().split('T')[0]}.pdf`;
     const url = URL.createObjectURL(blob);
@@ -246,18 +247,26 @@ export default function SoePage() {
           const writable = await handle.createWritable();
           await writable.write(blob);
           await writable.close();
-        } catch (err) {
-          // If user cancels or API fails, fallback to anchor download
-          console.warn('File save via showSaveFilePicker failed, falling back to download', err);
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          URL.revokeObjectURL(url);
-        }
+
+        } catch (err: any) {
+           // User canceled save dialog → just stop, do NOT download
+           if (err?.name === "AbortError") {
+             console.log("User cancelled save dialog. Not saving.");
+             return false;
+           }
+         
+           // Other errors (real errors) can still fallback to download
+           console.warn("Save failed, using fallback download:", err);
+           const url = URL.createObjectURL(blob);
+           const a = document.createElement('a');
+           a.href = url;
+           a.download = filename;
+           document.body.appendChild(a);
+           a.click();
+           a.remove();
+           URL.revokeObjectURL(url);
+          }
+
       } else {
         // Fallback: standard download
         const url = URL.createObjectURL(blob);
@@ -273,7 +282,7 @@ export default function SoePage() {
       return true;
     } catch (e) {
       console.error('Save PDF error', e);
-      alert('Failed to save PDF: ' + (e as any)?.message || e);
+      toast.error('Failed to save PDF: ' + (e as any)?.message || String(e));
       return false;
     } finally {
       setSaving(false);
@@ -283,7 +292,7 @@ export default function SoePage() {
   // View PDF in a new tab
   const viewPdf = async () => {
     const blob = await generatePdfBlob();
-    if (!blob) return alert('Unable to generate PDF');
+    if (!blob) return toast.error('Unable to generate PDF') as any;
     const url = URL.createObjectURL(blob);
     window.open(url, '_blank');
   };
@@ -291,7 +300,7 @@ export default function SoePage() {
   // Download ZIP containing PDF (requires jszip). If jszip not installed, fallback to PDF download.
   const downloadZipWithPdf = async () => {
     const blob = await generatePdfBlob();
-    if (!blob) return alert('Unable to generate PDF');
+    if (!blob) return toast.error('Unable to generate PDF') as any;
 
     try {
       const JSZip = (await import('jszip')).default;
@@ -402,40 +411,47 @@ export default function SoePage() {
 
   return (
     <div className="w-full transition-all duration-300">
-      {/* Header */}
-      <div className="flex justify-end mb-6 space-x-3">
-       {/*  <button
-          onClick={() => window.location.reload()}
-          className="flex items-center bg-yellow-500 text-white px-4 py-2 rounded-md hover:bg-yellow-600 transition"
-        >
-          <Save className="w-4 h-4 mr-2" />
-          Save Data
-        </button>*/}
-   
-        <button className="flex items-center bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition" onClick={() => {
-          const defaultName = `SOE_${new Date().toISOString().split('T')[0]}.pdf`;
-          setSaveFilename(defaultName);
-          setSaveModalOpen(true);
-        }}>
-          <Save className="w-4 h-4 mr-2" />
-          Download PDF
-        </button>
+     {/* === HEADER === */}
+<div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+  {/* Title */}
+  <h1 className="text-3xl font-bold text-gray-800">
+    Statement Of Expenditure
+  </h1>
 
-        <button
-          onClick={toggleCompress}
-          className="flex items-center bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-800 transition"
-        >
-          {isCompressed ? (
-            <>
-              <Maximize2 className="w-4 h-4 mr-2" /> Decompress
-            </>
-          ) : (
-            <>
-              <Minimize2 className="w-4 h-4 mr-2" /> Compress
-            </>
-          )}
-        </button>
-      </div>
+  {/* Buttons inline */}
+  <div className="flex space-x-3">
+    <button
+      className="flex items-center bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition"
+      onClick={() => {
+        const defaultName = `SOE_${new Date().toISOString().split('T')[0]}.pdf`;
+        setSaveFilename(defaultName);
+        setSaveModalOpen(true);
+      }}
+    >
+      <Save className="w-4 h-4 mr-2" />
+      Download PDF
+    </button>
+
+    <button
+      onClick={toggleCompress}
+      className="flex items-center bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-800 transition"
+    >
+      {isCompressed ? (
+        <>
+          <Maximize2 className="w-4 h-4 mr-2" /> Compress
+        </>
+      ) : (
+        <>
+          <Minimize2 className="w-4 h-4 mr-2" /> Decompress
+        </>
+      )}
+    </button>
+  </div>
+</div>
+
+{/* Divider line */}
+<hr className="border-gray-300 mb-6" />
+
 
       {/* Save / Rename Modal */}
       {saveModalOpen && (
@@ -460,7 +476,7 @@ export default function SoePage() {
               <button
                 className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
                 onClick={async () => {
-                  if (!saveFilename) return alert('Please provide a filename.');
+                  if (!saveFilename) return toast.error('Please provide a filename.') as any;
                   const ok = await savePdfWithFilename(saveFilename.endsWith('.pdf') ? saveFilename : saveFilename + '.pdf');
                   if (ok) setSaveModalOpen(false);
                 }}
@@ -644,16 +660,16 @@ export default function SoePage() {
           </td>
 
           {/* Variance */}
-          <td className="border border-gray-300 px-3 py-2 text-red-600">
+          <td className="border border-gray-300 px-3 py-2 text-black-600">
             {formatPeso(row.variance.ps)}
           </td>
-          <td className="border border-gray-300 px-3 py-2 text-red-600">
+          <td className="border border-gray-300 px-3 py-2 text-black-600">
             {formatPeso(row.variance.mooe)}
           </td>
-          <td className="border border-gray-300 px-3 py-2 text-red-600">
+          <td className="border border-gray-300 px-3 py-2 text-black-600">
             {formatPeso(row.variance.co)}
           </td>
-          <td className="border border-gray-300 px-3 py-2 font-bold text-red-600 bg-indigo-100">
+          <td className="border border-gray-300 px-3 py-2 font-bold text-black-600 bg-indigo-100">
             {formatPeso(row.variance.total)}
           </td>
         </tr>
@@ -692,13 +708,13 @@ export default function SoePage() {
         </td>
 
         {/* Variance Totals */}
-        <td className="border border-gray-300 px-3 py-2 text-red-600">
+        <td className="border border-gray-300 px-3 py-2 text-black-600">
           {formatPeso(data.reduce((sum, r) => sum + r.variance.ps, 0))}
         </td>
-        <td className="border border-gray-300 px-3 py-2 text-red-600">
+        <td className="border border-gray-300 px-3 py-2 text-black-600">
           {formatPeso(data.reduce((sum, r) => sum + r.variance.mooe, 0))}
         </td>
-        <td className="border border-gray-300 px-3 py-2 text-red-600">
+        <td className="border border-gray-300 px-3 py-2 text-black-600">
           {formatPeso(data.reduce((sum, r) => sum + r.variance.co, 0))}
         </td>
         <td className="border border-gray-300 px-3 py-2 text-red-600 bg-indigo-300">

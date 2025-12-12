@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../../../lib/prisma";
+import logAction from "../../../lib/log";
+import { getUserNameFromRequest } from "../../../lib/auth";
 
-const prisma = new PrismaClient();
 
 // GET all budgets (with office name)
 export async function GET() {
@@ -22,7 +23,12 @@ export async function GET() {
       dateCreated: b.dateCreated.toLocaleDateString(),
     }));
 
-    return NextResponse.json(formatted);
+    // Add cache headers - revalidate every 60 seconds for fresh data
+    return NextResponse.json(formatted, {
+      headers: {
+        'Cache-Control': 'private, s-maxage=60, stale-while-revalidate=120',
+      },
+    });
   } catch (error) {
     console.error("GET /addbudget error:", error);
     return NextResponse.json({ error: "Failed to fetch budgets" }, { status: 500 });
@@ -55,6 +61,14 @@ export async function POST(req: Request) {
         total,
       },
       include: { office: true },
+    });
+
+    const actor = getUserNameFromRequest(req);
+    await logAction({
+      message: `id=${newBudget.id}, office="${newBudget.officeName}", PS=${newBudget.ps}, MOOE=${newBudget.mooe}, CO=${newBudget.co}, total=${newBudget.total}`,
+      type: "Budget",
+      action: "create",
+      performedBy: actor || undefined,
     });
 
     return NextResponse.json({
@@ -90,6 +104,7 @@ export async function PUT(req: Request) {
     }
 
     // Update both fields so officeName stays in sync
+    const existing = await prisma.budget.findUnique({ where: { id } });
     const updated = await prisma.budget.update({
       where: { id },
       data: {
@@ -101,6 +116,14 @@ export async function PUT(req: Request) {
         total,
       },
       include: { office: true },
+    });
+
+    const actor = getUserNameFromRequest(req);
+    await logAction({
+      message: `id=${updated.id}: office "${existing?.officeName || "<unknown>"}" -> "${updated.officeName}", PS ${existing?.ps} -> ${updated.ps}, MOOE ${existing?.mooe} -> ${updated.mooe}, CO ${existing?.co} -> ${updated.co}, total ${existing?.total} -> ${updated.total}`,
+      type: "Budget",
+      action: "update",
+      performedBy: actor || undefined,
     });
 
     return NextResponse.json({
@@ -126,8 +149,14 @@ export async function DELETE(req: Request) {
   try {
     const { id } = await req.json();
 
-    await prisma.budget.delete({
-      where: { id },
+    const existingBudget = await prisma.budget.findUnique({ where: { id } });
+    await prisma.budget.delete({ where: { id } });
+    const actor = getUserNameFromRequest(req);
+    await logAction({
+      message: `id=${id}, office="${existingBudget?.officeName || "<unknown>"}", PS=${existingBudget?.ps}, MOOE=${existingBudget?.mooe}, CO=${existingBudget?.co}, total=${existingBudget?.total}`,
+      type: "Budget",
+      action: "delete",
+      performedBy: actor || undefined,
     });
 
     return NextResponse.json({ message: "Budget deleted successfully" });

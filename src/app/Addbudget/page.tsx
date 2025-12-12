@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { toast } from "react-toastify";
 import { Search, Plus, X, Edit, Trash2 } from "lucide-react";
 
 export default function AddBudgetPage() {
@@ -15,6 +16,10 @@ export default function AddBudgetPage() {
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
+
+  // Details modal
+  const [selectedBudget, setSelectedBudget] = useState<any | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   const totalBudget =
     (parseFloat(ps) || 0) + (parseFloat(mooe) || 0) + (parseFloat(co) || 0);
@@ -48,7 +53,7 @@ export default function AddBudgetPage() {
   }, []);
 
   const handleSaveBudget = async () => {
-    if (!officeId) return alert("Please select an office");
+    if (!officeId) return toast.error("Please select an office");
 
     const selectedOffice = offices.find((o) => o.id === officeId);
 
@@ -56,7 +61,7 @@ export default function AddBudgetPage() {
       editingId === null &&
       budgets.some((b) => b.office === selectedOffice?.name)
     ) {
-      return alert("This office already has a budget allocated.");
+      return toast.error("This office already has a budget allocated.") as any;
     }
 
     const budgetData = {
@@ -90,8 +95,9 @@ export default function AddBudgetPage() {
       const refreshed = await fetch("/api/addbudget");
       const refreshedData = await refreshed.json();
       setBudgets(refreshedData);
+      toast.success(editingId !== null ? "Budget updated successfully" : "Budget created successfully");
     } catch (error) {
-      alert("Failed to save budget");
+      toast.error("Failed to save budget");
       console.error(error);
     }
   };
@@ -127,8 +133,10 @@ export default function AddBudgetPage() {
       const refreshed = await fetch("/api/addbudget");
       const refreshedData = await refreshed.json();
       setBudgets(refreshedData);
+      toast.success("Budget deleted successfully");
     } catch (error) {
       console.error(error);
+      toast.error("Failed to delete budget");
     } finally {
       setShowDeleteModal(false);
       setDeleteIndex(null);
@@ -149,9 +157,11 @@ export default function AddBudgetPage() {
 
   return (
     <div className="w-full p-4">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-2">
+      {/* === HEADER === */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+        <h1 className="text-3xl font-bold text-gray-800">Budget Allocation</h1>
+
+        <div className="flex items-center space-x-2 mt-2 sm:mt-0">
           <div className="relative">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
             <input
@@ -165,22 +175,23 @@ export default function AddBudgetPage() {
               className="pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-blue-200"
             />
           </div>
-        </div>
 
-        <button
-          onClick={() => {
-            setShowModal(true);
-            setEditingId(null);
-            setOfficeId("");
-            setPs("");
-            setMooe("");
-            setCo("");
-          }}
-          className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
-        >
-          <Plus className="w-4 h-4 mr-2" /> Add Budget
-        </button>
+          <button
+            onClick={() => {
+              setShowModal(true);
+              setEditingId(null);
+              setOfficeId("");
+              setPs("");
+              setMooe("");
+              setCo("");
+            }}
+            className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
+          >
+            <Plus className="w-4 h-4 mr-2" /> Add Budget
+          </button>
+        </div>
       </div>
+      <hr className="border-gray-300 mb-6" />
 
       {/* Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[600px]">
@@ -197,7 +208,6 @@ export default function AddBudgetPage() {
                 <th className="px-3 py-2 text-left font-semibold">CO</th>
                 <th className="px-3 py-2 text-left font-semibold">Total</th>
                 <th className="px-3 py-2 text-left font-semibold">Date Created</th>
-                <th className="px-3 py-2 text-center font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -216,31 +226,18 @@ export default function AddBudgetPage() {
                 </tr>
               ) : (
                 currentItems.map((b, i) => (
-                  <tr key={b.id} className="border-b hover:bg-gray-200">
+                  <tr key={b.id} onClick={() => { setSelectedBudget({ item: b, index: startIndex + i }); setShowDetailsModal(true); }} className="border-b hover:bg-gray-200 cursor-pointer">
                     <td className="px-6 py-3">{b.office}</td>
                     <td className="px-6 py-3">₱{b.ps.toLocaleString()}</td>
                     <td className="px-6 py-3">₱{b.mooe.toLocaleString()}</td>
                     <td className="px-6 py-3">₱{b.co.toLocaleString()}</td>
-                    <td className="px-6 py-3 font-semibold">
-                      ₱{b.total.toLocaleString()}
-                    </td>
+   <td className="px-6 py-3">
+  <span className="px-3 py-1 rounded-full bg-green-100 text-gray-700 border border-gray-700 font-semibold">
+    ₱{b.total.toLocaleString()}
+  </span>
+</td>
+
                     <td className="px-6 py-3">{b.dateCreated}</td>
-                    <td className="px-6 py-3 text-center space-x-2">
-                      <button
-                        onClick={() => handleEdit(startIndex + i)}
-                        className="text-blue-500 hover:text-blue-700 transition"
-                        title="Edit"
-                      >
-                        <Edit className="w-4 h-4 inline" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteClick(startIndex + i)}
-                        className="text-red-500 hover:text-red-700 transition"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-4 h-4 inline" />
-                      </button>
-                    </td>
                   </tr>
                 ))
               )}
@@ -299,124 +296,255 @@ export default function AddBudgetPage() {
         </div>
       </div>
 
-      {/* Add/Edit Modal */}
+      {/* 🟩 Add/Edit Budget Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black opacity-20"></div>
-          <div className="bg-white rounded-lg shadow-lg w-96 p-6 z-10">
-            <div className="relative mb-4">
-              <h2 className="text-lg font-semibold text-center">
-                {editingId !== null ? "Edit Budget" : "Add Budget"}
-              </h2>
+        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+          <div
+            className="absolute inset-0 bg-black opacity-10 pointer-events-auto"
+            onClick={() => setShowModal(false)}
+          ></div>
+
+          <div
+            className="bg-white rounded-xl shadow-lg w-[420px] overflow-hidden z-10 pointer-events-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-[#1E3358] flex items-center justify-between px-4 py-3">
+              <div className="flex items-center gap-2">
+                <div className="bg-white text-blue-600 p-2 rounded-full">
+                  {editingId !== null ? <Edit size={18} /> : <Plus size={18} />}
+                </div>
+                <h2 className="text-white text-lg font-semibold">
+                  {editingId !== null ? "Edit Budget" : "Add Budget"}
+                </h2>
+              </div>
               <button
                 onClick={() => setShowModal(false)}
-                className="absolute right-0 top-1/2 -translate-y-1/2"
+                className="text-white hover:text-gray-200"
               >
-                <X className="w-5 h-5 text-gray-500" />
+                <X size={20} />
               </button>
             </div>
 
-            <select
-              value={officeId}
-              onChange={(e) => setOfficeId(Number(e.target.value))}
-              className="w-full border px-3 py-2 rounded-md mb-3"
-            >
-              <option value="">Select Office</option>
-              {offices.map((office) => {
-                const alreadyBudgeted = budgets.some(
-                  (b) => b.office === office.name
-                );
-                return (
-                  <option
-                    key={office.id}
-                    value={office.id}
-                    disabled={alreadyBudgeted && editingId === null}
-                  >
-                    {office.name}{" "}
-                    {alreadyBudgeted && editingId === null
-                      ? "(Already Budgeted)"
-                      : ""}
-                  </option>
-                );
-              })}
-            </select>
+            <div className="p-5 space-y-4">
+              <select
+                value={officeId}
+                onChange={(e) => setOfficeId(Number(e.target.value))}
+                className="w-full bg-gray-100 rounded-lg p-3"
+              >
+                <option value="">Select Office</option>
+                {offices.map((office) => {
+                  const alreadyBudgeted = budgets.some(
+                    (b) => b.office === office.name
+                  );
+                  return (
+                    <option
+                      key={office.id}
+                      value={office.id}
+                      disabled={alreadyBudgeted && editingId === null}
+                    >
+                      {office.name}{" "}
+                      {alreadyBudgeted && editingId === null ? "(Already Budgeted)" : ""}
+                    </option>
+                  );
+                })}
+              </select>
 
-            <input
-              type="number"
-              placeholder="PS"
-              value={ps}
-              onChange={(e) => setPs(e.target.value)}
-              className="w-full border px-3 py-2 rounded-md mb-3"
-            />
-            <input
-              type="number"
-              placeholder="MOOE"
-              value={mooe}
-              onChange={(e) => setMooe(e.target.value)}
-              className="w-full border px-3 py-2 rounded-md mb-3"
-            />
-            <input
-              type="number"
-              placeholder="CO"
-              value={co}
-              onChange={(e) => setCo(e.target.value)}
-              className="w-full border px-3 py-2 rounded-md mb-3"
-            />
+              <input
+                type="number"
+                placeholder="PS"
+                value={ps}
+                onChange={(e) => setPs(e.target.value)}
+                className="w-full bg-gray-100 rounded-lg p-3"
+              />
+              <input
+                type="number"
+                placeholder="MOOE"
+                value={mooe}
+                onChange={(e) => setMooe(e.target.value)}
+                className="w-full bg-gray-100 rounded-lg p-3"
+              />
+              <input
+                type="number"
+                placeholder="CO"
+                value={co}
+                onChange={(e) => setCo(e.target.value)}
+                className="w-full bg-gray-100 rounded-lg p-3"
+              />
 
-            <p className="mb-4 font-semibold">
-              Total Budget: ₱{totalBudget.toLocaleString()}
-            </p>
+              <p className="font-semibold">Total Budget: ₱{totalBudget.toLocaleString()}</p>
+            </div>
 
-            <div className="flex justify-end space-x-2">
+            <div className="flex justify-end gap-3 px-4 py-3 bg-gray-50 border-t">
               <button
                 onClick={() => setShowModal(false)}
-                className="px-4 py-2 border rounded-md hover:bg-gray-100"
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveBudget}
-                className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600"
+                className="px-4 py-2 rounded-lg text-white bg-blue-600 hover:bg-blue-700"
               >
-                {editingId !== null ? "Update" : "Add"}
+                {editingId !== null ? "Save Changes" : "Add Budget"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <div className="absolute inset-0 bg-black opacity-20 pointer-events-auto"></div>
-          <div className="bg-white rounded-lg shadow-lg w-96 p-6 z-10 pointer-events-auto">
-            <h2 className="text-lg font-semibold mb-3 text-center text-red-600">
-              Confirm Delete
-            </h2>
-            <p className="text-gray-700 text-center mb-5">
-              Are you sure you want to delete{" "}
-              <span className="font-semibold">
-                {deleteIndex !== null ? budgets[deleteIndex]?.office : ""}
-              </span>
-              ?
-            </p>
-            <div className="flex justify-end space-x-2">
-              <button
-                onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-100 transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmDelete}
-                className="px-4 py-2 rounded-md bg-red-500 text-white hover:bg-red-600 transition"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
+{/* 🟦 Budget Details Panel */}
+{showDetailsModal && selectedBudget && (
+  <div className="fixed inset-0 z-50 flex">
+    {/* Overlay */}
+    <div
+      className="absolute inset-0 bg-black/20"
+      onClick={() => setShowDetailsModal(false)}
+    ></div>
+
+    {/* Right-side Sliding Panel */}
+    <aside
+      className="ml-auto w-full sm:w-[520px] h-full bg-white rounded-xl shadow-lg overflow-hidden z-10 pointer-events-auto flex flex-col"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 bg-[#1E3358]">
+        <h2 className="text-white text-2xl font-bold">Budget Details</h2>
+        <button
+          onClick={() => setShowDetailsModal(false)}
+          className="text-white hover:text-gray-200"
+        >
+          <X size={24} />
+        </button>
+      </div>
+
+      {/* Body */}
+      <div className="p-6 space-y-6 text-gray-800 flex-1 overflow-y-auto">
+        <div className="text-center">
+          <div className="text-sm text-gray-500">Office</div>
+          <div className="font-bold text-xl">{selectedBudget.item.office}</div>
         </div>
-      )}
+        <hr className="border-gray-200" />
+        <div className="text-center">
+          <div className="text-sm text-gray-500">Personal Services</div>
+          <div className="font-bold text-xl">₱{selectedBudget.item.ps.toLocaleString()}</div>
+        </div>
+       
+        <hr className="border-gray-200" />
+  <div className="text-center">
+          <div className="text-sm text-gray-500">Maintenance & Other Operating Expenses</div>
+          <div className="font-bold text-xl">₱{selectedBudget.item.mooe.toLocaleString()}</div>
+        </div>
+
+        <hr className="border-gray-200" />
+
+              <div className="text-center">
+          <div className="text-sm text-gray-500">Capital Outlays</div>
+          <div className="font-bold text-xl">₱{selectedBudget.item.co.toLocaleString()}</div>
+        </div>
+        <hr className="border-gray-200" />
+
+
+
+         <div className="text-center">
+          <div className="text-sm text-gray-500">Total</div>
+          <div className="font-bold text-xl">₱{selectedBudget.item.total.toLocaleString()}</div>
+        </div>
+        <hr className="border-gray-200" />
+
+        <div className="text-center">
+          <div className="text-sm text-gray-500">Date</div>
+          <div className="font-bold text-xl">{new Date(selectedBudget.item.dateCreated).toLocaleString()}</div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="mt-auto flex justify-end gap-3 px-6 py-4 bg-white border-t">
+        <button
+          onClick={() => setShowDetailsModal(false)}
+          className="px-5 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 text-lg font-semibold"
+        >
+          Close
+        </button>
+
+        <button
+          onClick={() => { setShowDetailsModal(false); handleEdit(selectedBudget.index); }}
+          className="px-5 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-lg font-semibold"
+        >
+          <Edit />
+        </button>
+
+        <button
+          onClick={() => { setShowDetailsModal(false); handleDeleteClick(selectedBudget.index); }}
+          className="px-5 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 text-lg font-semibold"
+        >
+          <Trash2 />
+        </button>
+      </div>
+    </aside>
+  </div>
+)}
+
+
+
+ {/* 🟥 Delete Confirmation Modal */}
+{showDeleteModal && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+
+    {/* Subtle overlay (same as Add Modal) */}
+    <div
+      className="absolute inset-0 bg-black opacity-10 pointer-events-auto"
+      onClick={() => setShowDeleteModal(false)}
+    ></div>
+
+    {/* Modal */}
+    <div
+      className="bg-white rounded-xl shadow-lg w-[420px] overflow-hidden z-10 pointer-events-auto"
+      onClick={(e) => e.stopPropagation()}
+    >
+
+      {/* HEADER (same structure as Add Modal, but red for delete) */}
+      <div className="bg-red-600 flex items-center justify-between px-4 py-3">
+        <h2 className="text-white text-lg font-semibold">Confirm Delete</h2>
+        <button
+          onClick={() => setShowDeleteModal(false)}
+          className="text-white hover:text-gray-200"
+        >
+          <X size={20} />
+        </button>
+      </div>
+
+      {/* BODY */}
+      <div className="p-6">
+        <p className="text-gray-700 text-center mb-1">
+          Are you sure you want to delete{" "}
+          <span className="font-semibold">
+            {deleteIndex !== null ? budgets[deleteIndex]?.office : ""}
+          </span>
+          ?
+        </p>
+      </div>
+
+      {/* FOOTER (same as Add Modal) */}
+      <div className="flex justify-end gap-3 px-4 py-3 bg-gray-50 border-t">
+        <button
+          onClick={() => setShowDeleteModal(false)}
+          className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+        >
+          Cancel
+        </button>
+
+        <button
+          onClick={handleConfirmDelete}
+          className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+        >
+          Delete
+        </button>
+      </div>
+
+    </div>
+  </div>
+)}
+
     </div>
   );
 }

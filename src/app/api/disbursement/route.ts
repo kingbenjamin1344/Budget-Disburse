@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../../../lib/prisma";
+import logAction from "../../../lib/log";
+import { getUserNameFromRequest } from "../../../lib/auth";
 
-const prisma = new PrismaClient();
 
 // ✅ GET all disbursements
 export async function GET() {
@@ -22,7 +23,11 @@ export async function GET() {
       dateCreated: d.dateCreated,
     }));
 
-    return NextResponse.json(formatted);
+    return NextResponse.json(formatted, {
+      headers: {
+        'Cache-Control': 'private, s-maxage=60, stale-while-revalidate=120',
+      },
+    });
   } catch (error) {
     console.error("GET /api/disbursement error:", error);
     return NextResponse.json(
@@ -36,7 +41,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { dvNo, payee, office, expenseType, expenseCategory, amount } = body;
+    const { dvNo, payee, office, expenseType, expenseCategory, amount, date } = body;
 
     const existingOffice = await prisma.office.findFirst({
       where: { name: office },
@@ -46,17 +51,31 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Office not found" }, { status: 400 });
     }
 
+    const createData: any = {
+      dvNo,
+      payee,
+      officeId: existingOffice.id,
+      officeName: existingOffice.name,
+      expenseType,
+      expenseCategory,
+      amount: parseFloat(amount),
+    };
+    if (date) {
+      const parsed = new Date(date);
+      if (!isNaN(parsed.getTime())) createData.dateCreated = parsed;
+    }
+
     const newDisbursement = await prisma.disbursement.create({
-      data: {
-        dvNo,
-        payee,
-        officeId: existingOffice.id,
-        officeName: existingOffice.name,
-        expenseType,
-        expenseCategory,
-        amount: parseFloat(amount),
-      },
+      data: createData,
       include: { office: true },
+    });
+
+    const actor = getUserNameFromRequest(req);
+    await logAction({
+      message: `${newDisbursement.dvNo}, payee="${newDisbursement.payee}", amount=${newDisbursement.amount}, office="${newDisbursement.officeName}", category="${newDisbursement.expenseCategory}" (id: ${newDisbursement.id})`,
+      type: "Disbursement",
+      action: "create",
+      performedBy: actor || undefined,
     });
 
     return NextResponse.json({
@@ -82,7 +101,7 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   try {
     const body = await req.json();
-    const { id, dvNo, payee, office, expenseType, expenseCategory, amount } = body;
+    const { id, dvNo, payee, office, expenseType, expenseCategory, amount, date } = body;
 
     const existingOffice = await prisma.office.findFirst({
       where: { name: office },
@@ -92,18 +111,33 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "Office not found" }, { status: 400 });
     }
 
+    const updateData: any = {
+      dvNo,
+      payee,
+      officeId: existingOffice.id,
+      officeName: existingOffice.name,
+      expenseType,
+      expenseCategory,
+      amount: parseFloat(amount),
+    };
+    if (date) {
+      const parsed = new Date(date);
+      if (!isNaN(parsed.getTime())) updateData.dateCreated = parsed;
+    }
+
+    const existing = await prisma.disbursement.findUnique({ where: { id } });
     const updated = await prisma.disbursement.update({
       where: { id },
-      data: {
-        dvNo,
-        payee,
-        officeId: existingOffice.id,
-        officeName: existingOffice.name,
-        expenseType,
-        expenseCategory,
-        amount: parseFloat(amount),
-      },
+      data: updateData,
       include: { office: true },
+    });
+
+    const actor = getUserNameFromRequest(req);
+    await logAction({
+      message: `id=${updated.id}: DV# "${existing?.dvNo || "<unknown>"}" -> "${updated.dvNo}", payee "${existing?.payee || "<unknown>"}" -> "${updated.payee}", amount ${existing?.amount || "<unknown>"} -> ${updated.amount}`,
+      type: "Disbursement",
+      action: "update",
+      performedBy: actor || undefined,
     });
 
     return NextResponse.json({
@@ -130,8 +164,14 @@ export async function DELETE(req: Request) {
   try {
     const { id } = await req.json();
 
-    await prisma.disbursement.delete({
-      where: { id },
+    const toDelete = await prisma.disbursement.findUnique({ where: { id } });
+    await prisma.disbursement.delete({ where: { id } });
+    const actor = getUserNameFromRequest(req);
+    await logAction({
+      message: ` DV#${toDelete?.dvNo || "<unknown>"}, payee="${toDelete?.payee || "<unknown>"}", amount=${toDelete?.amount || "<unknown>"} (id: ${id})`,
+      type: "Disbursement",
+      action: "delete",
+      performedBy: actor || undefined,
     });
 
     return NextResponse.json({ message: "Disbursement deleted successfully" });

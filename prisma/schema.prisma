@@ -16,7 +16,7 @@ model budget {
   co          Float
   total       Float
   dateCreated DateTime @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime @updatedAt @default(now())
   office      office   @relation(fields: [officeId], references: [id], map: "Budget_officeId_fkey")
 
   @@index([officeId], map: "Budget_officeId_fkey")
@@ -32,7 +32,7 @@ model disbursement {
   expenseCategory String
   amount          Float
   dateCreated     DateTime @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime @updatedAt @default(now())
   office          office   @relation(fields: [officeId], references: [id], map: "Disbursement_officeId_fkey")
 
   @@index([officeId], map: "Disbursement_officeId_fkey")
@@ -43,7 +43,7 @@ model expense {
   type        String
   category    String
   dateCreated DateTime @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime @updatedAt @default(now())
 }
 
 model office {
@@ -52,4 +52,15 @@ model office {
   dateCreated  DateTime       @default(now())
   budget       budget[]
   disbursement disbursement[]
+}
+
+model log {
+  id          Int      @id @default(autoincrement())
+  message     String
+  type        String   // e.g. Budget, Disbursement, Expense, Office
+  action      String   // e.g. create, update, delete
+  performedBy String?  // username or identifier of user who performed the action
+  createdAt   DateTime @default(now())
+
+  @@index([type, createdAt])
 }

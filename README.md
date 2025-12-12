@@ -12,10 +12,48 @@ Notes:
 - The middleware protects routes by checking for the presence of `auth-token`. `/api/auth/check` validates the token signature.
 - For hardening, use `ADMIN_PASSWORD_HASH` and a proper `AUTH_SECRET` in production.
 
-Run locally:
 
-```powershell
+
+
+requirements 
+
+MYSQL
+HeidiSQL
+Prisma
+
+
+
+
+## powershell
+
 npm install
 npm run dev
-```
+
+## to migrate db
+
+## step 1 run this command in terminal
+npm install prisma @prisma/client mysql2
+
+## make a .env file and copy-paste
+DATABASE_URL="mysql://root:password@localhost:3306/budget_disburse"
+
+## open Heidi Sql 
+create session
+user:root
+password:k
+port:3306
+
+## create db name
+budget_disburse and run finaldisburse.sql in query
+
+## run 
+npm run dev
+
+
+
+
+
+
+
+
 

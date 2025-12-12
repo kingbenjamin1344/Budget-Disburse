@@ -1,14 +1,18 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from "../../../lib/prisma";
 import { NextResponse } from "next/server";
-
-const prisma = new PrismaClient();
+import logAction from "../../../lib/log";
+import { getUserNameFromRequest } from "../../../lib/auth";
 
 
 export async function GET() {
   const offices = await prisma.office.findMany({
     orderBy: { id: "desc" },
   });
-  return NextResponse.json(offices);
+  return NextResponse.json(offices, {
+    headers: {
+      'Cache-Control': 'private, s-maxage=60, stale-while-revalidate=120',
+    },
+  });
 }
 
 export async function POST(request: Request) {
@@ -19,9 +23,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Office name is required" }, { status: 400 });
   }
 
-  const office = await prisma.office.create({
-    data: { name },
-  });
+  const office = await prisma.office.create({ data: { name } });
+  const actor = getUserNameFromRequest(request);
+  await logAction({ message: `${office.name} (id: ${office.id})`, type: "Office", action: "create", performedBy: actor || undefined });
 
   return NextResponse.json(office);
 }
@@ -36,10 +40,10 @@ export async function PUT(request: Request) {
   }
 
   try {
-    const updatedOffice = await prisma.office.update({
-      where: { id },
-      data: { name },
-    });
+    const existing = await prisma.office.findUnique({ where: { id } });
+    const updatedOffice = await prisma.office.update({ where: { id }, data: { name } });
+    const actor = getUserNameFromRequest(request);
+    await logAction({ message: `(id: ${id}): name "${existing?.name || "<unknown>"}" -> "${updatedOffice.name}"`, type: "Office", action: "update", performedBy: actor || undefined });
     return NextResponse.json(updatedOffice);
   } catch (error) {
     console.error(error);
@@ -54,9 +58,10 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Office ID is required" }, { status: 400 });
   }
 
-  await prisma.office.delete({
-    where: { id },
-  });
+  const toDelete = await prisma.office.findUnique({ where: { id } });
+  await prisma.office.delete({ where: { id } });
+  const actor = getUserNameFromRequest(request);
+  await logAction({ message: `${toDelete?.name || "<unknown>"} (id: ${id})`, type: "Office", action: "delete", performedBy: actor || undefined });
 
   return NextResponse.json({ message: "Office deleted successfully" });
 }

@@ -1,13 +1,18 @@
 // src/app/api/expenses/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../../../lib/prisma";
+import logAction from "../../../lib/log";
+import { getUserNameFromRequest } from "../../../lib/auth";
 
-const prisma = new PrismaClient();
 
 export async function GET() {
   try {
     const expenses = await prisma.expense.findMany({ orderBy: { dateCreated: "desc" } });
-    return NextResponse.json(expenses);
+    return NextResponse.json(expenses, {
+      headers: {
+        'Cache-Control': 'private, s-maxage=60, stale-while-revalidate=120',
+      },
+    });
   } catch (error) {
     console.error("GET /expenses error:", error);
     return NextResponse.json({ error: "Failed to fetch expenses" }, { status: 500 });
@@ -22,6 +27,8 @@ export async function POST(request: NextRequest) {
     }
 
     const expense = await prisma.expense.create({ data: { type, category } });
+    const actor = getUserNameFromRequest(request);
+    await logAction({ message: `id=${expense.id}, type="${expense.type}", category="${expense.category}"`, type: "Expense", action: "create", performedBy: actor || undefined });
     return NextResponse.json(expense, { status: 201 });
   } catch (error) {
     console.error("POST /expenses error:", error);
@@ -45,6 +52,8 @@ export async function PUT(request: NextRequest) {
       where: { id: Number(id) },
       data: { type, category },
     });
+    const actor = getUserNameFromRequest(request);
+    await logAction({ message: ` id=${updated.id}: type "${existing.type}" -> "${updated.type}", category "${existing.category}" -> "${updated.category}"`, type: "Expense", action: "update", performedBy: actor || undefined });
     return NextResponse.json(updated);
   } catch (error) {
     console.error("PUT /expenses error:", error);
@@ -59,10 +68,32 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
     }
 
+    // Fetch the expense first
+    const existing = await prisma.expense.findUnique({
+      where: { id: Number(id) },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: "Expense not found" }, { status: 404 });
+    }
+
+    // Delete the expense
     await prisma.expense.delete({ where: { id: Number(id) } });
+
+    // Create better log message
+    const actor = getUserNameFromRequest(request);
+    await logAction({
+      message: `id=${existing.id}, type="${existing.type}", category="${existing.category}"`,
+      type: "Expense",
+      action: "delete",
+      performedBy: actor || undefined,
+    });
+
     return NextResponse.json({ success: true });
+
   } catch (error) {
     console.error("DELETE /expenses error:", error);
     return NextResponse.json({ error: "Failed to delete expense" }, { status: 500 });
   }
 }
+

@@ -1,8 +1,30 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Search, Plus, Edit, Trash2, X } from "lucide-react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { toast } from "react-toastify";
+import { Search, Plus, Edit, Trash2, X, ScanEye, Camera, Upload, Loader } from "lucide-react";
+import { performOCR, initTesseractWorker, terminateTesseractWorker } from "@/lib/offlineTesseract";
 
+// =================== Floating Scan Button ===================
+interface FloatingScanButtonProps {
+  onClick?: () => void;
+}
+
+const FloatingScanButton: React.FC<FloatingScanButtonProps> = ({
+  onClick,
+}) => {
+  return (
+    <button
+      onClick={onClick}
+      className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-40 bg-white border-2 border-blue-500 rounded-full p-4 shadow-2xl cursor-pointer hover:scale-110 hover:shadow-3xl transition-all duration-200 flex items-center justify-center"
+      title="Open OCR Scanner"
+    >
+      <ScanEye className="w-8 h-8 text-blue-600" />
+    </button>
+  );
+};
+
+// =================== Main Page ===================
 export default function DisbursementPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterOffice, setFilterOffice] = useState("");
@@ -10,16 +32,16 @@ export default function DisbursementPage() {
   const [filterCategory, setFilterCategory] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deletePayee, setDeletePayee] = useState("");
-
+  // Selected item for details modal
+  const [selectedDisbursement, setSelectedDisbursement] = useState<any | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [disbursements, setDisbursements] = useState<any[]>([]);
   const [offices, setOffices] = useState<string[]>([]);
   const [expenses, setExpenses] = useState<{ type: string; category: string }[]>([]);
   const [budgets, setBudgets] = useState<any[]>([]);
-
   const [formData, setFormData] = useState({
     dvNo: "",
     payee: "",
@@ -27,12 +49,22 @@ export default function DisbursementPage() {
     expenseType: "",
     expenseCategory: "",
     amount: "",
+    date: "",
   });
-
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Fetch Offices, Expenses, Budgets
+  // ====== OCR Scanner States ======
+  const [showScanModal, setShowScanModal] = useState(false);
+  const [scanMode, setScanMode] = useState<"camera" | "upload">("camera");
+  const [cameraActive, setCameraActive] = useState(false);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrResult, setOcrResult] = useState("");
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ====== Fetch Offices, Expenses, Budgets ======
   useEffect(() => {
     async function loadData() {
       try {
@@ -53,9 +85,213 @@ export default function DisbursementPage() {
       }
     }
     loadData();
+
+    // Initialize Tesseract worker on component mount for offline OCR
+    initTesseractWorker().catch((err) => {
+      console.warn("Tesseract initialization delayed (will load on first OCR use):", err);
+    });
+
+    // Cleanup: terminate Tesseract worker on unmount
+    return () => {
+      terminateTesseractWorker().catch(console.error);
+    };
   }, []);
 
-  // Load disbursements
+  // ====== OCR Functions ======
+const startCamera = async () => {
+  try {
+    let stream;
+
+    // Try back camera first (mobile)
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false,
+      });
+    } catch {
+      // Fallback to ANY camera
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: false,
+      });
+    }
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play();
+      setCameraActive(true);
+    }
+  } catch (err) {
+    toast.error("Camera error: " + String(err));
+    console.error("Camera start error:", err);
+  }
+};
+
+
+
+  const stopCamera = () => {
+    if (videoRef.current?.srcObject) {
+      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+      tracks.forEach((track) => track.stop());
+      setCameraActive(false);
+    }
+  };
+
+  const capturePhoto = async () => {
+    if (videoRef.current && canvasRef.current) {
+      const context = canvasRef.current.getContext("2d");
+      canvasRef.current.width = videoRef.current.videoWidth;
+      canvasRef.current.height = videoRef.current.videoHeight;
+      context?.drawImage(videoRef.current, 0, 0);
+      
+      const imageData = canvasRef.current.toDataURL("image/jpeg");
+      await handlePerformOCR(imageData);
+      stopCamera();
+    }
+  };
+
+  const handleImageUpload = async (file: File) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const imageData = e.target?.result as string;
+      await handlePerformOCR(imageData);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handlePerformOCR = async (imageData: string) => {
+    setOcrLoading(true);
+    try {
+      // Initialize worker if not already done
+      await initTesseractWorker();
+
+      const text = await performOCR(imageData);
+      setOcrResult(text);
+      
+      // Parse disbursement data from OCR text
+      parseAndFillForm(text);
+    } catch (err) {
+      toast.error("OCR failed. Please try again or check internet connection for language data.");
+      console.error("OCR Error:", err);
+    } finally {
+      setOcrLoading(false);
+    }
+  };
+
+  // Normalize various date formats to YYYY-MM-DD for <input type="date" />
+  const normalizeDate = (dateStr: string) => {
+    if (!dateStr) return "";
+    const s = dateStr.trim();
+    // Try ISO yyyy-mm-dd
+    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+    // Try dd/mm/yyyy
+    const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (dmy) {
+      const dd = dmy[1].padStart(2, "0");
+      const mm = dmy[2].padStart(2, "0");
+      return `${dmy[3]}-${mm}-${dd}`;
+    }
+    // Try formats like '25 Nov 2025' or '25 November 2025' or '25-Nov-2025'
+    const textDate = new Date(s);
+    if (!isNaN(textDate.getTime())) {
+      const y = textDate.getFullYear();
+      const m = String(textDate.getMonth() + 1).padStart(2, "0");
+      const d = String(textDate.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+    return "";
+  };
+
+  const parseAndFillForm = (text: string) => {
+    // Normalize text
+    const raw = text || "";
+    const ltext = raw.toLowerCase();
+
+    // Extract DV Number (looks for DV: or DV No or standalone digits)
+    const dvMatch = raw.match(/dv\s*(no\.?|number)?[:\s]*([0-9]{3,5}-[0-9]{3,5})/i);
+    const dvNo = dvMatch ? dvMatch[2] : "";
+
+
+    // Extract Amount (looks for peso sign or common amount patterns)
+    const amountMatch = raw.match(/(?:₱|p\.?|\$)\s*([\d,]+\.?\d*)/i) || raw.match(/amount[:\s]*([\d,]+\.?\d*)/i);
+    const amount = amountMatch ? amountMatch[1].replace(/,/g, "") : "";
+
+    // Extract Payee (look for 'payee:' or lines with title-case words)
+    const payeeMatch = raw.match(/payee[:\s]*([A-Za-z0-9 .,&'-]{2,80})/i);
+    const payee = payeeMatch ? payeeMatch[1].trim() : "";
+
+
+    // Detect Office by matching known office names
+    let office = "";
+    if (offices && offices.length) {
+      // find longest matching office name in text
+      const candidates = offices.filter((o) => o && ltext.includes(o.toLowerCase()));
+      if (candidates.length) {
+        candidates.sort((a, b) => b.length - a.length);
+        office = candidates[0];
+      }
+    }
+
+    // Detect Expense Type by matching known expense types
+    let expenseType = "";
+    let expenseCategory = "";
+    if (expenses && expenses.length) {
+      const found = expenses.find((e) => {
+        if (!e?.type) return false;
+        return ltext.includes(e.type.toLowerCase());
+      });
+      if (found) {
+        expenseType = found.type;
+        expenseCategory = found.category || "";
+      }
+    }
+
+    // Fallback: detect explicit category tokens (PS, MOOE, CO)
+    const catMatch = raw.match(/\b(MOOE|PS|CO)\b/i);
+    if (catMatch) {
+      expenseCategory = catMatch[1].toUpperCase();
+    }
+
+    // Extract Date (common formats)
+    let dateStr = "";
+    const datePatterns = [
+      /(\d{4}-\d{2}-\d{2})/, // 2025-11-25
+      /(\d{2}\/\d{2}\/\d{4})/, // 25/11/2025
+      /(\d{1,2}[-\s][A-Za-z]{3,9}[-\s]\d{4})/, // 25 Nov 2025
+      /(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})/, // 25 November 2025
+    ];
+    for (const p of datePatterns) {
+      const m = raw.match(p);
+      if (m) {
+        dateStr = m[1];
+        break;
+      }
+    }
+    const normalizedDate = normalizeDate(dateStr);
+
+    // Update form data with extracted values (preserve previous values if extraction empty)
+    setFormData((prev) => ({
+      ...prev,
+      dvNo: dvNo || prev.dvNo,
+      amount: amount || prev.amount,
+      payee: payee || prev.payee,
+      office: office || prev.office,
+      expenseType: expenseType || prev.expenseType,
+      expenseCategory: expenseCategory || prev.expenseCategory,
+      date: normalizedDate || (prev as any).date || "",
+    }));
+  };
+
+  const closeScanModal = () => {
+    stopCamera();
+    setShowScanModal(false);
+    setScanMode("camera");
+    setOcrResult("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // ====== Load Disbursements ======
   useEffect(() => {
     async function loadDisbursements() {
       try {
@@ -69,12 +305,42 @@ export default function DisbursementPage() {
     loadDisbursements();
   }, []);
 
-  // Auto-fill category when expenseType changes
+  // ====== Auto-fill category when expenseType changes ======
   useEffect(() => {
     const match = expenses.find((e) => e.type === formData.expenseType);
     if (match) setFormData((prev) => ({ ...prev, expenseCategory: match.category }));
   }, [formData.expenseType, expenses]);
 
+  // ====== Remaining Budget Calculation ======
+  const remainingBudget = useMemo(() => {
+    if (!formData.office || !formData.expenseCategory) return "";
+
+    const budget = budgets.find(
+      (b) => b.office.toLowerCase() === formData.office.toLowerCase()
+    );
+    if (!budget) return "";
+
+    const category = formData.expenseCategory.toLowerCase();
+    let budgetAmount = 0;
+    if (category === "ps") budgetAmount = parseFloat(budget.ps) || 0;
+    else if (category === "mooe") budgetAmount = parseFloat(budget.mooe) || 0;
+    else if (category === "co") budgetAmount = parseFloat(budget.co) || 0;
+
+    const disbursed = disbursements
+      .filter(
+        (d) =>
+          d.office.toLowerCase() === formData.office.toLowerCase() &&
+          d.expenseCategory.toLowerCase() === category &&
+          d.id !== editingId
+      )
+      .reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+
+    const typedAmount = parseFloat(formData.amount) || 0;
+
+    return `₱${(budgetAmount - disbursed - typedAmount).toLocaleString()}`;
+  }, [formData.office, formData.expenseCategory, budgets, disbursements, editingId, formData.amount]);
+
+  // ====== Handlers ======
   const handleAdd = () => {
     setShowModal(true);
     setEditingId(null);
@@ -85,25 +351,23 @@ export default function DisbursementPage() {
       expenseType: "",
       expenseCategory: "",
       amount: "",
+      date: "",
     });
   };
 
   const handleSave = async () => {
     if (!formData.dvNo || !formData.payee || !formData.office || !formData.expenseType || !formData.amount) {
-      alert("Please fill all required fields");
+      toast.error("Please fill all required fields");
       return;
     }
-
     const budget = budgets.find((b) => b.office.toLowerCase() === formData.office.toLowerCase());
-
     if (!budget) {
-      alert("No budget found for this office!");
+      toast.error("No budget found for this office!");
       return;
     }
 
     const category = formData.expenseCategory.toLowerCase();
     let budgetAmount = 0;
-
     if (category === "ps") budgetAmount = parseFloat(budget.ps) || 0;
     else if (category === "mooe") budgetAmount = parseFloat(budget.mooe) || 0;
     else if (category === "co") budgetAmount = parseFloat(budget.co) || 0;
@@ -112,16 +376,15 @@ export default function DisbursementPage() {
       .filter(
         (d) =>
           d.office.toLowerCase() === formData.office.toLowerCase() &&
-          d.expenseCategory.toLowerCase() === formData.expenseCategory.toLowerCase() &&
+          d.expenseCategory.toLowerCase() === category &&
           d.id !== editingId
       )
       .reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
 
     const newDisburseTotal = disbursedAmount + parseFloat(formData.amount);
-
     if (newDisburseTotal > budgetAmount) {
       const remaining = (budgetAmount - disbursedAmount).toLocaleString();
-      alert(`Budget exceeded!\nYou only have ₱${remaining} remaining for ${formData.expenseCategory}.`);
+      toast.error(`Budget exceeded!\nYou only have ₱${remaining} remaining for ${formData.expenseCategory}.`);
       return;
     }
 
@@ -137,14 +400,14 @@ export default function DisbursementPage() {
       });
       if (!res.ok) throw new Error("Failed to save disbursement");
       const updated = await res.json();
-
       setDisbursements((prev) =>
         editingId ? prev.map((d) => (d.id === editingId ? updated : d)) : [updated, ...prev]
       );
       setShowModal(false);
+      toast.success(editingId ? "Disbursement updated successfully" : "Disbursement created successfully");
     } catch (err) {
       console.error(err);
-      alert("Error saving disbursement.");
+      toast.error("Error saving disbursement.");
     }
   };
 
@@ -152,7 +415,8 @@ export default function DisbursementPage() {
     const record = disbursements.find((d) => d.id === id);
     if (!record) return;
     setEditingId(id);
-    setFormData(record);
+    const recDate = (record as any).date || (record as any).dateCreated || "";
+    setFormData({ ...record, date: normalizeDate(String(recDate)) });
     setShowModal(true);
   };
 
@@ -173,13 +437,14 @@ export default function DisbursementPage() {
       if (!res.ok) throw new Error("Failed to delete");
       setDisbursements((prev) => prev.filter((d) => d.id !== deleteId));
       setShowDeleteModal(false);
+      toast.success("Disbursement deleted successfully");
     } catch (err) {
       console.error(err);
-      alert("Error deleting disbursement.");
+      toast.error("Error deleting disbursement.");
     }
   };
 
-  // Filters + Pagination
+  // ====== Filter & Pagination ======
   const filtered = disbursements.filter((item) => {
     const matchesSearch =
       item.dvNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -199,16 +464,16 @@ export default function DisbursementPage() {
   };
 
   useEffect(() => {
-    if (currentPage > totalPages && totalPages > 0) {
-      setCurrentPage(totalPages);
-    }
+    if (currentPage > totalPages && totalPages > 0) setCurrentPage(totalPages);
   }, [totalPages]);
 
   return (
-    <div className="w-full p-4">
-      {/* Header & Filters */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-3">
-        <div className="flex flex-col md:flex-row items-center gap-2">
+    <div className="w-full p-4 relative">
+      {/* === HEADER === */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+        <h1 className="text-3xl font-bold text-gray-800">Disbursement</h1>
+        <div className="flex flex-wrap items-center gap-2 mt-2 sm:mt-0">
+          {/* Search */}
           <div className="relative">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
             <input
@@ -223,6 +488,7 @@ export default function DisbursementPage() {
             />
           </div>
 
+          {/* Filters */}
           <select
             value={filterOffice}
             onChange={(e) => {
@@ -233,9 +499,7 @@ export default function DisbursementPage() {
           >
             <option value="">Filter by Office</option>
             {offices.map((o) => (
-              <option key={o} value={o}>
-                {o}
-              </option>
+              <option key={o} value={o}>{o}</option>
             ))}
           </select>
 
@@ -249,9 +513,7 @@ export default function DisbursementPage() {
           >
             <option value="">Filter by Expense Type</option>
             {expenses.map((e) => (
-              <option key={e.type} value={e.type}>
-                {e.type}
-              </option>
+              <option key={e.type} value={e.type}>{e.type}</option>
             ))}
           </select>
 
@@ -265,29 +527,26 @@ export default function DisbursementPage() {
           >
             <option value="">Filter by Category</option>
             {[...new Set(expenses.map((e) => e.category))].map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
+              <option key={c} value={c}>{c}</option>
             ))}
           </select>
+
+          {/* Record Disbursement Button */}
+          <button
+            onClick={handleAdd}
+            className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
+          >
+            <Plus className="w-4 h-4 mr-2" /> Record Disbursement
+          </button>
         </div>
-
-        <button
-          onClick={handleAdd}
-          className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
-        >
-          <Plus className="w-4 h-4 mr-2" /> Record Disbursement
-        </button>
       </div>
+      <hr className="border-gray-300 mb-6" />
 
-      {/* Table */}
+      {/* =================== Table =================== */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[600px]">
-        <div className="flex-grow overflow-y-auto">
+        <div className="flex-grow overflow-y-auto relative">
           <table className="min-w-full border-collapse">
-            <thead
-              className="text-white border-b bg-cover bg-center"
-              style={{ backgroundImage: "url('/img/blue.jpg')" }}
-            >
+            <thead className="text-white border-b bg-cover bg-center" style={{ backgroundImage: "url('/img/blue.jpg')" }}>
               <tr>
                 <th className="px-6 py-2 text-left">DV No.</th>
                 <th className="px-3 py-2 text-left">Payee</th>
@@ -296,42 +555,31 @@ export default function DisbursementPage() {
                 <th className="px-3 py-2 text-left">Category</th>
                 <th className="px-3 py-2 text-left">Amount</th>
                 <th className="px-3 py-2 text-left">Date</th>
-                <th className="px-3 py-2 text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
               {currentItems.length > 0 ? (
                 currentItems.map((d) => (
-                  <tr key={d.id} className="border-b hover:bg-gray-200">
+                  <tr key={d.id} onClick={() => { setSelectedDisbursement(d); setShowDetailsModal(true); }} className="border-b hover:bg-gray-200 cursor-pointer">
                     <td className="px-6 py-3">{d.dvNo}</td>
                     <td className="px-6 py-3">{d.payee}</td>
                     <td className="px-6 py-3">{d.office}</td>
                     <td className="px-6 py-3">{d.expenseType}</td>
                     <td className="px-6 py-3">{d.expenseCategory}</td>
-                    <td className="px-6 py-3">₱{parseFloat(d.amount).toLocaleString()}</td>
+                   <td className="px-6 py-3">
+  <span className="px-3 py-1 rounded-full bg-green-100 text-gray-700 border border-gray-700 font-semibold">
+    ₱{parseFloat(d.amount).toLocaleString()}
+  </span>
+</td>
                     <td className="px-6 py-3">{new Date(d.dateCreated).toLocaleDateString()}</td>
-                    <td className="px-6 py-3 text-center space-x-2">
-                      <button onClick={() => handleEdit(d.id)} className="text-blue-600 hover:text-blue-800">
-                        <Edit className="w-4 h-4 inline" />
-                      </button>
-                      <button
-                        onClick={() => openDeleteModal(d.id, d.payee)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <Trash2 className="w-4 h-4 inline" />
-                      </button>
-                    </td>
+                   
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td colSpan={8} className="py-6 text-gray-500 italic">
                     <div className="flex flex-col items-center justify-center">
-                      <img
-                        src="/img/disburse.png"
-                        alt="No data"
-                        className="mb-2 max-w-[200px] h-auto object-contain"
-                      />
+                      <img src="/img/disburse.png" alt="No data" className="mb-2 max-w-[200px] h-auto object-contain" />
                       <span>No disbursement records found.</span>
                     </div>
                   </td>
@@ -357,7 +605,6 @@ export default function DisbursementPage() {
                     Previous
                   </button>
                 </li>
-
                 {[...Array(totalPages)].map((_, index) => (
                   <li key={index}>
                     <button
@@ -370,7 +617,6 @@ export default function DisbursementPage() {
                     </button>
                   </li>
                 ))}
-
                 <li>
                   <button
                     onClick={() => handlePageChange(currentPage + 1)}
@@ -388,118 +634,523 @@ export default function DisbursementPage() {
         </div>
       </div>
 
-      {/* Add/Edit Modal */}
-      {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/30">
-          <div className="bg-white border shadow-xl p-6 rounded-lg w-full max-w-md relative flex flex-col gap-3">
-            <button
-              onClick={() => setShowModal(false)}
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
-            >
-              <X className="w-5 h-5" />
-            </button>
+      {/* =================== Floating Scan Button =================== */}
+      <FloatingScanButton
+        onClick={() => {
+          setShowScanModal(true);
+          setScanMode("camera");
+        }}
+      />
 
-            <h2 className="text-lg font-semibold mb-2 text-center">
-              {editingId ? "Edit Disbursement" : "Record Disbursement"}
-            </h2>
+{/* =================== Add/Edit Disbursement Modal =================== */}
+{showModal && (
+  <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+    {/* Overlay */}
+    <div
+      className="absolute inset-0 bg-black/20 pointer-events-auto"
+      onClick={() => setShowModal(false)}
+    ></div>
 
-            <input
-              type="text"
-              placeholder="DV No."
-              value={formData.dvNo}
-              onChange={(e) => setFormData({ ...formData, dvNo: e.target.value })}
-              className="border rounded-md p-2 w-full"
-            />
-
-            <input
-              type="text"
-              placeholder="Payee"
-              value={formData.payee}
-              onChange={(e) => setFormData({ ...formData, payee: e.target.value })}
-              className="border rounded-md p-2 w-full"
-            />
-
-            <select
-              value={formData.office}
-              onChange={(e) => setFormData({ ...formData, office: e.target.value })}
-              className="border rounded-md p-2 w-full"
-            >
-              <option value="">Select Office</option>
-              {offices.map((o) => (
-                <option key={o} value={o}>
-                  {o}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={formData.expenseType}
-              onChange={(e) => setFormData({ ...formData, expenseType: e.target.value })}
-              className="border rounded-md p-2 w-full"
-            >
-              <option value="">Select Type</option>
-              {expenses.map((e) => (
-                <option key={e.type} value={e.type}>
-                  {e.type}
-                </option>
-              ))}
-            </select>
-
-            <input
-              type="text"
-              placeholder="Category"
-              value={formData.expenseCategory}
-              readOnly
-              className="border rounded-md p-2 w-full bg-gray-100"
-            />
-
-            <input
-              type="number"
-              placeholder="Amount"
-              value={formData.amount}
-              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-              className="border rounded-md p-2 w-full"
-            />
-
-            <button
-              onClick={handleSave}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 mt-3"
-            >
-              Save
-            </button>
+    {/* Modal */}
+    <div
+      className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden z-10 pointer-events-auto"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 bg-[#1E3358]">
+        <div className="flex items-center gap-2">
+          <div className="bg-white p-2 rounded-full">
+            {editingId ? <Edit size={18} className="text-blue-600" /> : <Plus size={18} className="text-blue-600" />}
           </div>
+          <h2 className="text-white text-lg font-semibold">
+            {editingId ? "Edit Disbursement" : "Record Disbursement"}
+          </h2>
         </div>
-      )}
+        <button
+          onClick={() => setShowModal(false)}
+          className="text-white hover:text-gray-200"
+        >
+          <X size={20} />
+        </button>
+      </div>
 
-      {/* 🟥 Delete Modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <div className="absolute inset-0 bg-black opacity-30 pointer-events-auto"></div>
-          <div className="bg-white rounded-lg shadow-lg w-96 p-6 z-10 pointer-events-auto">
-            <h2 className="text-lg font-semibold mb-3 text-center text-red-600">
-              Confirm Delete
-            </h2>
-            <p className="text-gray-700 text-center mb-5">
-              Are you sure you want to delete the disbursement for{" "}
-              <span className="font-semibold">{deletePayee}</span>?
-            </p>
-            <div className="flex justify-end space-x-2">
+      {/* Body */}
+      <div className="p-5 space-y-4">
+        {/* DV No */}
+        <div className="bg-gray-100 rounded-lg p-3">
+          <label className="text-xs text-gray-500">DV No.</label>
+          <input
+            type="text"
+            placeholder="DV No."
+            value={formData.dvNo}
+            onChange={(e) => setFormData({ ...formData, dvNo: e.target.value })}
+            className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
+          />
+        </div>
+
+        {/* Payee */}
+        <div className="bg-gray-100 rounded-lg p-3">
+          <label className="text-xs text-gray-500">Payee</label>
+          <input
+            type="text"
+            placeholder="Payee"
+            value={formData.payee}
+            onChange={(e) => setFormData({ ...formData, payee: e.target.value })}
+            className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
+          />
+        </div>
+
+        {/* Office */}
+        <div className="bg-gray-100 rounded-lg p-3">
+          <label className="text-xs text-gray-500">Office</label>
+          <select
+            value={formData.office}
+            onChange={(e) => setFormData({ ...formData, office: e.target.value })}
+            className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
+          >
+            <option value="">Select Office</option>
+            {offices.map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Expense Type */}
+        <div className="bg-gray-100 rounded-lg p-3">
+          <label className="text-xs text-gray-500">Expense Type</label>
+          <select
+            value={formData.expenseType}
+            onChange={(e) => setFormData({ ...formData, expenseType: e.target.value })}
+            className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
+          >
+            <option value="">Select Type</option>
+            {expenses.map((e) => (
+              <option key={e.type} value={e.type}>
+                {e.type}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Category */}
+        <div className="bg-gray-100 rounded-lg p-3">
+          <label className="text-xs text-gray-500">Category</label>
+          <input
+            type="text"
+            value={formData.expenseCategory}
+            readOnly
+            className="w-full bg-gray-200 mt-1 outline-none font-semibold text-gray-700"
+          />
+        </div>
+
+        {/* Remaining Budget */}
+        <div className="bg-gray-100 rounded-lg p-3">
+          <label className="text-xs text-gray-500">Remaining Budget</label>
+          <input
+            type="text"
+            value={remainingBudget}
+            readOnly
+            className="w-full bg-gray-200 mt-1 outline-none font-semibold text-gray-700"
+          />
+        </div>
+
+        {/* Amount */}
+        <div className="bg-gray-100 rounded-lg p-3">
+          <label className="text-xs text-gray-500">Amount</label>
+          <input
+            type="number"
+            value={formData.amount}
+            onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+            className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
+          />
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="flex justify-end gap-3 px-4 py-3 bg-gray-50 border-t">
+        <button
+          onClick={() => setShowModal(false)}
+          className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSave}
+          className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+        >
+          {editingId ? "Save Changes" : "Save"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+
+{/* 🟦 Disbursement Details Panel */}
+{showDetailsModal && selectedDisbursement && (
+  <div className="fixed inset-0 z-50 flex">
+    {/* Overlay */}
+    <div
+      className="absolute inset-0 bg-black/20"
+      onClick={() => setShowDetailsModal(false)}
+    ></div>
+
+    {/* Right-side Sliding Panel */}
+    <aside
+      className="ml-auto w-full sm:w-[520px] h-full bg-white rounded-xl shadow-lg overflow-hidden z-10 pointer-events-auto flex flex-col"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 bg-[#1E3358]">
+        <h2 className="text-white text-2xl font-bold">Disbursement Details</h2>
+        <button
+          onClick={() => setShowDetailsModal(false)}
+          className="text-white hover:text-gray-200"
+        >
+          <X size={24} />
+        </button>
+      </div>
+
+      {/* Body */}
+      <div className="p-6 space-y-6 text-gray-800 flex-1 overflow-y-auto">
+        <div className="text-center">
+          <div className="text-sm text-gray-500">DV No.</div>
+          <div className="font-bold text-xl">{selectedDisbursement.dvNo}</div>
+        </div>
+        <hr className="border-gray-200" />
+
+        <div className="text-center">
+          <div className="text-sm text-gray-500">Payee</div>
+          <div className="font-bold text-xl">{selectedDisbursement.payee}</div>
+        </div>
+        <hr className="border-gray-200" />
+
+        <div className="text-center">
+          <div className="text-sm text-gray-500">Office</div>
+          <div className="font-bold text-xl">{selectedDisbursement.office}</div>
+        </div>
+        <hr className="border-gray-200" />
+
+        <div className="text-center">
+          <div className="text-sm text-gray-500">Amount</div>
+          <div className="font-bold text-xl">₱{parseFloat(selectedDisbursement.amount).toLocaleString()}</div>
+        </div>
+        <hr className="border-gray-200" />
+
+        <div className="text-center">
+          <div className="text-sm text-gray-500">Type</div>
+          <div className="font-bold text-xl">{selectedDisbursement.expenseType}</div>
+        </div>
+        <hr className="border-gray-200" />
+
+        <div className="text-center">
+          <div className="text-sm text-gray-500">Category</div>
+          <div className="font-bold text-xl">{selectedDisbursement.expenseCategory}</div>
+        </div>
+        <hr className="border-gray-200" />
+
+        <div className="text-center">
+          <div className="text-sm text-gray-500">Date</div>
+          <div className="font-bold text-xl">{new Date(selectedDisbursement.dateCreated).toLocaleString()}</div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="mt-auto flex justify-end gap-3 px-6 py-4 bg-white border-t">
+        <button
+          onClick={() => setShowDetailsModal(false)}
+          className="px-5 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 text-lg font-semibold"
+        >
+          Close
+        </button>
+        <button
+          onClick={() => { setShowDetailsModal(false); handleEdit(selectedDisbursement.id); }}
+          className="px-5 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-lg font-semibold"
+        >
+          <Edit />
+        </button>
+        <button
+          onClick={() => { setShowDetailsModal(false); openDeleteModal(selectedDisbursement.id, selectedDisbursement.payee); }}
+          className="px-5 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 text-lg font-semibold"
+        >
+          <Trash2 />
+        </button>
+      </div>
+    </aside>
+  </div>
+)}
+
+
+
+
+
+
+
+    {/* =================== Delete Modal =================== */}
+{showDeleteModal && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+
+    {/* Subtle overlay (same as Add Modal) */}
+    <div
+      className="absolute inset-0 bg-black opacity-10 pointer-events-auto"
+      onClick={() => setShowDeleteModal(false)}
+    ></div>
+
+    {/* Modal */}
+    <div
+      className="bg-white rounded-xl shadow-lg w-[420px] overflow-hidden z-10 pointer-events-auto"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* HEADER (Matched design but using danger color) */}
+      <div className="bg-red-600 flex items-center justify-between px-4 py-3">
+        <h2 className="text-white text-lg font-semibold">Confirm Delete</h2>
+        <button
+          onClick={() => setShowDeleteModal(false)}
+          className="text-white hover:text-gray-200"
+        >
+          <X size={20} />
+        </button>
+      </div>
+
+      {/* BODY */}
+      <div className="p-6">
+        <p className="text-gray-700 text-center mb-2">
+          Are you sure you want to delete the disbursement for{" "}
+          <span className="font-semibold">{deletePayee}</span>?
+        </p>
+      </div>
+
+      {/* FOOTER (Same layout & style as Add Modal) */}
+      <div className="flex justify-end gap-3 px-4 py-3 bg-gray-50 border-t">
+        <button
+          onClick={() => setShowDeleteModal(false)}
+          className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+        >
+          Cancel
+        </button>
+
+        <button
+          onClick={handleConfirmDelete}
+          className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+
+      {/* =================== OCR Scanner Modal =================== */}
+      {showScanModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-gray-100 border-b p-4 flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Disbursement Document Scanner</h2>
               <button
-                onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-100 transition"
+                onClick={closeScanModal}
+                className="text-gray-500 hover:text-gray-700"
               >
-                Cancel
+                <X className="w-6 h-6" />
               </button>
-              <button
-                onClick={handleConfirmDelete}
-                className="px-4 py-2 rounded-md bg-red-500 text-white hover:bg-red-600 transition"
-              >
-                Delete
-              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Mode Selection */}
+              <div className="flex gap-3 mb-4">
+                <button
+                  onClick={() => setScanMode("camera")}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition ${
+                    scanMode === "camera"
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-gray-300 hover:border-gray-400"
+                  }`}
+                >
+                  <Camera className="w-5 h-5" /> Camera
+                </button>
+                <button
+                  onClick={() => setScanMode("upload")}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition ${
+                    scanMode === "upload"
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-gray-300 hover:border-gray-400"
+                  }`}
+                >
+                  <Upload className="w-5 h-5" /> Upload
+                </button>
+              </div>
+
+                     {/* Camera Mode */}
+{scanMode === "camera" && (
+  <div className="space-y-3">
+    {/* Video Preview */}
+    <video
+      ref={videoRef}
+      autoPlay
+      playsInline
+      muted
+      className={`w-full max-h-96 bg-black rounded-lg object-cover mb-2 transition-opacity ${
+        cameraActive ? "opacity-100" : "opacity-0"
+      }`}
+    />
+
+    {!cameraActive ? (
+      <button
+        onClick={startCamera}
+        className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-semibold flex items-center justify-center gap-2"
+      >
+        <Camera className="w-5 h-5" /> Start Camera
+      </button>
+    ) : (
+      <div className="flex gap-2">
+        <button
+          onClick={capturePhoto}
+          disabled={ocrLoading}
+          className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-semibold disabled:bg-gray-400 flex items-center justify-center gap-2"
+        >
+          {ocrLoading ? (
+            <>
+              <Loader className="w-5 h-5 animate-spin" /> Processing...
+            </>
+          ) : (
+            <>
+              <Camera className="w-5 h-5" /> Capture Photo
+            </>
+          )}
+        </button>
+        <button
+          onClick={stopCamera}
+          className="flex-1 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 font-semibold"
+        >
+          Cancel
+        </button>
+      </div>
+    )}
+  </div>
+)}
+
+
+
+              {/* Upload Mode */}
+              {scanMode === "upload" && (
+                <div className="space-y-3">
+                  <label className="block">
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition">
+                      <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                      <p className="font-semibold text-gray-700">Click to upload image</p>
+                      <p className="text-sm text-gray-500">or drag and drop</p>
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        if (e.target.files?.[0]) {
+                          handleImageUpload(e.target.files[0]);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                  {ocrLoading && (
+                    <div className="flex items-center justify-center gap-2 text-blue-600 font-semibold py-4">
+                      <Loader className="w-5 h-5 animate-spin" /> Processing image...
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* OCR Result Display */}
+              {ocrResult && (
+                <div className="bg-gray-50 border rounded-lg p-4 space-y-3">
+                  <h3 className="font-semibold text-gray-800">Extracted Data</h3>
+                  <div className="max-h-32 overflow-y-auto bg-white p-3 border rounded text-sm text-gray-700 font-mono whitespace-pre-wrap">
+                    {ocrResult}
+                  </div>
+                </div>
+              )}
+
+              {/* Extracted Form Fields */}
+              {ocrResult && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+                  <h3 className="font-semibold text-gray-800">Auto-filled Fields</h3>
+                  <div className="grid grid-cols-1 gap-2 text-sm">
+                    {formData.dvNo && (
+                      <p>
+                        <span className="font-semibold">DV No.:</span> {formData.dvNo}
+                      </p>
+                    )}
+                    {formData.payee && (
+                      <p>
+                        <span className="font-semibold">Payee:</span> {formData.payee}
+                      </p>
+                    )}
+                    {formData.office && (
+                      <p>
+                        <span className="font-semibold">Office:</span> {formData.office}
+                      </p>
+                    )}
+                    {formData.expenseType && (
+                      <p>
+                        <span className="font-semibold">Expense Type:</span> {formData.expenseType}
+                      </p>
+                    )}
+                    {formData.expenseCategory && (
+                      <p>
+                        <span className="font-semibold">Category:</span> {formData.expenseCategory}
+                      </p>
+                    )}
+                    {formData.date && (
+                      <p>
+                        <span className="font-semibold">Date:</span> {formData.date}
+                      </p>
+                    )}
+                    {formData.amount && (
+                      <p>
+                        <span className="font-semibold">Amount:</span> ₱{parseFloat(formData.amount).toLocaleString()}
+                      </p>
+                    )}
+                    {!formData.dvNo && !formData.payee && !formData.amount && !formData.office && !formData.expenseType && !formData.expenseCategory && !formData.date && (
+                      <p className="text-gray-500 italic">
+                        No fields extracted. Please review the OCR text above.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-4 border-t">
+                <button
+                  onClick={() => {
+                    if (formData.dvNo || formData.payee || formData.amount || formData.office || formData.expenseType || formData.expenseCategory || formData.date) {
+                      setShowModal(true);
+                      closeScanModal();
+                    } else {
+                      toast.error("Please extract data first");
+                    }
+                  }}
+                  disabled={!ocrResult || (!formData.dvNo && !formData.payee && !formData.amount && !formData.office && !formData.expenseType && !formData.expenseCategory && !formData.date)}
+                  className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  Use Extracted Data
+                </button>
+                <button
+                  onClick={closeScanModal}
+                  className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 font-semibold"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* Hidden canvas for photo capture */}
+      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
 }
