@@ -392,96 +392,98 @@ export default function AddBudgetPage() {
         </div>
       )}
 
-{/* 🟦 Budget Details Modal */}
+{/* 🟦 Budget Details Panel */}
 {showDetailsModal && selectedBudget && (
   <div className="fixed inset-0 z-50 flex">
-    <div className="absolute inset-0 bg-black opacity-10" onClick={() => setShowDetailsModal(false)}></div>
+    {/* Overlay */}
+    <div
+      className="absolute inset-0 bg-black/20"
+      onClick={() => setShowDetailsModal(false)}
+    ></div>
 
-    {/* Slide-in panel */}
-    <aside className="ml-auto w-full sm:w-[520px] h-full bg-white shadow-2xl z-10 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
-      <div className="p-6 flex flex-col h-full">
-      {/* HEADER — centered title */}
-      <div className="bg-[#1E3358] relative px-4 py-3">
-        <h2 className="text-white text-lg font-semibold text-center">
-          Budget Details
-        </h2>
-
+    {/* Right-side Sliding Panel */}
+    <aside
+      className="ml-auto w-full sm:w-[520px] h-full bg-white rounded-xl shadow-lg overflow-hidden z-10 pointer-events-auto flex flex-col"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 bg-[#1E3358]">
+        <h2 className="text-white text-2xl font-bold">Budget Details</h2>
         <button
           onClick={() => setShowDetailsModal(false)}
-          className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-200"
+          className="text-white hover:text-gray-200"
         >
-          <X size={20} />
+          <X size={24} />
         </button>
       </div>
 
-      {/* BODY */}
-      <div className="p-5 grid grid-cols-2 gap-4 text-sm text-gray-700">
-        <div>
-          <div className="text-xs text-gray-500">Office</div>
-          <div className="font-semibold">{selectedBudget.item.office}</div>
+      {/* Body */}
+      <div className="p-6 space-y-6 text-gray-800 flex-1 overflow-y-auto">
+        <div className="text-center">
+          <div className="text-sm text-gray-500">Office</div>
+          <div className="font-bold text-xl">{selectedBudget.item.office}</div>
+        </div>
+        <hr className="border-gray-200" />
+        <div className="text-center">
+          <div className="text-sm text-gray-500">Personal Services</div>
+          <div className="font-bold text-xl">₱{selectedBudget.item.ps.toLocaleString()}</div>
+        </div>
+       
+        <hr className="border-gray-200" />
+  <div className="text-center">
+          <div className="text-sm text-gray-500">Maintenance & Other Operating Expenses</div>
+          <div className="font-bold text-xl">₱{selectedBudget.item.mooe.toLocaleString()}</div>
         </div>
 
-        <div>
-          <div className="text-xs text-gray-500">Total</div>
-          <div className="font-semibold">₱{selectedBudget.item.total.toLocaleString()}</div>
-        </div>
+        <hr className="border-gray-200" />
 
-        <div>
-          <div className="text-xs text-gray-500">PS</div>
-          <div className="font-semibold">₱{selectedBudget.item.ps.toLocaleString()}</div>
+              <div className="text-center">
+          <div className="text-sm text-gray-500">Capital Outlays</div>
+          <div className="font-bold text-xl">₱{selectedBudget.item.co.toLocaleString()}</div>
         </div>
+        <hr className="border-gray-200" />
 
-        <div>
-          <div className="text-xs text-gray-500">MOOE</div>
-          <div className="font-semibold">₱{selectedBudget.item.mooe.toLocaleString()}</div>
+
+
+         <div className="text-center">
+          <div className="text-sm text-gray-500">Total</div>
+          <div className="font-bold text-xl">₱{selectedBudget.item.total.toLocaleString()}</div>
         </div>
+        <hr className="border-gray-200" />
 
-        <div>
-          <div className="text-xs text-gray-500">CO</div>
-          <div className="font-semibold">₱{selectedBudget.item.co.toLocaleString()}</div>
-        </div>
-
-        <div>
-          <div className="text-xs text-gray-500">Date</div>
-          <div className="font-semibold">
-            {selectedBudget.item.dateCreated}
-          </div>
+        <div className="text-center">
+          <div className="text-sm text-gray-500">Date</div>
+          <div className="font-bold text-xl">{new Date(selectedBudget.item.dateCreated).toLocaleString()}</div>
         </div>
       </div>
 
-      {/* FOOTER */}
-      <div className="mt-auto flex justify-end gap-3 px-4 py-3 bg-gray-50 border-t">
+      {/* Footer */}
+      <div className="mt-auto flex justify-end gap-3 px-6 py-4 bg-white border-t">
         <button
           onClick={() => setShowDetailsModal(false)}
-          className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+          className="px-5 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 text-lg font-semibold"
         >
           Close
         </button>
 
         <button
-          onClick={() => {
-            setShowDetailsModal(false);
-            handleEdit(selectedBudget.index);
-          }}
-          className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+          onClick={() => { setShowDetailsModal(false); handleEdit(selectedBudget.index); }}
+          className="px-5 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-lg font-semibold"
         >
-          <Edit/>
+          <Edit />
         </button>
 
         <button
-          onClick={() => {
-            setShowDetailsModal(false);
-            handleDeleteClick(selectedBudget.index);
-          }}
-          className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600"
+          onClick={() => { setShowDetailsModal(false); handleDeleteClick(selectedBudget.index); }}
+          className="px-5 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 text-lg font-semibold"
         >
-          <Trash2/>
+          <Trash2 />
         </button>
       </div>
-    </div>
     </aside>
   </div>
 )}
+
 
 
       {/* 🟥 Delete Confirmation Modal */}
