@@ -486,41 +486,65 @@ export default function AddBudgetPage() {
 
 
 
-      {/* 🟥 Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <div
-            className="absolute inset-0 bg-black opacity-20 pointer-events-auto"
-            onClick={() => setShowDeleteModal(false)}
-          ></div>
-          <div className="bg-white rounded-xl shadow-lg w-[420px] p-6 z-10 pointer-events-auto">
-            <h2 className="text-lg font-semibold mb-3 text-center text-red-600">
-              Confirm Delete
-            </h2>
-            <p className="text-gray-700 text-center mb-5">
-              Are you sure you want to delete{" "}
-              <span className="font-semibold">
-                {deleteIndex !== null ? budgets[deleteIndex]?.office : ""}
-              </span>
-              ?
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmDelete}
-                className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+ {/* 🟥 Delete Confirmation Modal */}
+{showDeleteModal && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+
+    {/* Subtle overlay (same as Add Modal) */}
+    <div
+      className="absolute inset-0 bg-black opacity-10 pointer-events-auto"
+      onClick={() => setShowDeleteModal(false)}
+    ></div>
+
+    {/* Modal */}
+    <div
+      className="bg-white rounded-xl shadow-lg w-[420px] overflow-hidden z-10 pointer-events-auto"
+      onClick={(e) => e.stopPropagation()}
+    >
+
+      {/* HEADER (same structure as Add Modal, but red for delete) */}
+      <div className="bg-red-600 flex items-center justify-between px-4 py-3">
+        <h2 className="text-white text-lg font-semibold">Confirm Delete</h2>
+        <button
+          onClick={() => setShowDeleteModal(false)}
+          className="text-white hover:text-gray-200"
+        >
+          <X size={20} />
+        </button>
+      </div>
+
+      {/* BODY */}
+      <div className="p-6">
+        <p className="text-gray-700 text-center mb-1">
+          Are you sure you want to delete{" "}
+          <span className="font-semibold">
+            {deleteIndex !== null ? budgets[deleteIndex]?.office : ""}
+          </span>
+          ?
+        </p>
+      </div>
+
+      {/* FOOTER (same as Add Modal) */}
+      <div className="flex justify-end gap-3 px-4 py-3 bg-gray-50 border-t">
+        <button
+          onClick={() => setShowDeleteModal(false)}
+          className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+        >
+          Cancel
+        </button>
+
+        <button
+          onClick={handleConfirmDelete}
+          className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+        >
+          Delete
+        </button>
+      </div>
+
+    </div>
+  </div>
+)}
+
     </div>
   );
 }
