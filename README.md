@@ -16,18 +16,17 @@ Notes:
 
 
 # Requirements 
-
+````
 MYSQL
 HeidiSQL
 Prisma
+````
 
-
-
-
-## powershell
-
+# Powershell
+````bash
 npm install
 npm run dev
+````
 
 ## to migrate db
 
