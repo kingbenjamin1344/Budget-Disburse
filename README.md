@@ -28,7 +28,7 @@ npm install
 npm run dev
 ````
 
-## to migrate db
+# Migrate db
 step 1 run this command in terminal
 ````bash
 npm install prisma @prisma/client mysql2
@@ -39,16 +39,16 @@ npm install prisma @prisma/client mysql2
 DATABASE_URL="mysql://root:password@localhost:3306/budget_disburse"
 ````
 
-## open Heidi Sql 
+## Open Heidi Sql 
 - create session
 - user:root
 - password:password
 - port:3306
 
-## create db name
+## Create db name
 budget_disburse and run finaldisburse.sql in query
 
-## run terminal
+## Run terminal
 ````bash
 npm run dev
 ````
