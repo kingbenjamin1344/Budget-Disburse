@@ -10,7 +10,7 @@
     "seed:log": "node scripts/seed-log.js"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.0",
+    "@prisma/client": "^6.19.1",
     "bcryptjs": "^3.0.3",
     "bootstrap": "^5.3.8",
     "html2canvas": "^1.4.1",
@@ -36,7 +36,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.5.4",
-    "prisma": "^6.19.0",
+    "prisma": "^6.19.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

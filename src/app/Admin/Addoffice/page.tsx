@@ -82,25 +82,42 @@ export default function AddOfficePage() {
     setDeleteModal(true);
   };
 
-  const handleConfirmDelete = async () => {
-    if (!officeToDelete) return;
-    try {
-      const res = await fetch("/api/offices", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: officeToDelete.id }),
-      });
-      if (!res.ok) throw new Error("Failed to delete office");
+const handleConfirmDelete = async () => {
+  if (!officeToDelete) return;
 
-      setDeleteModal(false);
-      setOfficeToDelete(null);
-      fetchOffices();
-      toast.success("Office deleted successfully");
-    } catch (error) {
-      console.error(error);
-      toast.error("Error deleting office");
+  setLoading(true);
+
+  try {
+    const res = await fetch("/api/offices", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: officeToDelete.id }),
+    });
+
+    const data = await res.json();
+
+    // ❌ Delete blocked by backend
+    if (!res.ok || data.success === false) {
+      toast.error(
+        data.message || "Unable to delete office. Please remove related records first."
+      );
+      return;
     }
-  };
+
+    // ✅ Success
+    toast.success("Office deleted successfully");
+    setDeleteModal(false);
+    setOfficeToDelete(null);
+    fetchOffices();
+
+  } catch (err) {
+    // ⚠️ Network / unexpected failure only
+    toast.error("Network error. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // 🟩 Filter and paginate
   const filteredOffices = offices.filter((o) =>
