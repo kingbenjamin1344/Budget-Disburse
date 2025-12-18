@@ -310,8 +310,19 @@ const startCamera = async () => {
   // ====== Auto-fill category when expenseType changes ======
   useEffect(() => {
     const match = expenses.find((e) => e.type === formData.expenseType);
-    if (match) setFormData((prev) => ({ ...prev, expenseCategory: match.category }));
+    if (match && formData.expenseCategory !== match.category) {
+      setFormData((prev) => ({ ...prev, expenseCategory: match.category }));
+    }
   }, [formData.expenseType, expenses]);
+
+  // When category changes, clear expenseType if it doesn't belong to the category
+  useEffect(() => {
+    if (!formData.expenseCategory) return;
+    const typesForCategory = expenses.filter((e) => e.category === formData.expenseCategory).map((e) => e.type);
+    if (formData.expenseType && !typesForCategory.includes(formData.expenseType)) {
+      setFormData((prev) => ({ ...prev, expenseType: "" }));
+    }
+  }, [formData.expenseCategory, expenses]);
 
   // ====== Remaining Budget Calculation ======
   const remainingBudget = useMemo(() => {
@@ -320,7 +331,7 @@ const startCamera = async () => {
     const budget = budgets.find(
       (b) => b.office.toLowerCase() === formData.office.toLowerCase()
     );
-    if (!budget) return "";
+    if (!budget) return "Not budgeted yet";
 
     const category = formData.expenseCategory.toLowerCase();
     let budgetAmount = 0;
@@ -547,23 +558,10 @@ const isBudgetEnough = () => {
           </select>
 
           <select
-            value={filterExpense}
-            onChange={(e) => {
-              setFilterExpense(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="border border-gray-300 rounded-md px-3 py-2"
-          >
-            <option value="">Filter by Expense Type</option>
-            {expenses.map((e) => (
-              <option key={e.type} value={e.type}>{e.type}</option>
-            ))}
-          </select>
-
-          <select
             value={filterCategory}
             onChange={(e) => {
               setFilterCategory(e.target.value);
+              setFilterExpense("");
               setCurrentPage(1);
             }}
             className="border border-gray-300 rounded-md px-3 py-2"
@@ -572,6 +570,22 @@ const isBudgetEnough = () => {
             {[...new Set(expenses.map((e) => e.category))].map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
+          </select>
+
+          <select
+            value={filterExpense}
+            onChange={(e) => {
+              setFilterExpense(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="border border-gray-300 rounded-md px-3 py-2"
+          >
+            <option value="">Filter by Expense Type</option>
+            {expenses
+              .filter((ex) => !filterCategory || ex.category === filterCategory)
+              .map((e) => (
+                <option key={e.type} value={e.type}>{e.type}</option>
+              ))}
           </select>
 
           {/* Record Disbursement Button */}
@@ -760,32 +774,37 @@ const isBudgetEnough = () => {
           </select>
         </div>
 
-        {/* Expense Type */}
+        {/* Category (select first) */}
+        <div className="bg-gray-100 rounded-lg p-3">
+          <label className="text-xs text-gray-500">Category</label>
+          <select
+            value={formData.expenseCategory}
+            onChange={(e) => setFormData({ ...formData, expenseCategory: e.target.value, expenseType: "" })}
+            className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
+          >
+            <option value="">Select Category</option>
+            {[...new Set(expenses.map((e) => e.category))].map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Expense Type (filtered by category) */}
         <div className="bg-gray-100 rounded-lg p-3">
           <label className="text-xs text-gray-500">Expense Type</label>
           <select
             value={formData.expenseType}
             onChange={(e) => setFormData({ ...formData, expenseType: e.target.value })}
             className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
+            disabled={!formData.expenseCategory}
           >
-            <option value="">Select Type</option>
-            {expenses.map((e) => (
-              <option key={e.type} value={e.type}>
-                {e.type}
-              </option>
-            ))}
+            <option value="">{formData.expenseCategory ? "Select Type" : "Select Category first"}</option>
+            {expenses
+              .filter((ex) => !formData.expenseCategory || ex.category === formData.expenseCategory)
+              .map((ex) => (
+                <option key={ex.type} value={ex.type}>{ex.type}</option>
+              ))}
           </select>
-        </div>
-
-        {/* Category */}
-        <div className="bg-gray-100 rounded-lg p-3">
-          <label className="text-xs text-gray-500">Category</label>
-          <input
-            type="text"
-            value={formData.expenseCategory}
-            readOnly
-            className="w-full bg-gray-200 mt-1 outline-none font-semibold text-gray-700"
-          />
         </div>
 
         {/* Remaining Budget */}
@@ -887,13 +906,13 @@ const isBudgetEnough = () => {
           </div>
 
           <div>
-            <p className="text-gray-500">Expense Type</p>
-            <p className="font-semibold">{formData.expenseType}</p>
+            <p className="text-gray-500">Category</p>
+            <p className="font-semibold">{formData.expenseCategory}</p>
           </div>
 
           <div>
-            <p className="text-gray-500">Category</p>
-            <p className="font-semibold">{formData.expenseCategory}</p>
+            <p className="text-gray-500">Expense Type</p>
+            <p className="font-semibold">{formData.expenseType}</p>
           </div>
 
           <div>
@@ -986,14 +1005,14 @@ const isBudgetEnough = () => {
         <hr className="border-gray-200" />
 
         <div className="text-center">
-          <div className="text-sm text-gray-500">Type</div>
-          <div className="font-bold text-xl">{selectedDisbursement.expenseType}</div>
+          <div className="text-sm text-gray-500">Category</div>
+          <div className="font-bold text-xl">{selectedDisbursement.expenseCategory}</div>
         </div>
         <hr className="border-gray-200" />
 
         <div className="text-center">
-          <div className="text-sm text-gray-500">Category</div>
-          <div className="font-bold text-xl">{selectedDisbursement.expenseCategory}</div>
+          <div className="text-sm text-gray-500">Type</div>
+          <div className="font-bold text-xl">{selectedDisbursement.expenseType}</div>
         </div>
         <hr className="border-gray-200" />
 
@@ -1218,14 +1237,14 @@ const isBudgetEnough = () => {
                         <span className="font-semibold">Office:</span> {formData.office}
                       </p>
                     )}
-                    {formData.expenseType && (
-                      <p>
-                        <span className="font-semibold">Expense Type:</span> {formData.expenseType}
-                      </p>
-                    )}
                     {formData.expenseCategory && (
                       <p>
                         <span className="font-semibold">Category:</span> {formData.expenseCategory}
+                      </p>
+                    )}
+                    {formData.expenseType && (
+                      <p>
+                        <span className="font-semibold">Expense Type:</span> {formData.expenseType}
                       </p>
                     )}
                     {formData.date && (
