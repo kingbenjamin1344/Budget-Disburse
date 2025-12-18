@@ -63,6 +63,8 @@ export default function DisbursementPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+
 
   // ====== Fetch Offices, Expenses, Budgets ======
   useEffect(() => {
@@ -354,6 +356,47 @@ const startCamera = async () => {
       date: "",
     });
   };
+// ====== Budget Validation (before review modal) ======
+const isBudgetEnough = () => {
+  if (!formData.office || !formData.expenseCategory || !formData.amount) return true;
+
+  const budget = budgets.find(
+    (b) => b.office.toLowerCase() === formData.office.toLowerCase()
+  );
+
+  if (!budget) {
+    toast.error("No budget found for this office!");
+    return false;
+  }
+
+  const category = formData.expenseCategory.toLowerCase();
+  let budgetAmount = 0;
+
+  if (category === "ps") budgetAmount = parseFloat(budget.ps) || 0;
+  else if (category === "mooe") budgetAmount = parseFloat(budget.mooe) || 0;
+  else if (category === "co") budgetAmount = parseFloat(budget.co) || 0;
+
+  const disbursedAmount = disbursements
+    .filter(
+      (d) =>
+        d.office.toLowerCase() === formData.office.toLowerCase() &&
+        d.expenseCategory.toLowerCase() === category &&
+        d.id !== editingId
+    )
+    .reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+
+  const newTotal = disbursedAmount + parseFloat(formData.amount);
+
+  if (newTotal > budgetAmount) {
+    const remaining = (budgetAmount - disbursedAmount).toLocaleString();
+    toast.error(
+      `Budget exceeded!\nYou only have ₱${remaining} remaining for ${formData.expenseCategory}.`
+    );
+    return false;
+  }
+
+  return true;
+};
 
   const handleSave = async () => {
     if (!formData.dvNo || !formData.payee || !formData.office || !formData.expenseType || !formData.amount) {
@@ -776,17 +819,120 @@ const startCamera = async () => {
         >
           Cancel
         </button>
-        <button
-          onClick={handleSave}
-          className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-        >
-          {editingId ? "Save Changes" : "Save"}
-        </button>
+<button
+  onClick={() => {
+    // Required fields check first
+    if (!formData.dvNo || !formData.payee || !formData.office || !formData.expenseType || !formData.amount) {
+      toast.error("Please fill all required fields");
+      return;
+    }
+
+    // 🔥 Budget validation BEFORE review modal
+    if (!isBudgetEnough()) return;
+
+    // ✅ Open review modal only if valid
+    setShowReviewModal(true);
+  }}
+  className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+>
+  {editingId ? "Save Changes" : "Save"}
+</button>
+
       </div>
     </div>
   </div>
 )}
 
+{showReviewModal && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center">
+    {/* Overlay */}
+    <div
+      className="absolute inset-0 bg-black/30"
+      onClick={() => setShowReviewModal(false)}
+    ></div>
+
+    {/* Modal */}
+    <div className="bg-white rounded-xl shadow-xl w-full max-w-lg z-10">
+      {/* Header */}
+      <div className="px-6 py-4 bg-[#1E3358] flex justify-between items-center">
+        <h2 className="text-white text-xl font-bold">
+          Review Disbursement Details
+        </h2>
+        <button
+          onClick={() => setShowReviewModal(false)}
+          className="text-white"
+        >
+          <X size={22} />
+        </button>
+      </div>
+
+      {/* Body */}
+      <div className="p-6 space-y-4 text-gray-800">
+        <div className="text-center">
+          <p className="text-sm text-gray-500">DV No.</p>
+          <p className="font-bold text-lg">{formData.dvNo}</p>
+        </div>
+
+        <hr />
+
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <p className="text-gray-500">Payee</p>
+            <p className="font-semibold">{formData.payee}</p>
+          </div>
+
+          <div>
+            <p className="text-gray-500">Office</p>
+            <p className="font-semibold">{formData.office}</p>
+          </div>
+
+          <div>
+            <p className="text-gray-500">Expense Type</p>
+            <p className="font-semibold">{formData.expenseType}</p>
+          </div>
+
+          <div>
+            <p className="text-gray-500">Category</p>
+            <p className="font-semibold">{formData.expenseCategory}</p>
+          </div>
+
+          <div>
+            <p className="text-gray-500">Amount</p>
+            <p className="font-bold text-green-600">
+              ₱{parseFloat(formData.amount || "0").toLocaleString()}
+            </p>
+          </div>
+
+          {formData.date && (
+            <div>
+              <p className="text-gray-500">Date</p>
+              <p className="font-semibold">{formData.date}</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="flex justify-end gap-3 px-6 py-4 border-t bg-gray-50">
+        <button
+          onClick={() => setShowReviewModal(false)}
+          className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
+        >
+          Back
+        </button>
+        <button
+          onClick={() => {
+            setShowReviewModal(false);
+            handleSave(); // ✅ original save logic
+          }}
+          className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700"
+        >
+          Confirm & Save
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
 {/* 🟦 Disbursement Details Panel */}
 {showDetailsModal && selectedDisbursement && (
@@ -865,18 +1011,22 @@ const startCamera = async () => {
         >
           Close
         </button>
+         {/*
         <button
           onClick={() => { setShowDetailsModal(false); handleEdit(selectedDisbursement.id); }}
           className="px-5 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-lg font-semibold"
         >
           <Edit />
         </button>
-        <button
+          <button
           onClick={() => { setShowDetailsModal(false); openDeleteModal(selectedDisbursement.id, selectedDisbursement.payee); }}
           className="px-5 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 text-lg font-semibold"
         >
           <Trash2 />
         </button>
+        */}
+        
+      
       </div>
     </aside>
   </div>
@@ -888,7 +1038,7 @@ const startCamera = async () => {
 
 
 
-      {/* =================== Delete Modal =================== */}
+      {/* =================== Delete Modal =================== 
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
           <div className="absolute inset-0 bg-black opacity-30 pointer-events-auto"></div>
@@ -917,6 +1067,7 @@ const startCamera = async () => {
           </div>
         </div>
       )}
+      */}
 
       {/* =================== OCR Scanner Modal =================== */}
       {showScanModal && (

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import { Search, Plus, X, Edit, Trash2 } from "lucide-react";
+import { Search, Plus, X, Edit, Trash2, LockKeyhole } from "lucide-react";
 
 export default function AddBudgetPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -188,6 +188,15 @@ export default function AddBudgetPage() {
             className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
           >
             <Plus className="w-4 h-4 mr-2" /> Add Budget
+          </button>
+
+          <button
+            onClick={() => {
+   
+            }}
+            className="flex items-center bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition"
+          >
+            <LockKeyhole className="w-4 h-4 mr-2" /> Lock Budget
           </button>
         </div>
       </div>

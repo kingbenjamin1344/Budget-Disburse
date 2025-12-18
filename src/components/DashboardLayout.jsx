@@ -136,10 +136,12 @@ export default function DashboardLayout({ children }) {
                 className={`flex items-center justify-between px-3 py-2 rounded-md w-full transition-all
                 ${sidebarMini ? "justify-center" : ""} text-white`}
               >
-                <div className="flex items-center space-x-3">
-                  <UserStar size={20} color="white" />
-                  {!sidebarMini && <span>Admin</span>}
-                </div>
+
+<div className="flex items-center space-x-3">
+  <UserStar size={20} color="white" />
+  {!sidebarMini && <span className="ml-4">Admin</span>}
+</div>
+
 
                 {!sidebarMini && (
                   <ChevronRight
