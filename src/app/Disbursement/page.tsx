@@ -1017,7 +1017,7 @@ const isBudgetEnough = () => {
         <hr className="border-gray-200" />
 
         <div className="text-center">
-          <div className="text-sm text-gray-500">Date</div>
+          <div className="text-sm text-gray-500">Date & Time Created</div>
           <div className="font-bold text-xl">{new Date(selectedDisbursement.dateCreated).toLocaleString()}</div>
         </div>
       </div>
