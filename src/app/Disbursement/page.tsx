@@ -958,98 +958,147 @@ const isBudgetEnough = () => {
   <div className="fixed inset-0 z-50 flex">
     {/* Overlay */}
     <div
-      className="absolute inset-0 bg-black/20"
+      className="absolute inset-0 bg-black/40"
       onClick={() => setShowDetailsModal(false)}
     ></div>
 
     {/* Right-side Sliding Panel */}
     <aside
-      className="ml-auto w-full sm:w-[520px] h-full bg-white rounded-xl shadow-lg overflow-hidden z-10 pointer-events-auto flex flex-col"
+      className="ml-auto w-full sm:w-[520px] h-full bg-[#0F2544] shadow-xl overflow-hidden z-10 flex flex-col"
       onClick={(e) => e.stopPropagation()}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 bg-[#1E3358]">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-white/20">
         <h2 className="text-white text-2xl font-bold">Disbursement Details</h2>
         <button
           onClick={() => setShowDetailsModal(false)}
-          className="text-white hover:text-gray-200"
+          className="text-white hover:text-gray-300"
         >
           <X size={24} />
         </button>
       </div>
 
       {/* Body */}
-      <div className="p-6 space-y-6 text-gray-800 flex-1 overflow-y-auto">
-        <div className="text-center">
-          <div className="text-sm text-gray-500">DV No.</div>
-          <div className="font-bold text-xl">{selectedDisbursement.dvNo}</div>
-        </div>
-        <hr className="border-gray-200" />
+      <div className="p-6 space-y-6 text-white flex-1 overflow-y-auto">
 
+        {/* DV No */}
         <div className="text-center">
-          <div className="text-sm text-gray-500">Payee</div>
-          <div className="font-bold text-xl">{selectedDisbursement.payee}</div>
+          <div className="text-sm text-blue-200 uppercase tracking-wide">
+            DV No.
+          </div>
+          <div className="text-2xl font-bold mt-1">
+            {selectedDisbursement.dvNo}
+          </div>
         </div>
-        <hr className="border-gray-200" />
 
-        <div className="text-center">
-          <div className="text-sm text-gray-500">Office</div>
-          <div className="font-bold text-xl">{selectedDisbursement.office}</div>
-        </div>
-        <hr className="border-gray-200" />
+        <hr className="border-white/20" />
 
+        {/* Payee */}
         <div className="text-center">
-          <div className="text-sm text-gray-500">Amount</div>
-          <div className="font-bold text-xl">₱{parseFloat(selectedDisbursement.amount).toLocaleString()}</div>
+          <div className="text-sm text-blue-200 uppercase tracking-wide">
+            Payee
+          </div>
+          <div className="text-2xl font-bold mt-1">
+            {selectedDisbursement.payee}
+          </div>
         </div>
-        <hr className="border-gray-200" />
 
-        <div className="text-center">
-          <div className="text-sm text-gray-500">Category</div>
-          <div className="font-bold text-xl">{selectedDisbursement.expenseCategory}</div>
-        </div>
-        <hr className="border-gray-200" />
+        <hr className="border-white/20" />
 
+        {/* Office */}
         <div className="text-center">
-          <div className="text-sm text-gray-500">Type</div>
-          <div className="font-bold text-xl">{selectedDisbursement.expenseType}</div>
+          <div className="text-sm text-blue-200 uppercase tracking-wide">
+            Office
+          </div>
+          <div className="text-2xl font-bold mt-1">
+            {selectedDisbursement.office}
+          </div>
         </div>
-        <hr className="border-gray-200" />
 
-        <div className="text-center">
-          <div className="text-sm text-gray-500">Date & Time Created</div>
-          <div className="font-bold text-xl">{new Date(selectedDisbursement.dateCreated).toLocaleString()}</div>
+        <hr className="border-white/20" />
+
+        {/* Amount */}
+        <div className="flex justify-between items-center bg-white/10 rounded-lg p-4">
+          <span className="text-lg text-blue-100 font-semibold">
+            Amount
+          </span>
+          <span className="text-2xl font-extrabold">
+            ₱{parseFloat(selectedDisbursement.amount).toLocaleString()}
+          </span>
         </div>
+
+        <hr className="border-white/20" />
+
+        {/* Category */}
+        <div className="flex justify-between items-center">
+          <span className="text-blue-200">
+            Category
+          </span>
+          <span className="text-xl font-bold">
+            {selectedDisbursement.expenseCategory}
+          </span>
+        </div>
+
+        {/* Type */}
+        <div className="flex justify-between items-center">
+          <span className="text-blue-200">
+            Type
+          </span>
+          <span className="text-xl font-bold">
+            {selectedDisbursement.expenseType}
+          </span>
+        </div>
+
+        <hr className="border-white/20" />
+
+        {/* Date */}
+        <div className="text-center">
+          <div className="text-sm text-blue-200 uppercase tracking-wide">
+            Date & Time Created
+          </div>
+          <div className="font-semibold mt-1">
+            {new Date(selectedDisbursement.dateCreated).toLocaleString()}
+          </div>
+        </div>
+
       </div>
 
       {/* Footer */}
-      <div className="mt-auto flex justify-end gap-3 px-6 py-4 bg-white border-t">
+      <div className="mt-auto flex justify-end gap-3 px-6 py-4 border-t border-white/20 bg-[#0F2544]">
+
         <button
           onClick={() => setShowDetailsModal(false)}
-          className="px-5 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 text-lg font-semibold"
+          className="px-5 py-2 rounded-lg bg-white/10 text-white hover:bg-white/20 text-lg font-semibold"
         >
           Close
         </button>
-         {/*
+
+        {/*
         <button
-          onClick={() => { setShowDetailsModal(false); handleEdit(selectedDisbursement.id); }}
-          className="px-5 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-lg font-semibold"
+          onClick={() => {
+            setShowDetailsModal(false);
+            handleEdit(selectedDisbursement.id);
+          }}
+          className="px-5 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-lg font-semibold flex items-center gap-2"
         >
-          <Edit />
+          <Edit size={18} /> Edit
         </button>
-          <button
-          onClick={() => { setShowDetailsModal(false); openDeleteModal(selectedDisbursement.id, selectedDisbursement.payee); }}
-          className="px-5 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 text-lg font-semibold"
+
+        <button
+          onClick={() => {
+            setShowDetailsModal(false);
+            openDeleteModal(selectedDisbursement.id, selectedDisbursement.payee);
+          }}
+          className="px-5 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-lg font-semibold flex items-center gap-2"
         >
-          <Trash2 />
+          <Trash2 size={18} /> Delete
         </button>
         */}
-        
-      
       </div>
     </aside>
   </div>
 )}
+
 
 
 

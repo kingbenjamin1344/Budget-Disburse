@@ -313,136 +313,93 @@ export default function AddOfficePage() {
   </div>
 )}
 
-{/* 🟩 Edit Office Modal (Subtle Overlay) */}
-{editModal && editingOffice && (
-  <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
-    {/* Subtle background overlay */}
-    <div
-      className="absolute inset-0 bg-black opacity-10 pointer-events-auto"
-      onClick={() => setEditModal(false)}
-    ></div>
-
-    {/* Modal */}
-    <div
-      className="bg-white rounded-xl shadow-lg w-[420px] overflow-hidden z-10 pointer-events-auto"
-      onClick={(e) => e.stopPropagation()}
-    >
-      {/* HEADER */}
-      <div className="bg-[#1E3358] flex items-center justify-between px-4 py-3">
-        <div className="flex items-center gap-2">
-          <div className="bg-white text-blue-600 p-2 rounded-full">
-            <Edit size={18} />
-          </div>
-          <h2 className="text-white text-lg font-semibold">Edit Office</h2>
-        </div>
-        <button
-          onClick={() => setEditModal(false)}
-          className="text-white hover:text-gray-200"
-        >
-          <X size={20} />
-        </button>
-      </div>
-
-      {/* BODY */}
-      <div className="p-5 space-y-4">
-        <div className="bg-gray-100 rounded-lg p-3">
-          <label className="text-xs text-gray-500">Office Name</label>
-          <input
-            type="text"
-            value={editName}
-            onChange={(e) => setEditName(e.target.value)}
-            className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
-          />
-        </div>
-      </div>
-
-      {/* FOOTER */}
-      <div className="flex justify-end gap-3 px-4 py-3 bg-gray-50 border-t">
-        <button
-          onClick={() => setEditModal(false)}
-          className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleSaveEdit}
-          disabled={loading}
-          className={`px-4 py-2 rounded-lg text-white ${
-            loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
-          }`}
-        >
-          {loading ? "Saving..." : "Save Changes"}
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-
 {/* 🟦 Office Details Panel */}
 {showDetailsModal && selectedOffice && (
   <div className="fixed inset-0 z-50 flex">
     {/* Overlay */}
     <div
-      className="absolute inset-0 bg-black/20"
+      className="absolute inset-0 bg-black/40"
       onClick={() => setShowDetailsModal(false)}
     ></div>
 
     {/* Right-side Sliding Panel */}
     <aside
-      className="ml-auto w-full sm:w-[520px] h-full bg-white rounded-xl shadow-lg overflow-hidden z-10 pointer-events-auto flex flex-col"
+      className="ml-auto w-full sm:w-[520px] h-full bg-[#0F2544] shadow-xl overflow-hidden z-10 flex flex-col"
       onClick={(e) => e.stopPropagation()}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 bg-[#1E3358]">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-white/20">
         <h2 className="text-white text-2xl font-bold">Office Details</h2>
         <button
           onClick={() => setShowDetailsModal(false)}
-          className="text-white hover:text-gray-200"
+          className="text-white hover:text-gray-300"
         >
           <X size={24} />
         </button>
       </div>
 
       {/* Body */}
-      <div className="p-6 space-y-6 text-gray-800 flex-1 overflow-y-auto">
-        <div className="text-center">
-          <div className="text-sm text-gray-500">Name of the Office</div>
-          <div className="font-bold text-xl">{selectedOffice.name}</div>
-        </div>
-        <hr className="border-gray-200" />
+      <div className="p-6 space-y-6 text-white flex-1 overflow-y-auto">
 
+        {/* Office Name */}
         <div className="text-center">
-          <div className="text-sm text-gray-500">Date & Time Created</div>
-          <div className="font-bold text-xl">{new Date(selectedOffice.dateCreated).toLocaleString()}</div>
+          <div className="text-sm text-blue-200 uppercase tracking-wide">
+            Name of the Office
+          </div>
+          <div className="text-2xl font-bold mt-1">
+            {selectedOffice.name}
+          </div>
         </div>
+
+        <hr className="border-white/20" />
+
+        {/* Date */}
+        <div className="text-center">
+          <div className="text-sm text-blue-200 uppercase tracking-wide">
+            Date & Time Created
+          </div>
+          <div className="font-semibold mt-1">
+            {new Date(selectedOffice.dateCreated).toLocaleString()}
+          </div>
+        </div>
+
       </div>
 
       {/* Footer */}
-      <div className="mt-auto flex justify-end gap-3 px-6 py-4 bg-white border-t">
+      <div className="mt-auto flex justify-end gap-3 px-6 py-4 border-t border-white/20 bg-[#0F2544]">
+
         <button
           onClick={() => setShowDetailsModal(false)}
-          className="px-5 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 text-lg font-semibold"
+          className="px-5 py-2 rounded-lg bg-white/10 text-white hover:bg-white/20 text-lg font-semibold"
         >
           Close
         </button>
 
         <button
-          onClick={() => { setShowDetailsModal(false); handleEdit(selectedOffice); }}
-          className="px-5 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-lg font-semibold"
+          onClick={() => {
+            setShowDetailsModal(false);
+            handleEdit(selectedOffice);
+          }}
+          className="px-5 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-lg font-semibold flex items-center gap-2"
         >
-          <Edit size={18} />
+          <Edit size={18} /> Edit
         </button>
 
         <button
-          onClick={() => { setShowDetailsModal(false); handleDeleteClick(selectedOffice); }}
-          className="px-5 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 text-lg font-semibold"
+          onClick={() => {
+            setShowDetailsModal(false);
+            handleDeleteClick(selectedOffice);
+          }}
+          className="px-5 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-lg font-semibold flex items-center gap-2"
         >
-          <Trash2 size={18} />
+          <Trash2 size={18} /> Delete
         </button>
+
       </div>
     </aside>
   </div>
 )}
+
 
 
       {/* 🟥 Delete Confirmation Modal */}
