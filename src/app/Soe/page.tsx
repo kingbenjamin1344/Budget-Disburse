@@ -16,6 +16,13 @@ export default function SoePage() {
   const [saveFilename, setSaveFilename] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // Filters
+  const [rawBudgetData, setRawBudgetData] = useState<any[]>([]);
+  const [rawDisbData, setRawDisbData] = useState<any[]>([]);
+  const [officeFilter, setOfficeFilter] = useState('');
+  const [monthFilter, setMonthFilter] = useState('All');
+  const [yearFilter, setYearFilter] = useState('All');
+
   // Helper function to format numbers as Philippine Peso
   const formatPeso = (value: number) => {
     return new Intl.NumberFormat("en-PH", {
@@ -336,6 +343,10 @@ export default function SoePage() {
         const budgetData = await budgetRes.json();
         const disbData = await disbRes.json();
 
+          // keep raw copies for filtering
+          setRawBudgetData(budgetData);
+          setRawDisbData(disbData);
+
         const calculateTotals = (office: string, category: string) => {
           if (!office || !category) return 0;
           return disbData
@@ -382,6 +393,8 @@ export default function SoePage() {
         });
 
         setData(merged);
+        // apply initial filters (none selected)
+        // computeFiltered will run via effect as well, but set once for immediate view
       } catch (err) {
         console.error("Error fetching data:", err);
       } finally {
@@ -391,6 +404,71 @@ export default function SoePage() {
 
     fetchData();
   }, []);
+
+  // compute merged data applying filters
+  const computeFiltered = (budgets: any[], disbs: any[]) => {
+    const calculateTotals = (office: string, category: string) => {
+      if (!office || !category) return 0;
+      return disbs
+        .filter((d: any) => {
+          if (!d.dateCreated) return false;
+          const dt = new Date(d.dateCreated);
+          if (yearFilter !== 'All' && String(dt.getFullYear()) !== yearFilter) return false;
+          if (monthFilter !== 'All' && String((dt.getMonth() + 1)).padStart(2, '0') !== monthFilter) return false;
+          return (
+            d.office?.toLowerCase() === office.toLowerCase() &&
+            d.expenseCategory?.toLowerCase() === category.toLowerCase()
+          );
+        })
+        .reduce((sum: number, d: any) => sum + Number(d.amount || 0), 0);
+    };
+
+    let merged = budgets.map((b: any) => {
+      const psActual = calculateTotals(b.office, "PS");
+      const mooeActual = calculateTotals(b.office, "MOOE");
+      const coActual = calculateTotals(b.office, "CO");
+      const totalActual = psActual + mooeActual + coActual;
+
+      const psVariance = (b.ps || 0) - psActual;
+      const mooeVariance = (b.mooe || 0) - mooeActual;
+      const coVariance = (b.co || 0) - coActual;
+      const totalVariance = (b.total || 0) - totalActual;
+
+      return {
+        office: b.office,
+        budget: {
+          ps: b.ps || 0,
+          mooe: b.mooe || 0,
+          co: b.co || 0,
+          total: b.total || 0,
+        },
+        actual: {
+          ps: psActual,
+          mooe: mooeActual,
+          co: coActual,
+          total: totalActual,
+        },
+        variance: {
+          ps: psVariance,
+          mooe: mooeVariance,
+          co: coVariance,
+          total: totalVariance,
+        },
+      };
+    });
+
+    if (officeFilter && officeFilter.trim()) {
+      const q = officeFilter.toLowerCase();
+      merged = merged.filter((m) => m.office.toLowerCase().includes(q));
+    }
+
+    setData(merged);
+  };
+
+  // Recompute whenever raw data or filters change
+  useEffect(() => {
+    computeFiltered(rawBudgetData, rawDisbData);
+  }, [rawBudgetData, rawDisbData, officeFilter, monthFilter, yearFilter]);
 
   useEffect(() => {
     return () => {
@@ -451,6 +529,54 @@ export default function SoePage() {
 
 {/* Divider line */}
 <hr className="border-gray-300 mb-6" />
+
+      {/* Filters: office, year, month */}
+      <div className="flex flex-col sm:flex-row items-center gap-2 mb-4">
+        <input
+          type="text"
+          placeholder="Search office..."
+          value={officeFilter}
+          onChange={(e) => setOfficeFilter(e.target.value)}
+          className="w-full sm:w-1/3 border border-gray-300 rounded px-3 py-2"
+        />
+
+        <select
+          value={yearFilter}
+          onChange={(e) => setYearFilter(e.target.value)}
+          className="w-full sm:w-1/6 border border-gray-300 rounded px-3 py-2"
+        >
+          <option value="All">All Years</option>
+          {[...new Set(rawDisbData.map(d => {
+            try { return new Date(d.dateCreated).getFullYear(); } catch { return null; }
+          })).values()]
+            .filter(Boolean)
+            .sort((a: any, b: any) => b - a)
+            .map((y: any) => (
+              <option key={y} value={String(y)}>{String(y)}</option>
+            ))}
+        </select>
+
+        <select
+          value={monthFilter}
+          onChange={(e) => setMonthFilter(e.target.value)}
+          className="w-full sm:w-1/6 border border-gray-300 rounded px-3 py-2"
+        >
+          <option value="All">All Months</option>
+          {[
+            ['01','Jan'],['02','Feb'],['03','Mar'],['04','Apr'],['05','May'],['06','Jun'],
+            ['07','Jul'],['08','Aug'],['09','Sep'],['10','Oct'],['11','Nov'],['12','Dec']
+          ].map(([val, label]) => (
+            <option key={val} value={val}>{label}</option>
+          ))}
+        </select>
+
+        <button
+          onClick={() => { setOfficeFilter(''); setMonthFilter('All'); setYearFilter('All'); }}
+          className="px-3 py-2 bg-gray-200 rounded"
+        >
+          Clear
+        </button>
+      </div>
 
 
       {/* Save / Rename Modal */}

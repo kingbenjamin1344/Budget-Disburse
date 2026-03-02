@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "react-toastify";
-import { Search, Plus, Edit, Trash2, X, ScanEye, Camera, Upload, Loader } from "lucide-react";
-import { performOCR, initTesseractWorker, terminateTesseractWorker } from "@/lib/offlineTesseract";
+import { Search, Plus, Edit, Trash2, X, ScanEye, Camera, Upload, Loader, Wifi, WifiOff } from "lucide-react";
+import { performOCR, initTesseractWorker, terminateTesseractWorker, getOCRStatus, isNetworkOnline } from "@/lib/offlineTesseract";
 
 // =================== Floating Scan Button ===================
 interface FloatingScanButtonProps {
@@ -60,13 +60,15 @@ export default function DisbursementPage() {
   const [cameraActive, setCameraActive] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrResult, setOcrResult] = useState("");
+  const [isOnlineMode, setIsOnlineMode] = useState(true);
+  const [ocrAvailable, setOcrAvailable] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
 
 
-  // ====== Fetch Offices, Expenses, Budgets ======
+  // ====== Fetch Offices, Expenses, Budgets & Check Network Status ======
   useEffect(() => {
     async function loadData() {
       try {
@@ -88,13 +90,27 @@ export default function DisbursementPage() {
     }
     loadData();
 
+    // Check network status
+    const updateNetworkStatus = () => {
+      setIsOnlineMode(isNetworkOnline());
+    };
+    updateNetworkStatus();
+    window.addEventListener("online", updateNetworkStatus);
+    window.addEventListener("offline", updateNetworkStatus);
+
     // Initialize Tesseract worker on component mount for offline OCR
     initTesseractWorker().catch((err) => {
       console.warn("Tesseract initialization delayed (will load on first OCR use):", err);
+      setOcrAvailable(false);
+    }).then(() => {
+      const status = getOCRStatus();
+      setOcrAvailable(status.available);
     });
 
     // Cleanup: terminate Tesseract worker on unmount
     return () => {
+      window.removeEventListener("online", updateNetworkStatus);
+      window.removeEventListener("offline", updateNetworkStatus);
       terminateTesseractWorker().catch(console.error);
     };
   }, []);
@@ -172,8 +188,24 @@ const startCamera = async () => {
       
       // Parse disbursement data from OCR text
       parseAndFillForm(text);
+      
+      // Show appropriate success message
+      if (isOnlineMode) {
+        toast.success("OCR completed successfully (Online mode)");
+      } else {
+        toast.success("OCR completed successfully (Offline mode)");
+      }
     } catch (err) {
-      toast.error("OCR failed. Please try again or check internet connection for language data.");
+      const errMsg = String(err);
+      let userMessage = "OCR failed. Please try again.";
+      
+      if (!isOnlineMode) {
+        userMessage = "Offline mode: Language data may need to be downloaded while online first.";
+      } else if (errMsg.includes("fetch") || errMsg.includes("network")) {
+        userMessage = "Network error. Please check your connection and try again.";
+      }
+      
+      toast.error(userMessage);
       console.error("OCR Error:", err);
     } finally {
       setOcrLoading(false);
@@ -1142,7 +1174,24 @@ const isBudgetEnough = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-gray-100 border-b p-4 flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Disbursement Document Scanner</h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-semibold">Disbursement Document Scanner</h2>
+                <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-sm font-medium ${
+                  isOnlineMode 
+                    ? "bg-green-100 text-green-800" 
+                    : "bg-yellow-100 text-yellow-800"
+                }`}>
+                  {isOnlineMode ? (
+                    <>
+                      <Wifi className="w-4 h-4" /> Online
+                    </>
+                  ) : (
+                    <>
+                      <WifiOff className="w-4 h-4" /> Offline
+                    </>
+                  )}
+                </div>
+              </div>
               <button
                 onClick={closeScanModal}
                 className="text-gray-500 hover:text-gray-700"

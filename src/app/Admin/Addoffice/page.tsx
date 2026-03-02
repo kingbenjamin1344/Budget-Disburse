@@ -159,7 +159,7 @@ export default function AddOfficePage() {
 
 
       {/* 🟩 Table with Pagination */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[600px]">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[500px]">
         <div className="flex-grow overflow-y-auto">
           <table className="min-w-full border-collapse">
             <thead
@@ -307,6 +307,69 @@ export default function AddOfficePage() {
           }`}
         >
           {loading ? "Adding..." : "Add Office"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+ 
+{/* 🟩 Edit Office Modal */}
+{editModal && editingOffice && (
+  <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+    <div
+      className="absolute inset-0 bg-black opacity-10 pointer-events-auto"
+      onClick={() => setEditModal(false)}
+    ></div>
+
+    <div
+      className="bg-white rounded-xl shadow-lg w-[420px] overflow-hidden z-10 pointer-events-auto"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="bg-[#1E3358] flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-2">
+          <div className="bg-white text-blue-600 p-2 rounded-full">
+            <Edit size={18} />
+          </div>
+          <h2 className="text-white text-lg font-semibold">Edit Office</h2>
+        </div>
+        <button
+          onClick={() => setEditModal(false)}
+          className="text-white hover:text-gray-200"
+        >
+          <X size={20} />
+        </button>
+      </div>
+
+      <div className="p-5 space-y-4">
+        <div className="bg-gray-100 rounded-lg p-3">
+          <input
+            type="text"
+            value={editName}
+            placeholder="Enter Office Name"
+            onChange={(e) => setEditName(e.target.value)}
+            className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-3 px-4 py-3 bg-gray-50 border-t">
+        <button
+          onClick={() => {
+            setEditModal(false);
+            setEditingOffice(null);
+          }}
+          className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSaveEdit}
+          disabled={loading}
+          className={`px-4 py-2 rounded-lg text-white ${
+            loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+          }`}
+        >
+          {loading ? "Saving..." : "Save Changes"}
         </button>
       </div>
     </div>

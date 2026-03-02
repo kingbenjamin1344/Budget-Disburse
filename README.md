@@ -35,12 +35,12 @@ npm run dev
 npm install prisma @prisma/client mysql2
 
 ## make a .env file and copy-paste
-DATABASE_URL="mysql://root:password@localhost:3306/budget_disburse"
+DATABASE_URL="mysql://root:new_password@localhost:3306/budget_disburse"
 
 ## open Heidi Sql 
 create session
 user:root
-password:k
+password:
 port:3306
 
 ## create db name
