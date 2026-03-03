@@ -26,12 +26,9 @@ export default function LogsPage() {
   const formatMessageAsSentence = (message: string): string => {
     if (!message) return "No details available";
     
-    // Remove ID prefix (e.g., "id=72: " at the start)
-    let cleanMessage = message.replace(/^id=\d+:\s*/, '');
-    
     // Try to parse JSON if it's a JSON string
     try {
-      const parsed = JSON.parse(cleanMessage);
+      const parsed = JSON.parse(message);
       
       // Handle old and new values - only show if they're different
       if (parsed.old !== undefined && parsed.new !== undefined) {
@@ -70,44 +67,47 @@ export default function LogsPage() {
       // Not JSON, try to parse arrow format
     }
 
-    // Parse messages with arrow format: "field "value" -> "value", ..."
-    if (cleanMessage.includes("->")) {
-      // Split by comma to handle multiple field changes
-      const parts = cleanMessage.split(/,(?=\s*[a-zA-Z_]+\s*["']?|$)/);
+    // Parse arrow format: "field old_value -> new_value"
+    if (message.includes("->")) {
+      const parts = message.split(",").map((p) => p.trim());
       const changes: string[] = [];
 
-      for (let part of parts) {
-        part = part.trim();
-        if (!part) continue;
-
-        // Match pattern: field "old" -> "new" or field old -> new
-        const match = part.match(/^([a-zA-Z_]+)\s+["']?([^"']*?)["']?\s+->\s+["']?([^"']*?)["']?$/);
-        
-        if (match) {
-          const [, field, oldVal, newVal] = match;
-          const oldValClean = oldVal.trim();
-          const newValClean = newVal.trim();
+      for (const part of parts) {
+        // Match pattern: "field value -> value" or "office "value" -> "value""
+        const arrowMatch = part.match(/^([^:]+):\s*(.+?)\s*->\s*(.+)$/);
+        if (arrowMatch) {
+          const [, field, oldVal, newVal] = arrowMatch;
           
-          // Skip if unchanged
-          if (oldValClean === newValClean) continue;
+          // Clean up quoted values
+          const oldValClean = oldVal.trim().replace(/^"|"$/g, '');
+          const newValClean = newVal.trim().replace(/^"|"$/g, '');
           
-          // Format field names nicely for users
-          const fieldDisplay = field.toLowerCase() === 'ps' ? 'PS' 
-                             : field.toLowerCase() === 'mooe' ? 'MOOE'
-                             : field.toLowerCase() === 'co' ? 'CO'
-                             : field;
-          
-          changes.push(`${fieldDisplay} from ${oldValClean} to ${newValClean}`);
+          // Only include if values are different
+          if (oldValClean !== newValClean) {
+            changes.push(`${field.trim()} from ${oldValClean} to ${newValClean}`);
+          }
+        } else {
+          // Match pattern without field name: "value -> value"
+          const simpleMatch = part.match(/^(.+?)\s*->\s*(.+)$/);
+          if (simpleMatch) {
+            const [, oldVal, newVal] = simpleMatch;
+            const oldValClean = oldVal.trim().replace(/^"|"$/g, '');
+            const newValClean = newVal.trim().replace(/^"|"$/g, '');
+            
+            if (oldValClean !== newValClean) {
+              changes.push(`${oldValClean} changed to ${newValClean}`);
+            }
+          }
         }
       }
 
       if (changes.length === 0) return "No changes were made";
-      if (changes.length === 1) return `Updated ${changes[0]}`;
-      return `Updated: ${changes.join(", ")}`;
+      if (changes.length === 1) return `Changed ${changes[0]}`;
+      return `Changed: ${changes.join(", ")}`;
     }
 
     // If message is already in readable form, return as is
-    return cleanMessage;
+    return message;
   };
 
   useEffect(() => {
