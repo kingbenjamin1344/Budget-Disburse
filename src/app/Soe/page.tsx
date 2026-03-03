@@ -20,8 +20,10 @@ export default function SoePage() {
   const [rawBudgetData, setRawBudgetData] = useState<any[]>([]);
   const [rawDisbData, setRawDisbData] = useState<any[]>([]);
   const [officeFilter, setOfficeFilter] = useState('');
-  const [monthFilter, setMonthFilter] = useState('All');
-  const [yearFilter, setYearFilter] = useState('All');
+  const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+  const currentYear = String(new Date().getFullYear());
+  const [monthFilter, setMonthFilter] = useState(currentMonth);
+  const [yearFilter, setYearFilter] = useState(currentYear);
 
   // Helper function to format numbers as Philippine Peso
   const formatPeso = (value: number) => {
@@ -409,18 +411,66 @@ export default function SoePage() {
   const computeFiltered = (budgets: any[], disbs: any[]) => {
     const calculateTotals = (office: string, category: string) => {
       if (!office || !category) return 0;
-      return disbs
-        .filter((d: any) => {
-          if (!d.dateCreated) return false;
-          const dt = new Date(d.dateCreated);
-          if (yearFilter !== 'All' && String(dt.getFullYear()) !== yearFilter) return false;
-          if (monthFilter !== 'All' && String((dt.getMonth() + 1)).padStart(2, '0') !== monthFilter) return false;
-          return (
-            d.office?.toLowerCase() === office.toLowerCase() &&
-            d.expenseCategory?.toLowerCase() === category.toLowerCase()
-          );
-        })
-        .reduce((sum: number, d: any) => sum + Number(d.amount || 0), 0);
+      
+      // Filter disbursements by office and category
+      const relevantDisbs = disbs.filter((d: any) => {
+        if (!d.dateCreated) return false;
+        
+        let dt: Date;
+        try {
+          dt = new Date(d.dateCreated);
+          // Validate date is valid
+          if (isNaN(dt.getTime())) return false;
+        } catch (e) {
+          return false;
+        }
+        
+        // Check year first
+        if (yearFilter !== 'All') {
+          const recordYear = String(dt.getFullYear());
+          if (recordYear !== yearFilter) return false;
+        }
+        
+        // Finally check office and category
+        return (
+          d.office?.toLowerCase() === office.toLowerCase() &&
+          d.expenseCategory?.toLowerCase() === category.toLowerCase()
+        );
+      });
+
+      // If month is 'All', sum all relevant disbursements
+      if (monthFilter === 'All') {
+        return relevantDisbs.reduce((sum: number, d: any) => sum + Number(d.amount || 0), 0);
+      }
+
+      // For specific month: find the latest disbursement UP TO that month
+      // This carries forward the amount from previous months if no disbursement in current month
+      const filteredByMonth = relevantDisbs.filter((d: any) => {
+        const dt = new Date(d.dateCreated);
+        const disbMonth = String(dt.getMonth() + 1).padStart(2, '0');
+        const disbYear = String(dt.getFullYear());
+        
+        const selectedYear = yearFilter === 'All' ? String(new Date().getFullYear()) : yearFilter;
+        
+        // Include if same year and month <= selected month
+        if (disbYear === selectedYear) {
+          return disbMonth <= monthFilter;
+        }
+        // Include if year < selected year (previous years)
+        return disbYear < selectedYear;
+      });
+
+      // Get the most recent (latest) disbursement up to the selected month
+      if (filteredByMonth.length === 0) return 0;
+      
+      // Sort by date descending and pick the first (most recent)
+      filteredByMonth.sort((a: any, b: any) => {
+        const dateA = new Date(a.dateCreated).getTime();
+        const dateB = new Date(b.dateCreated).getTime();
+        return dateB - dateA;
+      });
+      
+      return Number(filteredByMonth[0].amount || 0);
     };
 
     let merged = budgets.map((b: any) => {
@@ -530,7 +580,7 @@ export default function SoePage() {
 {/* Divider line */}
 <hr className="border-gray-300 mb-6" />
 
-      {/* Filters: office, year, month */}
+      {/* Filters: office, month, year */}
       <div className="flex flex-col sm:flex-row items-center gap-2 mb-4">
         <input
           type="text"
@@ -539,6 +589,20 @@ export default function SoePage() {
           onChange={(e) => setOfficeFilter(e.target.value)}
           className="w-full sm:w-1/3 border border-gray-300 rounded px-3 py-2"
         />
+
+        <select
+          value={monthFilter}
+          onChange={(e) => setMonthFilter(e.target.value)}
+          className="w-full sm:w-1/6 border border-gray-300 rounded px-3 py-2"
+        >
+          <option value="All">All Months</option>
+          {[
+            ['01','Jan'],['02','Feb'],['03','Mar'],['04','Apr'],['05','May'],['06','Jun'],
+            ['07','Jul'],['08','Aug'],['09','Sep'],['10','Oct'],['11','Nov'],['12','Dec']
+          ].map(([val, label]) => (
+            <option key={val} value={val}>{label}</option>
+          ))}
+        </select>
 
         <select
           value={yearFilter}
@@ -556,22 +620,8 @@ export default function SoePage() {
             ))}
         </select>
 
-        <select
-          value={monthFilter}
-          onChange={(e) => setMonthFilter(e.target.value)}
-          className="w-full sm:w-1/6 border border-gray-300 rounded px-3 py-2"
-        >
-          <option value="All">All Months</option>
-          {[
-            ['01','Jan'],['02','Feb'],['03','Mar'],['04','Apr'],['05','May'],['06','Jun'],
-            ['07','Jul'],['08','Aug'],['09','Sep'],['10','Oct'],['11','Nov'],['12','Dec']
-          ].map(([val, label]) => (
-            <option key={val} value={val}>{label}</option>
-          ))}
-        </select>
-
         <button
-          onClick={() => { setOfficeFilter(''); setMonthFilter('All'); setYearFilter('All'); }}
+          onClick={() => { setOfficeFilter(''); setMonthFilter(currentMonth); setYearFilter(currentYear); }}
           className="px-3 py-2 bg-gray-200 rounded"
         >
           Clear

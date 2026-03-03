@@ -242,7 +242,7 @@ export default function DashboardLayout({ children }) {
         <main id="main-content" className="flex-1 p-6 overflow-y-auto flex flex-col">
           <div
             id="content-card"
-            className="bg-white rounded-xl shadow-md p-8 w-full flex-1"
+            className="bg-white rounded-xl shadow-md p-2 w-full flex-1"
           >
             {children}
           </div>
