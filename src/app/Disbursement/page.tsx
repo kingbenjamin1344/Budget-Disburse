@@ -678,41 +678,30 @@ const isBudgetEnough = () => {
           </table>
         </div>
 
-        {/* Pagination */}
+        {/* Pagination - right bottom */}
         <div className="border-t border-gray-200 p-2 bg-gray-50">
-          <div className="flex justify-end">
+          <div className="flex justify-end items-end">
             <nav aria-label="Page navigation">
-              <ul className="inline-flex -space-x-px text-sm">
+              <ul className="inline-flex text-sm shadow-md rounded-lg overflow-hidden bg-white">
                 <li>
                   <button
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
-                    className={`px-3 py-2 border border-gray-300 rounded-l-lg hover:bg-gray-100 ${
-                      currentPage === 1 ? "opacity-50 cursor-not-allowed" : ""
-                    }`}
+                    className={`px-5 py-2 border-r border-gray-200 font-semibold text-gray-600 bg-white transition-all ${currentPage === 1 ? "opacity-50 cursor-not-allowed" : "hover:bg-blue-50 hover:text-blue-600"}`}
                   >
-                    Previous
+                    Prev
                   </button>
                 </li>
-                {[...Array(totalPages)].map((_, index) => (
-                  <li key={index}>
-                    <button
-                      onClick={() => handlePageChange(index + 1)}
-                      className={`px-3 py-2 border border-gray-300 hover:bg-gray-100 ${
-                        currentPage === index + 1 ? "bg-blue-500 text-white" : "text-gray-700"
-                      }`}
-                    >
-                      {index + 1}
-                    </button>
-                  </li>
-                ))}
+                <li>
+                  <span className="px-5 py-2 font-bold text-blue-700 bg-white text-lg border-r border-gray-200 select-none">
+                    {currentPage}
+                  </span>
+                </li>
                 <li>
                   <button
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
-                    className={`px-3 py-2 border border-gray-300 rounded-r-lg hover:bg-gray-100 ${
-                      currentPage === totalPages ? "opacity-50 cursor-not-allowed" : ""
-                    }`}
+                    className={`px-5 py-2 font-semibold text-gray-600 bg-white transition-all ${currentPage === totalPages ? "opacity-50 cursor-not-allowed" : "hover:bg-blue-50 hover:text-blue-600"}`}
                   >
                     Next
                   </button>
@@ -766,26 +755,26 @@ const isBudgetEnough = () => {
       {/* Body */}
       <div className="p-5 space-y-4">
         {/* DV No */}
-        <div className="bg-gray-100 rounded-lg p-3">
-          <label className="text-xs text-gray-500">DV No.</label>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-gray-600 mb-1">DV No.</label>
           <input
             type="text"
             placeholder="DV No."
             value={formData.dvNo}
             onChange={(e) => setFormData({ ...formData, dvNo: e.target.value })}
-            className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 bg-white text-gray-700 font-semibold focus:border-blue-500 focus:ring-1 focus:ring-blue-200 transition"
           />
         </div>
 
         {/* Payee */}
-        <div className="bg-gray-100 rounded-lg p-3">
-          <label className="text-xs text-gray-500">Payee</label>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-gray-600 mb-1">Payee</label>
           <input
             type="text"
             placeholder="Payee"
             value={formData.payee}
             onChange={(e) => setFormData({ ...formData, payee: e.target.value })}
-            className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 bg-white text-gray-700 font-semibold focus:border-blue-500 focus:ring-1 focus:ring-blue-200 transition"
           />
         </div>
 
