@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "react-toastify";
 import { Search, Plus, Edit, Trash2, X, ScanEye, Camera, Upload, Loader, Wifi, WifiOff } from "lucide-react";
-import { performOCR, initTesseractWorker, terminateTesseractWorker, getOCRStatus, isNetworkOnline } from "@/lib/offlineTesseract";
+import { performOCR, initTesseractWorker, terminateTesseractWorker, getOCRStatus, isNetworkOnline, preprocessImage, type OCRResult } from "@/lib/offlineTesseract";
 
 // =================== Floating Scan Button ===================
 interface FloatingScanButtonProps {
@@ -183,11 +183,31 @@ const startCamera = async () => {
       // Initialize worker if not already done
       await initTesseractWorker();
 
-      const text = await performOCR(imageData);
-      setOcrResult(text);
+      // First pass: Standard PSM mode for general document layout
+      const result1 = await performOCR(imageData, { psm: 6 });
       
-      // Parse disbursement data from OCR text
-      parseAndFillForm(text);
+      // Second pass: Uniform block mode for better text extraction
+      const result2 = await performOCR(imageData, { psm: 11 });
+      
+      // Combine text from both passes for more complete extraction
+      const combinedText = result1.text + "\n" + result2.text;
+      const avgConfidence = (result1.confidence + result2.confidence) / 2;
+      
+      setOcrResult(combinedText);
+      
+      // Check OCR confidence quality
+      if (avgConfidence < 60) {
+        toast.warning(`⚠️ Low OCR confidence (${avgConfidence.toFixed(0)}%). Please review extracted data carefully.`, {
+          autoClose: 4000,
+        });
+      } else if (avgConfidence >= 80) {
+        toast.info(`✓ High confidence OCR (${avgConfidence.toFixed(0)}%)`, {
+          autoClose: 2000,
+        });
+      }
+      
+      // Parse disbursement data from combined OCR text
+      parseAndFillForm(combinedText);
       
       // Show appropriate success message
       if (isOnlineMode) {
@@ -242,24 +262,38 @@ const startCamera = async () => {
     const raw = text || "";
     const ltext = raw.toLowerCase();
 
-    // Extract DV Number (looks for DV: or DV No or standalone digits)
-    const dvMatch = raw.match(/dv\s*(no\.?|number)?[:\s]*([0-9]{3,5}-[0-9]{3,5})/i);
-    const dvNo = dvMatch ? dvMatch[2] : "";
+    // ============ Enhanced DV Number Extraction ============
+    // Try multiple patterns for Philippine DV format
+    const dvMatch = 
+      raw.match(/dv[\s:]*no\.?[\s:]*([A-Z0-9-]+)/i) || 
+      raw.match(/\b\d{4,}-\d{3,}\b/) ||
+      raw.match(/dv\s*(no\.?|number)?[:\s]*([0-9]{3,5}-[0-9]{3,5})/i);
+    
+    const dvNo = dvMatch 
+      ? (dvMatch[1] || dvMatch[0]).trim().substring(0, 50) 
+      : "";
 
+    // ============ Enhanced Amount Detection (Philippine Peso Format) ============
+    const amountMatch = 
+      raw.match(/₱\s*([\d,]+\.?\d{0,2})/) ||
+      raw.match(/(?:amount|total)[:\s]*(?:₱\s*)?([\d,]+\.\d{2})/i) ||
+      raw.match(/([\d,]+\.\d{2})\s*(?:pesos?|php)/i) ||
+      raw.match(/(?:p\.?|\$)\s*([\d,]+\.?\d*)/i);
+    
+    const amount = amountMatch 
+      ? amountMatch[1].replace(/,/g, "")
+      : "";
 
-    // Extract Amount (looks for peso sign or common amount patterns)
-    const amountMatch = raw.match(/(?:₱|p\.?|\$)\s*([\d,]+\.?\d*)/i) || raw.match(/amount[:\s]*([\d,]+\.?\d*)/i);
-    const amount = amountMatch ? amountMatch[1].replace(/,/g, "") : "";
+    // ============ Payee Extraction ============
+    const payeeMatch = raw.match(/(?:payee|received by|recipient)[:\s]*([A-Za-z0-9 .,&'-]{2,80})/i);
+    const payee = payeeMatch 
+      ? payeeMatch[1].trim().substring(0, 100)
+      : "";
 
-    // Extract Payee (look for 'payee:' or lines with title-case words)
-    const payeeMatch = raw.match(/payee[:\s]*([A-Za-z0-9 .,&'-]{2,80})/i);
-    const payee = payeeMatch ? payeeMatch[1].trim() : "";
-
-
-    // Detect Office by matching known office names
+    // ============ Office Detection ============
     let office = "";
     if (offices && offices.length) {
-      // find longest matching office name in text
+      // Find longest matching office name in text
       const candidates = offices.filter((o) => o && ltext.includes(o.toLowerCase()));
       if (candidates.length) {
         candidates.sort((a, b) => b.length - a.length);
@@ -267,9 +301,11 @@ const startCamera = async () => {
       }
     }
 
-    // Detect Expense Type by matching known expense types
+    // ============ Expense Type & Category Detection ============
     let expenseType = "";
     let expenseCategory = "";
+    
+    // First try matching against known expense types
     if (expenses && expenses.length) {
       const found = expenses.find((e) => {
         if (!e?.type) return false;
@@ -281,13 +317,38 @@ const startCamera = async () => {
       }
     }
 
-    // Fallback: detect explicit category tokens (PS, MOOE, CO)
-    const catMatch = raw.match(/\b(MOOE|PS|CO)\b/i);
-    if (catMatch) {
-      expenseCategory = catMatch[1].toUpperCase();
+    // ============ LGU Keyword Detection (Budget Classification) ============
+    // Smart keyword detection for LGU disbursement system
+    if (!expenseCategory) {
+      if (ltext.includes("maintenance") || ltext.includes("repairs") || ltext.includes("utilities")) {
+        expenseCategory = "MOOE";
+      } else if (
+        ltext.includes("personal services") ||
+        ltext.includes("salary") ||
+        ltext.includes("honorarium") ||
+        ltext.includes("compensation")
+      ) {
+        expenseCategory = "PS";
+      } else if (
+        ltext.includes("capital outlay") ||
+        ltext.includes("equipment") ||
+        ltext.includes("construction") ||
+        ltext.includes("purchase") ||
+        ltext.includes("asset")
+      ) {
+        expenseCategory = "CO";
+      }
     }
 
-    // Extract Date (common formats)
+    // Fallback: detect explicit category tokens (PS, MOOE, CO)
+    if (!expenseCategory) {
+      const catMatch = raw.match(/\b(MOOE|PS|CO)\b/i);
+      if (catMatch) {
+        expenseCategory = catMatch[1].toUpperCase();
+      }
+    }
+
+    // ============ Date Extraction ============
     let dateStr = "";
     const datePatterns = [
       /(\d{4}-\d{2}-\d{2})/, // 2025-11-25
@@ -1217,16 +1278,41 @@ const isBudgetEnough = () => {
                      {/* Camera Mode */}
 {scanMode === "camera" && (
   <div className="space-y-3">
-    {/* Video Preview */}
-    <video
-      ref={videoRef}
-      autoPlay
-      playsInline
-      muted
-      className={`w-full max-h-96 bg-black rounded-lg object-cover mb-2 transition-opacity ${
-        cameraActive ? "opacity-100" : "opacity-0"
-      }`}
-    />
+    {/* Video Preview with Document Crop Guide */}
+    <div className="relative w-full bg-black rounded-lg overflow-hidden">
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        className={`w-full max-h-96 bg-black rounded-lg object-cover mb-2 transition-opacity ${
+          cameraActive ? "opacity-100" : "opacity-0"
+        }`}
+      />
+      
+      {/* Document Crop Guide Overlay - Visible when camera is active */}
+      {cameraActive && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          {/* Darkened areas outside the guide */}
+          <div className="absolute inset-0 bg-black/40" />
+          
+          {/* White border rectangle showing capture area */}
+          <div className="border-4 border-white rounded-xl w-80 h-96 flex items-center justify-center">
+            <div className="text-white text-center text-sm font-semibold drop-shadow-lg">
+              <p>📄</p>
+              <p>Align document</p>
+              <p>with rectangle</p>
+            </div>
+          </div>
+          
+          {/* Corner markers for better visibility */}
+          <div className="absolute top-1/4 left-1/4 w-6 h-6 border-t-4 border-l-4 border-white rounded-tl-lg" />
+          <div className="absolute top-1/4 right-1/4 w-6 h-6 border-t-4 border-r-4 border-white rounded-tr-lg" />
+          <div className="absolute bottom-1/4 left-1/4 w-6 h-6 border-b-4 border-l-4 border-white rounded-bl-lg" />
+          <div className="absolute bottom-1/4 right-1/4 w-6 h-6 border-b-4 border-r-4 border-white rounded-br-lg" />
+        </div>
+      )}
+    </div>
 
     {!cameraActive ? (
       <button

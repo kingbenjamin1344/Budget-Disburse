@@ -1,7 +1,7 @@
 /**
- * Offline Tesseract OCR helper
+ * Offline Tesseract OCR helper with advanced image processing
  * Uses tesseract.js with local language data for complete offline support
- * Includes caching strategy and fallback mechanisms
+ * Includes caching strategy, fallback mechanisms, and image preprocessing
  */
 
 import Tesseract from "tesseract.js";
@@ -13,6 +13,109 @@ let isOnline = true;
 // Cache key for language data
 const LANG_DATA_CACHE_KEY = "tesseract-lang-data-eng";
 const LANG_DATA_VERSION = "v1";
+
+// Philippine Peso and text character whitelist for OCR
+const CHAR_WHITELIST = 
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-.,:/₱ \n";
+
+/**
+ * Image Preprocessing Functions
+ * Improves OCR accuracy by enhancing image quality
+ */
+
+/**
+ * Convert image to grayscale
+ */
+function toGrayscale(canvas: HTMLCanvasElement): HTMLCanvasElement {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return canvas;
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+    data[i] = gray; // R
+    data[i + 1] = gray; // G
+    data[i + 2] = gray; // B
+    // data[i + 3] is alpha, leave unchanged
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+  return canvas;
+}
+
+/**
+ * Increase contrast of the image
+ */
+function increaseContrast(canvas: HTMLCanvasElement, factor: number = 1.5): HTMLCanvasElement {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return canvas;
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+
+  for (let i = 0; i < data.length; i += 4) {
+    data[i] = Math.min(255, Math.max(0, (data[i] - 128) * factor + 128)); // R
+    data[i + 1] = Math.min(255, Math.max(0, (data[i + 1] - 128) * factor + 128)); // G
+    data[i + 2] = Math.min(255, Math.max(0, (data[i + 2] - 128) * factor + 128)); // B
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+  return canvas;
+}
+
+/**
+ * Apply binary threshold to image (convert to pure black and white)
+ */
+function applyThreshold(canvas: HTMLCanvasElement, threshold: number = 150): HTMLCanvasElement {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return canvas;
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+    const value = gray > threshold ? 255 : 0;
+    data[i] = value; // R
+    data[i + 1] = value; // G
+    data[i + 2] = value; // B
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+  return canvas;
+}
+
+/**
+ * Preprocess image for better OCR accuracy
+ * Applies grayscale, contrast enhancement, and threshold
+ */
+export function preprocessImage(imageDataUrl: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Failed to get canvas context"));
+        return;
+      }
+      ctx.drawImage(img, 0, 0);
+
+      // Apply preprocessing pipeline
+      toGrayscale(canvas);
+      increaseContrast(canvas, 1.5);
+      applyThreshold(canvas, 150);
+
+      resolve(canvas.toDataURL("image/jpeg"));
+    };
+    img.onerror = () => reject(new Error("Failed to load image"));
+    img.src = imageDataUrl;
+  });
+}
 
 /**
  * Check if application is online
@@ -137,15 +240,23 @@ export async function initTesseractWorker() {
 }
 
 /**
- * Perform OCR on an image with offline support
- * Handles both online and offline scenarios gracefully
+ * Perform OCR on an image with offline support and advanced features
+ * Returns text, confidence score, and metadata
  */
+export interface OCRResult {
+  text: string;
+  confidence: number;
+  raw: string;
+}
+
 export async function performOCR(
   image: HTMLCanvasElement | HTMLImageElement | File | string,
   options?: {
     lang?: string;
+    psm?: number; // Page segmentation mode
+    preprocessed?: boolean; // if true, skip preprocessing
   }
-): Promise<string> {
+): Promise<OCRResult> {
   try {
     // Initialize if needed
     await initTesseractWorker();
@@ -154,17 +265,44 @@ export async function performOCR(
       throw new Error("OCR worker failed to initialize");
     }
 
-    console.log(`[OCR] Starting recognition (Online: ${isOnline})...`);
+    // Preprocess image for better accuracy (unless explicitly skipped)
+    let imageToProcess: any = image;
+    if (!options?.preprocessed && typeof image === "string") {
+      try {
+        imageToProcess = await preprocessImage(image);
+      } catch (err) {
+        console.warn("[OCR] Image preprocessing failed, using original:", err);
+        imageToProcess = image;
+      }
+    }
 
-    const result = await tesseractWorker.recognize(image);
-
-    const text = result.data.text || "";
-    console.log("[OCR] Recognition complete:", {
-      length: text.length,
-      confidence: result.data.confidence || "unknown",
+    // Set Tesseract parameters for best Philippine document OCR
+    await tesseractWorker.setParameters({
+      tessedit_char_whitelist: CHAR_WHITELIST,
+      tessedit_pageseg_mode: options?.psm?.toString() || "6", // 6 = Assume uniform block of text
+      textord_heavy_nr: "1", // Enable heavy noise removal
     });
 
-    return text.trim();
+    console.log(
+      `[OCR] Starting recognition (Online: ${isOnline}, PSM: ${options?.psm || 6})...`
+    );
+
+    const result = await tesseractWorker.recognize(imageToProcess);
+
+    const text = result.data.text || "";
+    const confidence = result.data.confidence || 0;
+    const raw = result.data.text || "";
+
+    console.log("[OCR] Recognition complete:", {
+      length: text.length,
+      confidence: confidence,
+    });
+
+    return {
+      text: text.trim(),
+      confidence: confidence,
+      raw: raw,
+    };
   } catch (err) {
     console.error("[OCR] Recognition failed:", err);
     const errMsg = String(err);
