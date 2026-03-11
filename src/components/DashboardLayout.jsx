@@ -91,7 +91,7 @@ export default function DashboardLayout({ children }) {
           >
             <Menu />
           </button>
-          <h1 className="text-xl md:text-2xl font-semibold text-white drop-shadow-sm font-[var(--font-inter)]">
+          <h1 className="text-xl md:text-2xl font-semibold text-white drop-shadow-sm">
             Budget and Disbursement Management System
           </h1>
         </div>
@@ -102,7 +102,7 @@ export default function DashboardLayout({ children }) {
         {/* SIDEBAR */}
         <aside
           id="sidebar"
-          className={`relative fixed md:static z-20 top-16 left-0 h-full p-4 flex flex-col justify-between transition-all duration-300
+          className={`fixed md:static z-20 top-16 left-0 h-full p-4 flex flex-col justify-between transition-all duration-300
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
           ${sidebarMini ? "w-20" : "w-64"}`}
           style={{ backgroundColor: "#0b1a44ff" }}
