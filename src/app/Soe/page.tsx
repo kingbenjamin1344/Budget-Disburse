@@ -538,7 +538,23 @@ export default function SoePage() {
   }, []);
 
   return (
-    <div className="w-full transition-all duration-300">
+    <div className="w-full transition-all duration-300 relative">
+      {/* =================== Loading Screen =================== */}
+      {loading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+          <div className="flex flex-col items-center justify-center gap-4">
+            {/* Animated Spinner */}
+            <div className="relative w-16 h-16">
+              <div className="absolute inset-0 rounded-full border-4 border-gray-300" />
+              <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-600 border-r-blue-600 animate-spin" />
+            </div>
+            <p className="text-white text-lg font-semibold">Loading...</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Apply blur to main content when loading */}
+      <div className={`transition-all duration-300 ${loading ? "blur-sm" : ""}`}>
      {/* === HEADER === */}
 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
   {/* Title */}
@@ -903,6 +919,7 @@ export default function SoePage() {
 
 
         </table>
+      </div>
       </div>
     </div>
   );

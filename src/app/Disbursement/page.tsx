@@ -53,6 +53,9 @@ export default function DisbursementPage() {
   });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  
+  // Loading state for initial data load
+  const [isLoading, setIsLoading] = useState(true);
 
   // ====== OCR Scanner States ======
   const [showScanModal, setShowScanModal] = useState(false);
@@ -88,7 +91,20 @@ export default function DisbursementPage() {
         console.error("Failed to fetch data:", err);
       }
     }
-    loadData();
+    
+    async function loadDisbursements() {
+      try {
+        const res = await fetch("/api/disbursement");
+        const data = await res.json();
+        setDisbursements(data);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    
+    Promise.all([loadData(), loadDisbursements()]).then(() => {
+      setIsLoading(false);
+    });
 
     // Check network status
     const updateNetworkStatus = () => {
@@ -386,20 +402,6 @@ const startCamera = async () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // ====== Load Disbursements ======
-  useEffect(() => {
-    async function loadDisbursements() {
-      try {
-        const res = await fetch("/api/disbursement");
-        const data = await res.json();
-        setDisbursements(data);
-      } catch (err) {
-        console.error(err);
-      }
-    }
-    loadDisbursements();
-  }, []);
-
   // ====== Auto-fill category when expenseType changes ======
   useEffect(() => {
     const match = expenses.find((e) => e.type === formData.expenseType);
@@ -616,6 +618,22 @@ const isBudgetEnough = () => {
 
   return (
     <div className="w-full p-4 relative">
+      {/* =================== Loading Screen =================== */}
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+          <div className="flex flex-col items-center justify-center gap-4">
+            {/* Animated Spinner */}
+            <div className="relative w-16 h-16">
+              <div className="absolute inset-0 rounded-full border-4 border-gray-300" />
+              <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-600 border-r-blue-600 animate-spin" />
+            </div>
+            <p className="text-white text-lg font-semibold">Loading...</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Apply blur to main content when loading */}
+      <div className={`transition-all duration-300 ${isLoading ? "blur-sm" : ""}`}>
       {/* === HEADER === */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <h1 className="text-3xl font-bold text-gray-800">Disbursement</h1>
@@ -1285,32 +1303,15 @@ const isBudgetEnough = () => {
         autoPlay
         playsInline
         muted
-        controlsList="nopictureinpicture"
         className={`w-full max-h-96 bg-black rounded-lg object-cover mb-2 transition-opacity ${
           cameraActive ? "opacity-100" : "opacity-0"
         }`}
       />
       
-      {/* Document Crop Guide Overlay - Visible when camera is active */}
+      {/* Document Crop Guide - Simple Rectangle */}
       {cameraActive && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          {/* Darkened areas outside the guide */}
-          <div className="absolute inset-0 bg-black/40" />
-          
-          {/* White border rectangle showing capture area */}
-          <div className="border-4 border-white rounded-xl w-80 h-96 flex items-center justify-center">
-            <div className="text-white text-center text-sm font-semibold drop-shadow-lg">
-              <p>📄</p>
-              <p>Align document</p>
-              <p>with rectangle</p>
-            </div>
-          </div>
-          
-          {/* Corner markers for better visibility */}
-          <div className="absolute top-1/4 left-1/4 w-6 h-6 border-t-4 border-l-4 border-white rounded-tl-lg" />
-          <div className="absolute top-1/4 right-1/4 w-6 h-6 border-t-4 border-r-4 border-white rounded-tr-lg" />
-          <div className="absolute bottom-1/4 left-1/4 w-6 h-6 border-b-4 border-l-4 border-white rounded-bl-lg" />
-          <div className="absolute bottom-1/4 right-1/4 w-6 h-6 border-b-4 border-r-4 border-white rounded-br-lg" />
+          <div className="border-4 border-white rounded-xl w-80 h-96" />
         </div>
       )}
     </div>
@@ -1470,6 +1471,7 @@ const isBudgetEnough = () => {
 
       {/* Hidden canvas for photo capture */}
       <canvas ref={canvasRef} className="hidden" />
+      </div>
     </div>
   );
 }

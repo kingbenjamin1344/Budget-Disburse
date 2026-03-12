@@ -26,6 +26,9 @@ export default function AddBudgetPage() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  
+  // Loading state for initial data load
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchBudgets = async () => {
@@ -48,8 +51,9 @@ export default function AddBudgetPage() {
       }
     };
 
-    fetchBudgets();
-    fetchOffices();
+    Promise.all([fetchBudgets(), fetchOffices()]).then(() => {
+      setIsLoading(false);
+    });
   }, []);
 
   const handleSaveBudget = async () => {
@@ -156,7 +160,23 @@ export default function AddBudgetPage() {
   };
 
   return (
-    <div className="w-full p-4">
+    <div className="w-full p-4 relative">
+      {/* =================== Loading Screen =================== */}
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+          <div className="flex flex-col items-center justify-center gap-4">
+            {/* Animated Spinner */}
+            <div className="relative w-16 h-16">
+              <div className="absolute inset-0 rounded-full border-4 border-gray-300" />
+              <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-600 border-r-blue-600 animate-spin" />
+            </div>
+            <p className="text-white text-lg font-semibold">Loading...</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Apply blur to main content when loading */}
+      <div className={`transition-all duration-300 ${isLoading ? "blur-sm" : ""}`}>
       {/* === HEADER === */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <h1 className="text-3xl font-bold text-gray-800">Budget Allocation</h1>
@@ -190,14 +210,14 @@ export default function AddBudgetPage() {
             <Plus className="w-4 h-4 mr-2" /> Add Budget
           </button>
 
-          <button
+         {/*   <button
             onClick={() => {
    
             }}
             className="flex items-center bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition"
           >
             <LockKeyhole className="w-4 h-4 mr-2" /> Lock Budget
-          </button>
+          </button>  */}
         </div>
       </div>
       <hr className="border-gray-300 mb-6" />
@@ -572,6 +592,7 @@ export default function AddBudgetPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

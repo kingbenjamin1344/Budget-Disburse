@@ -30,6 +30,9 @@ export default function AddExpensePage() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  
+  // Loading state for initial data load
+  const [isLoading, setIsLoading] = useState(true);
 
   const fetchExpenses = async () => {
     try {
@@ -42,7 +45,9 @@ export default function AddExpensePage() {
   };
 
   useEffect(() => {
-    fetchExpenses();
+    fetchExpenses().then(() => {
+      setIsLoading(false);
+    });
   }, []);
 
   const handleAddExpense = async () => {
@@ -123,7 +128,23 @@ export default function AddExpensePage() {
   };
 
   return (
-    <div className="w-full p-4">
+    <div className="w-full p-4 relative">
+      {/* =================== Loading Screen =================== */}
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+          <div className="flex flex-col items-center justify-center gap-4">
+            {/* Animated Spinner */}
+            <div className="relative w-16 h-16">
+              <div className="absolute inset-0 rounded-full border-4 border-gray-300" />
+              <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-600 border-r-blue-600 animate-spin" />
+            </div>
+            <p className="text-white text-lg font-semibold">Loading...</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Apply blur to main content when loading */}
+      <div className={`transition-all duration-300 ${isLoading ? "blur-sm" : ""}`}>
       {/* === HEADER WITH CONTROLS INLINE === */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
@@ -532,6 +553,7 @@ export default function AddExpensePage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
