@@ -1303,6 +1303,8 @@ const isBudgetEnough = () => {
         autoPlay
         playsInline
         muted
+        controlsList="nopictureinpicture"
+        disablePictureInPicture
         className={`w-full max-h-96 bg-black rounded-lg object-cover mb-2 transition-opacity ${
           cameraActive ? "opacity-100" : "opacity-0"
         }`}

@@ -31,8 +31,8 @@ export default function DashboardLayout({ children }) {
     { name: "Dashboard", icon: <LayoutDashboard size={20} />, path: "/Dashboard" },
     { name: "Add Budget", icon: <HandCoins size={20} />, path: "/Addbudget" },
     { name: "Disbursement", icon: <Tickets size={20} />, path: "/Disbursement" },
-    { name: "SOE", icon: <AppWindowMac size={20} />, path: "/Soe" },
-    { name: "Logs", icon: <BellRing size={20} />, path: "/Logs" },
+    { name: "SOE", icon: <AppWindowMac size={20} />, path: "/Soe" }
+   /* { name: "Logs", icon: <BellRing size={20} />, path: "/Logs" }, */
   ];
 
   const adminLinks = [
