@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { Search, Plus, Edit, Trash2, X } from "lucide-react";
 import { toast } from "react-toastify";
@@ -213,7 +214,14 @@ export default function AddExpensePage() {
                 <tr>
                   <td colSpan={7} className="py-6 text-gray-500 italic text-center">
                     <div className="flex flex-col items-center justify-center">
-                      <img src="/img/addexpense.png" alt="No data" className="mb-2 max-w-[200px]" />
+                      <Image 
+                        src="/img/addexpense.png" 
+                        alt="No data" 
+                        width={200}
+                        height={200}
+                        className="mb-2 object-contain"
+                        loading="lazy"
+                      />
                       <span>No expense record found.</span>
                     </div>
                   </td>

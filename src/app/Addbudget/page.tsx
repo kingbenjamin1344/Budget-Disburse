@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { Search, Plus, X, Edit, Trash2, LockKeyhole } from "lucide-react";
@@ -244,10 +245,13 @@ export default function AddBudgetPage() {
                 <tr>
                   <td colSpan={7} className="py-6 text-gray-500 italic text-center">
                     <div className="flex flex-col items-center justify-center">
-                      <img
+                      <Image
                         src="/img/soe.png"
                         alt="No data"
-                        className="mb-2 max-w-[200px] h-auto object-contain"
+                        width={200}
+                        height={200}
+                        className="mb-2 object-contain"
+                        loading="lazy"
                       />
                       <span>No budgets found.</span>
                     </div>

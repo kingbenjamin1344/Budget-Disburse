@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "react-toastify";
 import { Search, Plus, Edit, Trash2, X, ScanEye, Camera, Upload, Loader, Wifi, WifiOff } from "lucide-react";
@@ -747,7 +748,14 @@ const isBudgetEnough = () => {
                 <tr>
                   <td colSpan={8} className="py-6 text-gray-500 italic">
                     <div className="flex flex-col items-center justify-center">
-                      <img src="/img/disburse.png" alt="No data" className="mb-2 max-w-[200px] h-auto object-contain" />
+                      <Image 
+                        src="/img/disburse.png" 
+                        alt="No data" 
+                        width={200}
+                        height={200}
+                        className="mb-2 object-contain"
+                        loading="lazy"
+                      />
                       <span>No disbursement records found.</span>
                     </div>
                   </td>

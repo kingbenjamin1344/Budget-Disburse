@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { Search, X } from "lucide-react";
 
@@ -203,7 +204,14 @@ export default function LogsPage() {
                 <tr>
                   <td colSpan={6} className="py-6 text-gray-500 italic text-center">
                     <div className="flex flex-col items-center justify-center">
-                      <img src="/img/logs.png" alt="No data" className="mb-2 max-w-[200px]" />
+                      <Image 
+                        src="/img/logs.png" 
+                        alt="No data" 
+                        width={200}
+                        height={200}
+                        className="mb-2 object-contain"
+                        loading="lazy"
+                      />
                       <span>No logs found.</span>
                     </div>
                   </td>

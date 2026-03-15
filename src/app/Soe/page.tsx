@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { RotateCcw, Printer, Minimize2, Maximize2, Save } from "lucide-react";
 import { toast } from "react-toastify";
@@ -806,10 +807,13 @@ export default function SoePage() {
     <tr className="h-48">
       <td colSpan={13} className="text-gray-500 italic p-0">
         <div className="flex flex-col items-center justify-center h-full w-full">
-          <img
+          <Image
             src="/img/add.png"
             alt="No data"
-            className="mb-2 max-w-[200px] h-auto object-contain"
+            width={200}
+            height={200}
+            className="mb-2 object-contain"
+            loading="lazy"
           />
           <span>No disbursement records found.</span>
         </div>
