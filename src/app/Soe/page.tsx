@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
@@ -16,6 +16,7 @@ export default function SoePage() {
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [saveFilename, setSaveFilename] = useState('');
   const [saving, setSaving] = useState(false);
+  const [pdfDownloadedModalOpen, setPdfDownloadedModalOpen] = useState(false);
 
   // Filters
   const [rawBudgetData, setRawBudgetData] = useState<any[]>([]);
@@ -33,6 +34,38 @@ export default function SoePage() {
       currency: "PHP",
       minimumFractionDigits: 2,
     }).format(value);
+  };
+
+  // Generate filename based on filters
+  const generateFilename = (): string => {
+    const monthNames: { [key: string]: string } = {
+      '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr', '05': 'May', '06': 'Jun',
+      '07': 'Jul', '08': 'Aug', '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec'
+    };
+
+    let filenameparts: string[] = ['SOE'];
+
+    // Add office if filtered
+    if (officeFilter && officeFilter.trim()) {
+      const officeName = officeFilter.trim().replace(/[^a-zA-Z0-9]/g, '').slice(0, 15);
+      filenameparts.push(officeName);
+    }
+
+    // Add month
+    if (monthFilter === 'All') {
+      filenameparts.push('AllMonths');
+    } else {
+      filenameparts.push(monthNames[monthFilter] || monthFilter);
+    }
+
+    // Add year
+    if (yearFilter === 'All') {
+      filenameparts.push('AllYears');
+    } else {
+      filenameparts.push(yearFilter);
+    }
+
+    return filenameparts.join('_') + '.pdf';
   };
 
   const toggleCompress = () => {
@@ -140,6 +173,7 @@ export default function SoePage() {
       // totals row
       const totalsRow = document.createElement('tr');
       totalsRow.style.fontWeight = '700';
+      totalsRow.style.backgroundColor = '#e0d5ff';
       const totals = [
         'Overall Total',
         formatPeso(data.reduce((sum, r) => sum + r.budget.ps, 0)),
@@ -155,12 +189,18 @@ export default function SoePage() {
         formatPeso(data.reduce((sum, r) => sum + r.variance.co, 0)),
         formatPeso(data.reduce((sum, r) => sum + r.variance.total, 0)),
       ];
-      for (const c of totals) {
+      for (let idx = 0; idx < totals.length; idx++) {
+        const c = totals[idx];
         const td = document.createElement('td');
         td.textContent = String(c ?? '');
         td.style.border = '1px solid #e5e7eb';
         td.style.padding = '6px 8px';
         td.style.textAlign = 'right';
+        // Highlight total columns (indices 4, 8, 12 are the "Total" columns)
+        if (idx === 4 || idx === 8 || idx === 12) {
+          td.style.backgroundColor = '#a78bfa';
+          td.style.fontWeight = '700';
+        }
         totalsRow.appendChild(td);
       }
       if (totalsRow.firstChild) (totalsRow.firstChild as HTMLElement).style.textAlign = 'left';
@@ -232,6 +272,9 @@ export default function SoePage() {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+    
+    // Show success modal
+    setPdfDownloadedModalOpen(true);
   };
 
   // Save PDF using File System Access API when available, otherwise fall back to download
@@ -257,6 +300,9 @@ export default function SoePage() {
           const writable = await handle.createWritable();
           await writable.write(blob);
           await writable.close();
+          
+          // Show success modal
+          setPdfDownloadedModalOpen(true);
 
         } catch (err: any) {
            // User canceled save dialog → just stop, do NOT download
@@ -275,6 +321,9 @@ export default function SoePage() {
            a.click();
            a.remove();
            URL.revokeObjectURL(url);
+           
+           // Show success modal
+           setPdfDownloadedModalOpen(true);
           }
 
       } else {
@@ -287,6 +336,9 @@ export default function SoePage() {
         a.click();
         a.remove();
         URL.revokeObjectURL(url);
+        
+        // Show success modal
+        setPdfDownloadedModalOpen(true);
       }
 
       return true;
@@ -568,7 +620,7 @@ export default function SoePage() {
     <button
       className="flex items-center bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition"
       onClick={() => {
-        const defaultName = `SOE_${new Date().toISOString().split('T')[0]}.pdf`;
+        const defaultName = generateFilename();
         setSaveFilename(defaultName);
         setSaveModalOpen(true);
       }}
@@ -678,6 +730,38 @@ export default function SoePage() {
                 {saving ? 'Saving...' : 'Save'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* PDF Downloaded Success Modal */}
+      {pdfDownloadedModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black opacity-50" onClick={() => setPdfDownloadedModalOpen(false)} />
+          <div className="bg-white rounded-lg shadow-lg z-10 w-[min(400px,90%)] p-8 text-center">
+            <div className="flex justify-center mb-4">
+              <svg
+                className="w-16 h-16 text-green-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">PDF Downloaded</h3>
+            <p className="text-gray-600 mb-6">Your Statement of Expenditure has been successfully saved.</p>
+            <button
+              className="px-6 py-2 rounded bg-green-600 text-white hover:bg-green-700 transition"
+              onClick={() => setPdfDownloadedModalOpen(false)}
+            >
+              Okay
+            </button>
           </div>
         </div>
       )}
