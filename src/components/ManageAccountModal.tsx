@@ -122,30 +122,61 @@ export default function ManageAccountModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 w-[90%] max-w-md max-h-[90vh] overflow-y-auto animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-800">Manage Account</h2>
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">Manage Account</h2>
+            <p className="text-sm text-gray-500 mt-0.5">Update your superadmin credentials</p>
+          </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition p-1"
+            className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100"
           >
-            <X size={24} />
+            <X size={20} />
           </button>
         </div>
 
-        <p className="text-gray-600 text-sm mb-6">
-          Update your superadmin account credentials
-        </p>
-
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {/* New Username */}
+          <div>
+            <label
+              htmlFor="newUsername"
+              className="block text-sm font-medium text-gray-700 mb-1.5"
+            >
+              Username
+            </label>
+            <input
+              type="text"
+              id="newUsername"
+              value={formData.newUsername}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  newUsername: e.target.value,
+                })
+              }
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition ${
+                errors.newUsername
+                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                  : "border-gray-300 focus:border-blue-500"
+              }`}
+              placeholder="Enter new username (optional)"
+            />
+            {errors.newUsername && (
+              <p className="text-red-500 text-xs mt-1.5 flex items-center gap-1">
+                <AlertCircle size={12} /> {errors.newUsername}
+              </p>
+            )}
+          </div>
+
           {/* Current Password */}
           <div>
             <label
               htmlFor="currentPassword"
-              className="block text-sm font-semibold text-gray-700 mb-2"
+              className="block text-sm font-medium text-gray-700 mb-1.5"
             >
               Current Password <span className="text-red-500">*</span>
             </label>
@@ -160,9 +191,9 @@ export default function ManageAccountModal({
                     currentPassword: e.target.value,
                   })
                 }
-                className={`w-full px-4 py-2.5 border-2 rounded-lg focus:outline-none transition ${
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition ${
                   errors.currentPassword
-                    ? "border-red-500 focus:border-red-600"
+                    ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                     : "border-gray-300 focus:border-blue-500"
                 }`}
                 placeholder="Enter your current password"
@@ -170,46 +201,14 @@ export default function ManageAccountModal({
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
             {errors.currentPassword && (
-              <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                <AlertCircle size={14} /> {errors.currentPassword}
-              </p>
-            )}
-          </div>
-
-          {/* New Username */}
-          <div>
-            <label
-              htmlFor="newUsername"
-              className="block text-sm font-semibold text-gray-700 mb-2"
-            >
-              Username
-            </label>
-            <input
-              type="text"
-              id="newUsername"
-              value={formData.newUsername}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  newUsername: e.target.value,
-                })
-              }
-              className={`w-full px-4 py-2.5 border-2 rounded-lg focus:outline-none transition ${
-                errors.newUsername
-                  ? "border-red-500 focus:border-red-600"
-                  : "border-gray-300 focus:border-blue-500"
-              }`}
-              placeholder="Enter new username (optional)"
-            />
-            {errors.newUsername && (
-              <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                <AlertCircle size={14} /> {errors.newUsername}
+              <p className="text-red-500 text-xs mt-1.5 flex items-center gap-1">
+                <AlertCircle size={12} /> {errors.currentPassword}
               </p>
             )}
           </div>
@@ -218,7 +217,7 @@ export default function ManageAccountModal({
           <div>
             <label
               htmlFor="newPassword"
-              className="block text-sm font-semibold text-gray-700 mb-2"
+              className="block text-sm font-medium text-gray-700 mb-1.5"
             >
               New Password
             </label>
@@ -233,9 +232,9 @@ export default function ManageAccountModal({
                     newPassword: e.target.value,
                   })
                 }
-                className={`w-full px-4 py-2.5 border-2 rounded-lg focus:outline-none transition ${
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition ${
                   errors.newPassword
-                    ? "border-red-500 focus:border-red-600"
+                    ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                     : "border-gray-300 focus:border-blue-500"
                 }`}
                 placeholder="Leave blank to keep current password"
@@ -243,14 +242,14 @@ export default function ManageAccountModal({
               <button
                 type="button"
                 onClick={() => setShowNewPassword(!showNewPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
               >
                 {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
             {errors.newPassword && (
-              <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                <AlertCircle size={14} /> {errors.newPassword}
+              <p className="text-red-500 text-xs mt-1.5 flex items-center gap-1">
+                <AlertCircle size={12} /> {errors.newPassword}
               </p>
             )}
           </div>
@@ -260,7 +259,7 @@ export default function ManageAccountModal({
             <div>
               <label
                 htmlFor="confirmPassword"
-                className="block text-sm font-semibold text-gray-700 mb-2"
+                className="block text-sm font-medium text-gray-700 mb-1.5"
               >
                 Confirm Password <span className="text-red-500">*</span>
               </label>
@@ -275,9 +274,9 @@ export default function ManageAccountModal({
                       confirmPassword: e.target.value,
                     })
                   }
-                  className={`w-full px-4 py-2.5 border-2 rounded-lg focus:outline-none transition ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition ${
                     errors.confirmPassword
-                      ? "border-red-500 focus:border-red-600"
+                      ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                       : "border-gray-300 focus:border-blue-500"
                   }`}
                   placeholder="Confirm new password"
@@ -287,7 +286,7 @@ export default function ManageAccountModal({
                   onClick={() =>
                     setShowConfirmPassword(!showConfirmPassword)
                   }
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   {showConfirmPassword ? (
                     <EyeOff size={18} />
@@ -297,29 +296,29 @@ export default function ManageAccountModal({
                 </button>
               </div>
               {errors.confirmPassword && (
-                <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                  <AlertCircle size={14} /> {errors.confirmPassword}
+                <p className="text-red-500 text-xs mt-1.5 flex items-center gap-1">
+                  <AlertCircle size={12} /> {errors.confirmPassword}
                 </p>
               )}
             </div>
           )}
 
           {/* Action Buttons */}
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-3 pt-2">
             <button
               type="button"
               onClick={() => {
                 handleReset();
                 onClose();
               }}
-              className="flex-1 px-4 py-2.5 rounded-lg border-2 border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition"
+              className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isLoading}
-              className="flex-1 px-4 py-2.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:bg-blue-400 transition flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-2.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
             >
               {isLoading ? (
                 <>

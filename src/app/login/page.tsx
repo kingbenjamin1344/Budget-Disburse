@@ -16,7 +16,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false); // <- eye toggle state
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -48,7 +48,24 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex justify-center items-center h-screen bg-gray-100">
+    <div className="relative flex justify-center items-center h-screen bg-gray-100">
+      {/* Overlapping Transparent Navbar */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-gray-900/80 backdrop-blur-sm shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-25">
+            <div className="flex items-center space-x-3">
+              <div className="relative w-10 h-10">
+                
+              </div>
+           
+            </div>
+            <div className="flex items-center space-x-4">
+             
+            </div>
+          </div>
+        </div>
+      </nav>
+
       <div className="flex w-full h-full bg-white shadow-lg rounded-lg">
         {/* Left Side - Image and Branding */}
         <div className="w-[65%] relative">
@@ -69,78 +86,99 @@ export default function LoginPage() {
 
         {/* Right Side - Login Form */}
         <div className="w-[35%] relative flex justify-center items-center h-full overflow-hidden">
-          {/* Decorative Images */}
-          <Image src={CORNER_TOP} alt="Top Corner Decoration" width={350} height={40} className="top-0 right-[-5px] absolute" />
-          <Image src={CORNER_BOTTOM} alt="Bottom Corner Decoration" width={350} height={200} className="bottom-[-40px] left-[-20px] absolute 2xl:w-[400px]" />
-
-          {/* Login Form */}
-          <div className="w-full flex justify-center">
-            <div className="w-64"> {/* form width fixed */}
-              <h1 className="text-2xl font-semibold mb-6 text-center">Login</h1>
+          {/* Login Card */}
+          <div className="w-full max-w-md px-8">
+            <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8 border border-gray-200">
+              {/* Admin Badge */}
+              <div className="text-center mb-6">
+                <div className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-sm font-semibold mb-4">
+                 
+                </div>
+                <h1 className="text-3xl font-bold text-gray-800">Administrator</h1>
+                
+              </div>
 
               {error && (
-                <div className="mb-4 p-3 bg-red-100 text-red-700 rounded text-center">
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-center text-sm">
                   {error}
                 </div>
               )}
 
-              <form onSubmit={handleLogin} className="space-y-4">
-                {/* Username */}
-                <input
-                  type="text"
-                  placeholder="Username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  required
-                />
-
-                {/* Password with Eye Toggle */}
-                <div className="relative w-full">
+              <form onSubmit={handleLogin} className="space-y-5">
+                {/* Username Field */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Username
+                  </label>
                   <input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400 pr-10"
+                    type="text"
+                    placeholder="Enter your username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     required
                   />
-                  <button
-                    type="button"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
+                </div>
+
+                {/* Password Field */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter your password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-12 transition-all"
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Submit Button */}
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50"
+                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-lg hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold shadow-md"
                 >
-                  {loading ? "Logging in..." : "Login"}
+                  {loading ? (
+                    <span className="flex items-center justify-center">
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Logging in...
+                    </span>
+                  ) : (
+                    "Log In"
+                  )}
                 </button>
+
+                {/* Admin Info Note */}
+                <div className="text-center pt-4">
+                  <p className="text-xs text-gray-500">
+                    This portal is restricted to authorized admin users only.
+                  </p>
+                </div>
               </form>
             </div>
           </div>
 
           {/* Footer */}
-          <div className="absolute bottom-16 left-0 right-0 text-center">
-            <a href="" target="_blank" rel="noopener noreferrer" className="inline-block mb-2">
-              <Image src={BUDGET_LOGO} alt="Logo" width={100} height={40} />
-            </a>
-          </div>
-
-          {/* Copyright */}
-          <div className="absolute bottom-0 left-0 right-0 text-center text-[14px] text-gray-600">
+          <div className="absolute bottom-0 left-0 right-0 text-center text-[12px] text-gray-500 py-4 bg-white/50 backdrop-blur-sm">
             <p>Copyright © 2025 Budget Allocation and Disbursement. All rights reserved.</p>
           </div>
         </div>
       </div>
-
-      {/* ToastContainer moved to ClientLayout; toast() still usable here */}
     </div>
   );
 }

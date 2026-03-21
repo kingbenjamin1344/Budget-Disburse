@@ -93,27 +93,71 @@ function applyThreshold(canvas: HTMLCanvasElement, threshold: number = 150): HTM
  */
 export function preprocessImage(imageDataUrl: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        reject(new Error("Failed to get canvas context"));
+    try {
+      // Validate image data URL format
+      if (!imageDataUrl || typeof imageDataUrl !== "string") {
+        reject(new Error("Invalid image data URL - image data is empty or invalid"));
         return;
       }
-      ctx.drawImage(img, 0, 0);
 
-      // Apply preprocessing pipeline
-      toGrayscale(canvas);
-      increaseContrast(canvas, 1.5);
-      applyThreshold(canvas, 150);
+      if (!imageDataUrl.startsWith("data:")) {
+        reject(new Error("Invalid image data URL - must be base64 encoded"));
+        return;
+      }
 
-      resolve(canvas.toDataURL("image/jpeg"));
-    };
-    img.onerror = () => reject(new Error("Failed to load image"));
-    img.src = imageDataUrl;
+      // Check if the data URL is valid (has content after comma)
+      const commaIndex = imageDataUrl.indexOf(',');
+      if (commaIndex === -1 || commaIndex === imageDataUrl.length - 1) {
+        reject(new Error("Invalid image data - image appears to be empty or corrupted"));
+        return;
+      }
+
+      const img = new Image();
+      const timeout = setTimeout(() => {
+        img.src = ""; // Clear the src to avoid any further processing
+        reject(new Error("Image loading timeout - image took too long to load"));
+      }, 10000); // 10 second timeout
+
+      img.onload = () => {
+        clearTimeout(timeout);
+        try {
+          if (img.width === 0 || img.height === 0) {
+            reject(new Error("Invalid image dimensions - width or height is 0"));
+            return;
+          }
+
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            reject(new Error("Failed to get canvas context"));
+            return;
+          }
+          ctx.drawImage(img, 0, 0);
+
+          // Apply preprocessing pipeline
+          toGrayscale(canvas);
+          increaseContrast(canvas, 1.5);
+          applyThreshold(canvas, 150);
+
+          resolve(canvas.toDataURL("image/jpeg"));
+        } catch (err) {
+          reject(new Error(`Image processing failed: ${String(err)}`));
+        }
+      };
+
+      img.onerror = () => {
+        clearTimeout(timeout);
+        reject(new Error("Failed to load image - the image data may be corrupted or unsupported"));
+      };
+
+      // Set cross-origin if needed (for blob URLs)
+      img.crossOrigin = "anonymous";
+      img.src = imageDataUrl;
+    } catch (err) {
+      reject(new Error(`Preprocessing initialization failed: ${String(err)}`));
+    }
   });
 }
 
@@ -265,53 +309,87 @@ export async function performOCR(
       throw new Error("OCR worker failed to initialize");
     }
 
+    // Validate input
+    if (!image) {
+      throw new Error("Invalid image input - image is empty or null");
+    }
+
     // Preprocess image for better accuracy (unless explicitly skipped)
     let imageToProcess: any = image;
     if (!options?.preprocessed && typeof image === "string") {
       try {
+        // Validate image string format
+        if (!image.startsWith("data:")) {
+          throw new Error("Invalid image format - must be base64 data URL");
+        }
+        
+        // Additional check: ensure data URL has actual content
+        const commaIndex = image.indexOf(',');
+        if (commaIndex === -1 || image.length < commaIndex + 10) {
+          throw new Error("Image data is empty or corrupted");
+        }
+        
         imageToProcess = await preprocessImage(image);
+        console.log("[OCR] Image preprocessing successful");
       } catch (err) {
         console.warn("[OCR] Image preprocessing failed, using original:", err);
         imageToProcess = image;
       }
     }
 
-    // Set Tesseract parameters for best Philippine document OCR
+    // Validate that we have a valid image to process
+    if (!imageToProcess) {
+      throw new Error("Failed to prepare image for OCR - no valid image data");
+    }
+
+    // Set Tesseract parameters for best document OCR
     await tesseractWorker.setParameters({
       tessedit_char_whitelist: CHAR_WHITELIST,
-      tessedit_pageseg_mode: options?.psm?.toString() || "6", // 6 = Assume uniform block of text
-      textord_heavy_nr: "1", // Enable heavy noise removal
+      tessedit_pageseg_mode: (options?.psm || 6).toString(),
+      textord_heavy_nr: "1",
     });
 
-    console.log(
-      `[OCR] Starting recognition (Online: ${isOnline}, PSM: ${options?.psm || 6})...`
+    console.log(`[OCR] Starting recognition (PSM: ${options?.psm || 6})...`);
+
+    // Add timeout for recognition (30 seconds max)
+    const recognitionPromise = tesseractWorker.recognize(imageToProcess);
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("OCR recognition timeout")), 30000)
     );
 
-    const result = await tesseractWorker.recognize(imageToProcess);
+    const result = await Promise.race([recognitionPromise, timeoutPromise]);
 
-    const text = result.data.text || "";
+    if (!result || !result.data) {
+      throw new Error("OCR processing failed - no result returned");
+    }
+
+    const text = (result.data.text || "").trim();
     const confidence = result.data.confidence || 0;
-    const raw = result.data.text || "";
 
     console.log("[OCR] Recognition complete:", {
       length: text.length,
       confidence: confidence,
     });
 
+    // Return even if text is empty - let the caller (handlePerformOCR) decide what to do
     return {
-      text: text.trim(),
+      text: text,
       confidence: confidence,
-      raw: raw,
+      raw: text,
     };
   } catch (err) {
     console.error("[OCR] Recognition failed:", err);
     const errMsg = String(err);
 
-    // Provide helpful offline-specific error message
-    if (!isOnline && errMsg.includes("fetch")) {
-      throw new Error(
-        "OCR requires language data. Please ensure language data was cached while online, or connect to internet."
-      );
+    // Provide helpful error messages
+    if (errMsg.includes("timeout")) {
+      throw new Error("OCR took too long to process. Please try a smaller or clearer image.");
+    }
+    if (errMsg.includes("image") || errMsg.includes("corrupted") || errMsg.includes("empty")) {
+      throw new Error("Could not read the image. Please verify the image is clear and valid. Try recapturing or uploading a different image.");
+    }
+    if (errMsg.includes("fetch") || errMsg.includes("network")) {
+      throw new Error("Network error. Please check your connection and try again.");
     }
 
     throw new Error(`OCR failed: ${errMsg}`);

@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "react-toastify";
 import { Search, Plus, Edit, Trash2, X, ScanEye, Camera, Upload, Loader, Wifi, WifiOff } from "lucide-react";
@@ -54,9 +53,9 @@ export default function DisbursementPage() {
   });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-  
-  // Loading state for initial data load
-  const [isLoading, setIsLoading] = useState(true);
+
+  // ====== Keyword Mapping for Dynamic Category Detection ======
+  const [categoryKeywords, setCategoryKeywords] = useState<any>({});
 
   // ====== OCR Scanner States ======
   const [showScanModal, setShowScanModal] = useState(false);
@@ -76,36 +75,30 @@ export default function DisbursementPage() {
   useEffect(() => {
     async function loadData() {
       try {
-        const [officeRes, expenseRes, budgetRes] = await Promise.all([
+        const [officeRes, expenseRes, budgetRes, keywordRes] = await Promise.all([
           fetch("/api/offices"),
           fetch("/api/expenses"),
           fetch("/api/addbudget"),
+          fetch("/api/expense-keywords"),
         ]);
         const officeData = await officeRes.json();
         const expenseData = await expenseRes.json();
         const budgetData = await budgetRes.json();
+        const keywordData = await keywordRes.json();
 
         setOffices(officeData.map((o: any) => o.name));
         setExpenses(expenseData.map((e: any) => ({ type: e.type, category: e.category })));
         setBudgets(budgetData);
+        
+        // Set keyword mapping for dynamic category detection
+        if (keywordData.keywords) {
+          setCategoryKeywords(keywordData.keywords);
+        }
       } catch (err) {
         console.error("Failed to fetch data:", err);
       }
     }
-    
-    async function loadDisbursements() {
-      try {
-        const res = await fetch("/api/disbursement");
-        const data = await res.json();
-        setDisbursements(data);
-      } catch (err) {
-        console.error(err);
-      }
-    }
-    
-    Promise.all([loadData(), loadDisbursements()]).then(() => {
-      setIsLoading(false);
-    });
+    loadData();
 
     // Check network status
     const updateNetworkStatus = () => {
@@ -197,28 +190,51 @@ const startCamera = async () => {
   const handlePerformOCR = async (imageData: string) => {
     setOcrLoading(true);
     try {
+      // Validate that imageData is not empty or too small
+      if (!imageData || imageData.length < 100) {
+        throw new Error("Invalid image data - image may be too small or corrupted");
+      }
+
       // Initialize worker if not already done
       await initTesseractWorker();
 
       // First pass: Standard PSM mode for general document layout
-      const result1 = await performOCR(imageData, { psm: 6 });
+      let result1, result2;
+      try {
+        result1 = await performOCR(imageData, { psm: 6 });
+      } catch (err) {
+        console.warn("First OCR pass failed, trying with different parameters:", err);
+        result1 = { text: "", confidence: 0, raw: "" };
+      }
       
       // Second pass: Uniform block mode for better text extraction
-      const result2 = await performOCR(imageData, { psm: 11 });
+      try {
+        result2 = await performOCR(imageData, { psm: 11 });
+      } catch (err) {
+        console.warn("Second OCR pass failed:", err);
+        result2 = { text: "", confidence: 0, raw: "" };
+      }
       
       // Combine text from both passes for more complete extraction
-      const combinedText = result1.text + "\n" + result2.text;
-      const avgConfidence = (result1.confidence + result2.confidence) / 2;
+      const combinedText = (result1.text || "") + "\n" + (result2.text || "");
+      const avgConfidence = result1.confidence && result2.confidence 
+        ? (result1.confidence + result2.confidence) / 2 
+        : (result1.confidence || result2.confidence || 0);
+      
+      // Check if we actually extracted any text
+      if (!combinedText.trim()) {
+        throw new Error("No text could be extracted from the image. Please try with a clearer image of a document with visible text.");
+      }
       
       setOcrResult(combinedText);
       
       // Check OCR confidence quality
       if (avgConfidence < 60) {
-        toast.warning(`⚠️ Low OCR confidence (${avgConfidence.toFixed(0)}%). Please review extracted data carefully.`, {
+        toast.warning(`⚠️ Low OCR confidence (${avgConfidence.toFixed(0)}%). Please review and manually correct extracted data.`, {
           autoClose: 4000,
         });
       } else if (avgConfidence >= 80) {
-        toast.info(`✓ High confidence OCR (${avgConfidence.toFixed(0)}%)`, {
+        toast.success(`✓ High confidence OCR (${avgConfidence.toFixed(0)}%)`, {
           autoClose: 2000,
         });
       }
@@ -228,21 +244,28 @@ const startCamera = async () => {
       
       // Show appropriate success message
       if (isOnlineMode) {
-        toast.success("OCR completed successfully (Online mode)");
+        toast.info("OCR completed (Online mode)", { autoClose: 2000 });
       } else {
-        toast.success("OCR completed successfully (Offline mode)");
+        toast.info("OCR completed (Offline mode)", { autoClose: 2000 });
       }
     } catch (err) {
       const errMsg = String(err);
-      let userMessage = "OCR failed. Please try again.";
+      let userMessage = "OCR failed. Please try again with a clearer image.";
       
-      if (!isOnlineMode) {
-        userMessage = "Offline mode: Language data may need to be downloaded while online first.";
-      } else if (errMsg.includes("fetch") || errMsg.includes("network")) {
+      // Provide more specific error messages
+      if (errMsg.includes("image")) {
+        userMessage = "Could not read the image. Please ensure the image is clear, not blurry, and contains readable text.";
+      } else if (errMsg.includes("text") || errMsg.includes("extract")) {
+        userMessage = "No text was found in the image. Try with a clearer photo of a document or paper.";
+      } else if (!isOnlineMode && errMsg.includes("timeout")) {
+        userMessage = "Offline mode OCR is taking too long. Try with a smaller image or switch to online mode.";
+      } else if (errMsg.includes("network")) {
         userMessage = "Network error. Please check your connection and try again.";
+      } else if (errMsg.includes("corrupted")) {
+        userMessage = "Image data appears to be corrupted. Please recapture the image and try again.";
       }
       
-      toast.error(userMessage);
+      toast.error(userMessage, { autoClose: 4000 });
       console.error("OCR Error:", err);
     } finally {
       setOcrLoading(false);
@@ -318,11 +341,11 @@ const startCamera = async () => {
       }
     }
 
-    // ============ Expense Type & Category Detection ============
+    // ============ Improved Expense Type & Category Detection ============
     let expenseType = "";
     let expenseCategory = "";
     
-    // First try matching against known expense types
+    // First: Try exact matching of expense types
     if (expenses && expenses.length) {
       const found = expenses.find((e) => {
         if (!e?.type) return false;
@@ -334,30 +357,43 @@ const startCamera = async () => {
       }
     }
 
-    // ============ LGU Keyword Detection (Budget Classification) ============
-    // Smart keyword detection for LGU disbursement system
-    if (!expenseCategory) {
-      if (ltext.includes("maintenance") || ltext.includes("repairs") || ltext.includes("utilities")) {
-        expenseCategory = "MOOE";
-      } else if (
-        ltext.includes("personal services") ||
-        ltext.includes("salary") ||
-        ltext.includes("honorarium") ||
-        ltext.includes("compensation")
-      ) {
-        expenseCategory = "PS";
-      } else if (
-        ltext.includes("capital outlay") ||
-        ltext.includes("equipment") ||
-        ltext.includes("construction") ||
-        ltext.includes("purchase") ||
-        ltext.includes("asset")
-      ) {
-        expenseCategory = "CO";
+    // Second: Try substring/partial matching for expense types (more flexible)
+    if (!expenseType && expenses && expenses.length) {
+      // For each expense type, check if the text contains significant parts of it
+      const candidates = expenses.filter((e) => {
+        if (!e?.type) return false;
+        const typeWords = e.type.toLowerCase().split(/\s+/);
+        // Match if text contains at least one significant word from the expense type
+        return typeWords.some(word => word.length > 3 && ltext.includes(word));
+      });
+      if (candidates.length) {
+        // Prefer longer matches
+        candidates.sort((a, b) => b.type.length - a.type.length);
+        expenseType = candidates[0].type;
+        expenseCategory = candidates[0].category || "";
       }
     }
 
-    // Fallback: detect explicit category tokens (PS, MOOE, CO)
+    // ============ Dynamic LGU Keyword Detection (Budget Classification) ============
+    // Uses keywords from database/API instead of hardcoding
+    if (!expenseCategory && Object.keys(categoryKeywords).length > 0) {
+      // Check each category's keywords
+      for (const [category, data] of Object.entries(categoryKeywords)) {
+        const categoryData = data as any;
+        if (categoryData.keywords && Array.isArray(categoryData.keywords)) {
+          // Check if any keyword matches (case-insensitive)
+          const keywordFound = categoryData.keywords.some((keyword: string) =>
+            ltext.includes(keyword.toLowerCase())
+          );
+          if (keywordFound) {
+            expenseCategory = category;
+            break;
+          }
+        }
+      }
+    }
+
+    // Fallback: detect explicit category tokens (PS, MOOE, CO) if still not found
     if (!expenseCategory) {
       const catMatch = raw.match(/\b(MOOE|PS|CO)\b/i);
       if (catMatch) {
@@ -402,6 +438,20 @@ const startCamera = async () => {
     setOcrResult("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
+
+  // ====== Load Disbursements ======
+  useEffect(() => {
+    async function loadDisbursements() {
+      try {
+        const res = await fetch("/api/disbursement");
+        const data = await res.json();
+        setDisbursements(data);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    loadDisbursements();
+  }, []);
 
   // ====== Auto-fill category when expenseType changes ======
   useEffect(() => {
@@ -619,22 +669,6 @@ const isBudgetEnough = () => {
 
   return (
     <div className="w-full p-4 relative">
-      {/* =================== Loading Screen =================== */}
-      {isLoading && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
-          <div className="flex flex-col items-center justify-center gap-4">
-            {/* Animated Spinner */}
-            <div className="relative w-16 h-16">
-              <div className="absolute inset-0 rounded-full border-4 border-gray-300" />
-              <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-600 border-r-blue-600 animate-spin" />
-            </div>
-            <p className="text-white text-lg font-semibold">Loading...</p>
-          </div>
-        </div>
-      )}
-      
-      {/* Apply blur to main content when loading */}
-      <div className={`transition-all duration-300 ${isLoading ? "blur-sm" : ""}`}>
       {/* === HEADER === */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <h1 className="text-3xl font-bold text-gray-800">Disbursement</h1>
@@ -748,14 +782,7 @@ const isBudgetEnough = () => {
                 <tr>
                   <td colSpan={8} className="py-6 text-gray-500 italic">
                     <div className="flex flex-col items-center justify-center">
-                      <Image 
-                        src="/img/disburse.png" 
-                        alt="No data" 
-                        width={200}
-                        height={200}
-                        className="mb-2 object-contain"
-                        loading="lazy"
-                      />
+                      <img src="/img/disburse.png" alt="No data" className="mb-2 max-w-[200px] h-auto object-contain" />
                       <span>No disbursement records found.</span>
                     </div>
                   </td>
@@ -1312,16 +1339,26 @@ const isBudgetEnough = () => {
         playsInline
         muted
         controlsList="nopictureinpicture"
-        disablePictureInPicture
         className={`w-full max-h-96 bg-black rounded-lg object-cover mb-2 transition-opacity ${
           cameraActive ? "opacity-100" : "opacity-0"
         }`}
       />
       
-      {/* Document Crop Guide - Simple Rectangle */}
+      {/* Document Crop Guide Overlay - Visible when camera is active */}
       {cameraActive && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="border-4 border-white rounded-xl w-80 h-96" />
+          {/* Darkened areas outside the guide */}
+          <div className="absolute inset-0 bg-black/40" />
+          
+          {/* White border rectangle showing capture area */}
+          <div className="border-4 border-white rounded-xl w-80 h-96 flex items-center justify-center">
+            <div className="text-white text-center text-sm font-semibold drop-shadow-lg">
+              
+            </div>
+          </div>
+          
+          {/* Corner markers for better visibility */}
+          
         </div>
       )}
     </div>
@@ -1481,7 +1518,6 @@ const isBudgetEnough = () => {
 
       {/* Hidden canvas for photo capture */}
       <canvas ref={canvasRef} className="hidden" />
-      </div>
     </div>
   );
 }
