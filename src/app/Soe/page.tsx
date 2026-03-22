@@ -24,8 +24,10 @@ export default function SoePage() {
   const [officeFilter, setOfficeFilter] = useState('');
   const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
   const currentYear = String(new Date().getFullYear());
-  const [monthFilter, setMonthFilter] = useState(currentMonth);
-  const [yearFilter, setYearFilter] = useState(currentYear);
+  const [monthFilterFrom, setMonthFilterFrom] = useState('01');
+  const [yearFilterFrom, setYearFilterFrom] = useState(currentYear);
+  const [monthFilterTo, setMonthFilterTo] = useState(currentMonth);
+  const [yearFilterTo, setYearFilterTo] = useState(currentYear);
 
   // Helper function to format numbers as Philippine Peso
   const formatPeso = (value: number) => {
@@ -51,18 +53,14 @@ export default function SoePage() {
       filenameparts.push(officeName);
     }
 
-    // Add month
-    if (monthFilter === 'All') {
-      filenameparts.push('AllMonths');
+    // Add date range
+    const fromMonth = monthNames[monthFilterFrom] || monthFilterFrom;
+    const toMonth = monthNames[monthFilterTo] || monthFilterTo;
+    
+    if (monthFilterFrom === monthFilterTo && yearFilterFrom === yearFilterTo) {
+      filenameparts.push(`${fromMonth}${yearFilterFrom}`);
     } else {
-      filenameparts.push(monthNames[monthFilter] || monthFilter);
-    }
-
-    // Add year
-    if (yearFilter === 'All') {
-      filenameparts.push('AllYears');
-    } else {
-      filenameparts.push(yearFilter);
+      filenameparts.push(`${fromMonth}${yearFilterFrom}-${toMonth}${yearFilterTo}`);
     }
 
     return filenameparts.join('_') + '.pdf';
@@ -224,7 +222,13 @@ export default function SoePage() {
       });
 
       const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('l', 'pt', 'a4');
+      // Use landscape orientation for better data visibility
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'pt',
+        format: 'a4',
+        compress: true
+      });
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
 
@@ -465,7 +469,7 @@ export default function SoePage() {
     const calculateTotals = (office: string, category: string) => {
       if (!office || !category) return 0;
       
-      // Filter disbursements by office and category
+      // Filter disbursements by office, category, and date range
       const relevantDisbs = disbs.filter((d: any) => {
         if (!d.dateCreated) return false;
         
@@ -478,10 +482,15 @@ export default function SoePage() {
           return false;
         }
         
-        // Check year first
-        if (yearFilter !== 'All') {
-          const recordYear = String(dt.getFullYear());
-          if (recordYear !== yearFilter) return false;
+        const disbMonth = String(dt.getMonth() + 1).padStart(2, '0');
+        const disbYear = String(dt.getFullYear());
+        
+        // Check if disbursement date is within the selected range
+        const startDate = new Date(parseInt(yearFilterFrom), parseInt(monthFilterFrom) - 1, 1);
+        const endDate = new Date(parseInt(yearFilterTo), parseInt(monthFilterTo), 0, 23, 59, 59);
+        
+        if (dt < startDate || dt > endDate) {
+          return false;
         }
         
         // Finally check office and category
@@ -491,39 +500,8 @@ export default function SoePage() {
         );
       });
 
-      // If month is 'All', sum all relevant disbursements
-      if (monthFilter === 'All') {
-        return relevantDisbs.reduce((sum: number, d: any) => sum + Number(d.amount || 0), 0);
-      }
-
-      // For specific month: find the latest disbursement UP TO that month
-      // This carries forward the amount from previous months if no disbursement in current month
-      const filteredByMonth = relevantDisbs.filter((d: any) => {
-        const dt = new Date(d.dateCreated);
-        const disbMonth = String(dt.getMonth() + 1).padStart(2, '0');
-        const disbYear = String(dt.getFullYear());
-        
-        const selectedYear = yearFilter === 'All' ? String(new Date().getFullYear()) : yearFilter;
-        
-        // Include if same year and month <= selected month
-        if (disbYear === selectedYear) {
-          return disbMonth <= monthFilter;
-        }
-        // Include if year < selected year (previous years)
-        return disbYear < selectedYear;
-      });
-
-      // Get the most recent (latest) disbursement up to the selected month
-      if (filteredByMonth.length === 0) return 0;
-      
-      // Sort by date descending and pick the first (most recent)
-      filteredByMonth.sort((a: any, b: any) => {
-        const dateA = new Date(a.dateCreated).getTime();
-        const dateB = new Date(b.dateCreated).getTime();
-        return dateB - dateA;
-      });
-      
-      return Number(filteredByMonth[0].amount || 0);
+      // Sum all disbursements within the date range
+      return relevantDisbs.reduce((sum: number, d: any) => sum + Number(d.amount || 0), 0);
     };
 
     let merged = budgets.map((b: any) => {
@@ -571,7 +549,7 @@ export default function SoePage() {
   // Recompute whenever raw data or filters change
   useEffect(() => {
     computeFiltered(rawBudgetData, rawDisbData);
-  }, [rawBudgetData, rawDisbData, officeFilter, monthFilter, yearFilter]);
+  }, [rawBudgetData, rawDisbData, officeFilter, monthFilterFrom, yearFilterFrom, monthFilterTo, yearFilterTo]);
 
   useEffect(() => {
     return () => {
@@ -649,52 +627,92 @@ export default function SoePage() {
 {/* Divider line */}
 <hr className="border-gray-300 mb-6" />
 
-      {/* Filters: office, month, year */}
-      <div className="flex flex-col sm:flex-row items-center gap-2 mb-4">
-        <input
-          type="text"
-          placeholder="Search office..."
-          value={officeFilter}
-          onChange={(e) => setOfficeFilter(e.target.value)}
-          className="w-full sm:w-1/3 border border-gray-300 rounded px-3 py-2"
-        />
+      {/* Filters: office, month range, year range */}
+      <div className="flex flex-col gap-4 mb-4">
+        <div className="flex flex-col sm:flex-row items-center gap-2">
+          <input
+            type="text"
+            placeholder="Search office..."
+            value={officeFilter}
+            onChange={(e) => setOfficeFilter(e.target.value)}
+            className="w-full sm:w-1/3 border border-gray-300 rounded px-3 py-2"
+          />
 
-        <select
-          value={monthFilter}
-          onChange={(e) => setMonthFilter(e.target.value)}
-          className="w-full sm:w-1/6 border border-gray-300 rounded px-3 py-2"
-        >
-          <option value="All">All Months</option>
-          {[
-            ['01','Jan'],['02','Feb'],['03','Mar'],['04','Apr'],['05','May'],['06','Jun'],
-            ['07','Jul'],['08','Aug'],['09','Sep'],['10','Oct'],['11','Nov'],['12','Dec']
-          ].map(([val, label]) => (
-            <option key={val} value={val}>{label}</option>
-          ))}
-        </select>
+          <button
+            onClick={() => { setOfficeFilter(''); setMonthFilterFrom('01'); setYearFilterFrom(currentYear); setMonthFilterTo(currentMonth); setYearFilterTo(currentYear); }}
+            className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 transition whitespace-nowrap"
+          >
+            Clear Filters
+          </button>
+        </div>
 
-        <select
-          value={yearFilter}
-          onChange={(e) => setYearFilter(e.target.value)}
-          className="w-full sm:w-1/6 border border-gray-300 rounded px-3 py-2"
-        >
-          <option value="All">All Years</option>
-          {[...new Set(rawDisbData.map(d => {
-            try { return new Date(d.dateCreated).getFullYear(); } catch { return null; }
-          })).values()]
-            .filter(Boolean)
-            .sort((a: any, b: any) => b - a)
-            .map((y: any) => (
-              <option key={y} value={String(y)}>{String(y)}</option>
-            ))}
-        </select>
+        {/* Date Range Section */}
+        <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Date Range</h3>
+          <div className="flex flex-col sm:flex-row gap-3 items-center sm:items-end">
+            {/* From Date */}
+            <div className="flex-1 flex gap-2 items-center">
+              <span className="text-xs font-medium text-gray-600 whitespace-nowrap">From:</span>
+              <select
+                value={monthFilterFrom}
+                onChange={(e) => setMonthFilterFrom(e.target.value)}
+                className="flex-1 border border-gray-300 rounded px-2 py-2 text-sm"
+              >
+                {[
+                  ['01','January'],['02','February'],['03','March'],['04','April'],['05','May'],['06','June'],
+                  ['07','July'],['08','August'],['09','September'],['10','October'],['11','November'],['12','December']
+                ].map(([val, label]) => (
+                  <option key={val} value={val}>{label}</option>
+                ))}
+              </select>
+              <select
+                value={yearFilterFrom}
+                onChange={(e) => setYearFilterFrom(e.target.value)}
+                className="flex-1 border border-gray-300 rounded px-2 py-2 text-sm"
+              >
+                {[...new Set(rawDisbData.map(d => {
+                  try { return new Date(d.dateCreated).getFullYear(); } catch { return null; }
+                })).values()]
+                  .filter(Boolean)
+                  .sort((a: any, b: any) => b - a)
+                  .map((y: any) => (
+                    <option key={y} value={String(y)}>{String(y)}</option>
+                  ))}
+              </select>
+            </div>
 
-        <button
-          onClick={() => { setOfficeFilter(''); setMonthFilter(currentMonth); setYearFilter(currentYear); }}
-          className="px-3 py-2 bg-gray-200 rounded"
-        >
-          Clear
-        </button>
+            {/* To Date */}
+            <div className="flex-1 flex gap-2 items-center">
+              <span className="text-xs font-medium text-gray-600 whitespace-nowrap">To:</span>
+              <select
+                value={monthFilterTo}
+                onChange={(e) => setMonthFilterTo(e.target.value)}
+                className="flex-1 border border-gray-300 rounded px-2 py-2 text-sm"
+              >
+                {[
+                  ['01','January'],['02','February'],['03','March'],['04','April'],['05','May'],['06','June'],
+                  ['07','July'],['08','August'],['09','September'],['10','October'],['11','November'],['12','December']
+                ].map(([val, label]) => (
+                  <option key={val} value={val}>{label}</option>
+                ))}
+              </select>
+              <select
+                value={yearFilterTo}
+                onChange={(e) => setYearFilterTo(e.target.value)}
+                className="flex-1 border border-gray-300 rounded px-2 py-2 text-sm"
+              >
+                {[...new Set(rawDisbData.map(d => {
+                  try { return new Date(d.dateCreated).getFullYear(); } catch { return null; }
+                })).values()]
+                  .filter(Boolean)
+                  .sort((a: any, b: any) => b - a)
+                  .map((y: any) => (
+                    <option key={y} value={String(y)}>{String(y)}</option>
+                  ))}
+              </select>
+            </div>
+          </div>
+        </div>
       </div>
 
 

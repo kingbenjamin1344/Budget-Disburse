@@ -54,6 +54,9 @@ export default function DisbursementPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  // ====== Loading State ======
+  const [isLoading, setIsLoading] = useState(true);
+
   // ====== Keyword Mapping for Dynamic Category Detection ======
   const [categoryKeywords, setCategoryKeywords] = useState<any>({});
 
@@ -68,7 +71,7 @@ export default function DisbursementPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [showReviewModal, setShowReviewModal] = useState(false);
+
 
 
   // ====== Fetch Offices, Expenses, Budgets & Check Network Status ======
@@ -96,6 +99,8 @@ export default function DisbursementPage() {
         }
       } catch (err) {
         console.error("Failed to fetch data:", err);
+      } finally {
+        setIsLoading(false);
       }
     }
     loadData();
@@ -302,23 +307,77 @@ const startCamera = async () => {
     const raw = text || "";
     const ltext = raw.toLowerCase();
 
+    // ============ Date Extraction (FIRST - before DV extraction to avoid conflicts) ============
+    let dateStr = "";
+    // Order matters: Check MM/DD/YYYY first (most common in Philippine documents)
+    const datePatterns = [
+      /(\d{2}\/\d{2}\/\d{4})/, // 03/20/2026 (MM/DD/YYYY) - Philippine format, TRY FIRST
+      /(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})/, // 20 March 2026
+      /(\d{1,2}[-\s][A-Za-z]{3,9}[-\s]\d{4})/, // 20-March-2026 or 20 Mar 2026
+      /(\d{4}-\d{2}-\d{2})/, // 2026-03-20 (only if valid month/day, not DV number)
+    ];
+    
+    for (const p of datePatterns) {
+      const m = raw.match(p);
+      if (m) {
+        const extracted = m[1];
+        
+        // For YYYY-MM-DD format, validate that it's a real date (month 01-12, day 01-31)
+        // This prevents matching DV numbers like "2025-18-0812" which have invalid months
+        if (p.source === '(\\d{4}-\\d{2}-\\d{2})') {
+          const parts = extracted.split('-');
+          const month = parseInt(parts[1], 10);
+          const day = parseInt(parts[2], 10);
+          // Skip if month > 12 or day > 31 (invalid date)
+          if (month > 12 || day > 31) {
+            continue;
+          }
+        }
+        
+        dateStr = extracted;
+        break;
+      }
+    }
+    const normalizedDate = normalizeDate(dateStr);
+
     // ============ Enhanced DV Number Extraction ============
     // Try multiple patterns for Philippine DV format
-    const dvMatch = 
-      raw.match(/dv[\s:]*no\.?[\s:]*([A-Z0-9-]+)/i) || 
-      raw.match(/\b\d{4,}-\d{3,}\b/) ||
-      raw.match(/dv\s*(no\.?|number)?[:\s]*([0-9]{3,5}-[0-9]{3,5})/i);
+    // Explicitly check for "DV" label first, then fall back to number patterns
+    // Avoid matching date patterns (YYYY-MM-DD)
+    let dvNo = "";
     
-    const dvNo = dvMatch 
-      ? (dvMatch[1] || dvMatch[0]).trim().substring(0, 50) 
-      : "";
+    // First: Look for explicit "DV No." pattern
+    const dvExplicitMatch = raw.match(/dv[\s:]*no\.?[\s:]*([A-Z0-9-]+)/i);
+    if (dvExplicitMatch) {
+      dvNo = dvExplicitMatch[1].trim().substring(0, 50);
+    } else {
+      // Second: Look for DV with specific format (000-0000-00-0000)
+      const dvFormatMatch = raw.match(/\b(\d{3}-\d{4}-\d{2}-\d{4})\b/);
+      if (dvFormatMatch) {
+        dvNo = dvFormatMatch[1].trim().substring(0, 50);
+      } else {
+        // Third: Look for generic DV number pattern
+        const dvNumberMatch = raw.match(/dv\s*(no\.?|number)?[:\s]*([0-9]{3,5}-[0-9]{3,5})/i);
+        if (dvNumberMatch) {
+          dvNo = dvNumberMatch[2].trim().substring(0, 50);
+        } else {
+          // Fourth: Look for generic number-dash-number pattern BUT exclude date patterns
+          // Only match if it's not the same as the extracted date
+          const genericMatch = raw.match(/\b([0-9]{4,5})-([0-9]{3,5})\b/);
+          if (genericMatch && genericMatch[0] !== dateStr) {
+            dvNo = genericMatch[0].trim().substring(0, 50);
+          }
+        }
+      }
+    }
 
     // ============ Enhanced Amount Detection (Philippine Peso Format) ============
+    // Supports various formats: ₱1,234.50, ₱1234.5, Amount: 1234, $5000.25, etc.
     const amountMatch = 
-      raw.match(/₱\s*([\d,]+\.?\d{0,2})/) ||
-      raw.match(/(?:amount|total)[:\s]*(?:₱\s*)?([\d,]+\.\d{2})/i) ||
-      raw.match(/([\d,]+\.\d{2})\s*(?:pesos?|php)/i) ||
-      raw.match(/(?:p\.?|\$)\s*([\d,]+\.?\d*)/i);
+      raw.match(/₱\s*([\d,]+(?:\.\d{1,2})?)/) ||
+      raw.match(/(?:amount|total)[:\s]*(?:₱\s*)?([\d,]+(?:\.\d{1,2})?)/i) ||
+      raw.match(/([\d,]+(?:\.\d{1,2})?)\s*(?:pesos?|php)/i) ||
+      raw.match(/(?:p\.?|\$)\s*([\d,]+(?:\.\d{1,2})?)/i);
     
     const amount = amountMatch 
       ? amountMatch[1].replace(/,/g, "")
@@ -400,23 +459,6 @@ const startCamera = async () => {
         expenseCategory = catMatch[1].toUpperCase();
       }
     }
-
-    // ============ Date Extraction ============
-    let dateStr = "";
-    const datePatterns = [
-      /(\d{4}-\d{2}-\d{2})/, // 2025-11-25
-      /(\d{2}\/\d{2}\/\d{4})/, // 25/11/2025
-      /(\d{1,2}[-\s][A-Za-z]{3,9}[-\s]\d{4})/, // 25 Nov 2025
-      /(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})/, // 25 November 2025
-    ];
-    for (const p of datePatterns) {
-      const m = raw.match(p);
-      if (m) {
-        dateStr = m[1];
-        break;
-      }
-    }
-    const normalizedDate = normalizeDate(dateStr);
 
     // Update form data with extracted values (preserve previous values if extraction empty)
     setFormData((prev) => ({
@@ -868,16 +910,30 @@ const isBudgetEnough = () => {
 
       {/* Body */}
       <div className="p-5 space-y-4">
-        {/* DV No */}
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-gray-600 mb-1">DV No.</label>
-          <input
-            type="text"
-            placeholder="DV No."
-            value={formData.dvNo}
-            onChange={(e) => setFormData({ ...formData, dvNo: e.target.value })}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 bg-white text-gray-700 font-semibold focus:border-blue-500 focus:ring-1 focus:ring-blue-200 transition"
-          />
+        {/* DV No + Date Row */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* DV No */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-600 mb-1">DV No.</label>
+            <input
+              type="text"
+              placeholder="DV No."
+              value={formData.dvNo}
+              onChange={(e) => setFormData({ ...formData, dvNo: e.target.value })}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 bg-white text-gray-700 font-semibold focus:border-blue-500 focus:ring-1 focus:ring-blue-200 transition"
+            />
+          </div>
+
+          {/* Date */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-600 mb-1">Date</label>
+            <input
+              type="date"
+              value={formData.date}
+              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 bg-white text-gray-700 font-semibold focus:border-blue-500 focus:ring-1 focus:ring-blue-200 transition"
+            />
+          </div>
         </div>
 
         {/* Payee */}
@@ -981,108 +1037,17 @@ const isBudgetEnough = () => {
       return;
     }
 
-    // 🔥 Budget validation BEFORE review modal
+    // 🔥 Budget validation BEFORE saving
     if (!isBudgetEnough()) return;
 
-    // ✅ Open review modal only if valid
-    setShowReviewModal(true);
+    // ✅ Save directly if valid
+    handleSave();
   }}
   className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
 >
   {editingId ? "Save Changes" : "Save"}
 </button>
 
-      </div>
-    </div>
-  </div>
-)}
-
-{showReviewModal && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center">
-    {/* Overlay */}
-    <div
-      className="absolute inset-0 bg-black/30"
-      onClick={() => setShowReviewModal(false)}
-    ></div>
-
-    {/* Modal */}
-    <div className="bg-white rounded-xl shadow-xl w-full max-w-lg z-10">
-      {/* Header */}
-      <div className="px-6 py-4 bg-[#1E3358] flex justify-between items-center">
-        <h2 className="text-white text-xl font-bold">
-          Review Disbursement Details
-        </h2>
-        <button
-          onClick={() => setShowReviewModal(false)}
-          className="text-white"
-        >
-          <X size={22} />
-        </button>
-      </div>
-
-      {/* Body */}
-      <div className="p-6 space-y-4 text-gray-800">
-        <div className="text-center">
-          <p className="text-sm text-gray-500">DV No.</p>
-          <p className="font-bold text-lg">{formData.dvNo}</p>
-        </div>
-
-        <hr />
-
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <p className="text-gray-500">Payee</p>
-            <p className="font-semibold">{formData.payee}</p>
-          </div>
-
-          <div>
-            <p className="text-gray-500">Office</p>
-            <p className="font-semibold">{formData.office}</p>
-          </div>
-
-          <div>
-            <p className="text-gray-500">Category</p>
-            <p className="font-semibold">{formData.expenseCategory}</p>
-          </div>
-
-          <div>
-            <p className="text-gray-500">Expense Type</p>
-            <p className="font-semibold">{formData.expenseType}</p>
-          </div>
-
-          <div>
-            <p className="text-gray-500">Amount</p>
-            <p className="font-bold text-green-600">
-              ₱{parseFloat(formData.amount || "0").toLocaleString()}
-            </p>
-          </div>
-
-          {formData.date && (
-            <div>
-              <p className="text-gray-500">Date</p>
-              <p className="font-semibold">{formData.date}</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className="flex justify-end gap-3 px-6 py-4 border-t bg-gray-50">
-        <button
-          onClick={() => setShowReviewModal(false)}
-          className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
-        >
-          Back
-        </button>
-        <button
-          onClick={() => {
-            setShowReviewModal(false);
-            handleSave(); // ✅ original save logic
-          }}
-          className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700"
-        >
-          Confirm & Save
-        </button>
       </div>
     </div>
   </div>
@@ -1512,6 +1477,16 @@ const isBudgetEnough = () => {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* =================== Loading Overlay =================== */}
+      {isLoading && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg shadow-xl p-8 flex flex-col items-center gap-4">
+            <Loader className="w-12 h-12 text-blue-600 animate-spin" />
+            <p className="text-gray-700 font-semibold">Loading data...</p>
           </div>
         </div>
       )}
