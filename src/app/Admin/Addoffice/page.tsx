@@ -1,7 +1,7 @@
 "use client";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { Search, Plus, Edit, Trash2, X } from "lucide-react";
+import { Search, Plus, Edit, Trash2, X, Calendar, Building2, Clock, User, FileText, Mail, Phone, MapPin } from "lucide-react";
 import { toast } from "react-toastify";
 
 export default function AddOfficePage() {
@@ -188,10 +188,10 @@ export default function AddOfficePage() {
               className="text-white border-b bg-cover bg-center"
               style={{ backgroundImage: "url('/img/blue.jpg')" }}
             >
-                <tr>
-                  <th className="px-8 py-3 text-left font-semibold ">List of Office</th>
-                  <th className="px-8 py-3 text-left font-semibold w-2/5">Date Created</th>
-                </tr>
+              <tr>
+                <th className="px-8 py-3 text-left font-semibold ">List of Office</th>
+                <th className="px-8 py-3 text-left font-semibold w-2/5">Date Created</th>
+              </tr>
             </thead>
             <tbody>
               {currentItems.length === 0 ? (
@@ -401,65 +401,135 @@ export default function AddOfficePage() {
   </div>
 )}
 
-{/* 🟦 Office Details Panel */}
+{/* 🟦 Office Details Panel - Enhanced UI */}
 {showDetailsModal && selectedOffice && (
   <div className="fixed inset-0 z-50 flex">
-    {/* Overlay */}
+    {/* Overlay with blur effect */}
     <div
-      className="absolute inset-0 bg-black/40"
+      className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-all duration-300"
       onClick={() => setShowDetailsModal(false)}
     ></div>
 
-    {/* Right-side Sliding Panel */}
+    {/* Right-side Sliding Panel - Enhanced */}
     <aside
-      className="ml-auto w-full sm:w-[520px] h-full bg-[#0F2544] shadow-xl overflow-hidden z-10 flex flex-col"
+      className="ml-auto w-full sm:w-[550px] h-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 shadow-2xl overflow-hidden z-10 flex flex-col animate-slideIn"
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-white/20">
-        <h2 className="text-white text-2xl font-bold">Office Details</h2>
-        <button
-          onClick={() => setShowDetailsModal(false)}
-          className="text-white hover:text-gray-300"
-        >
-          <X size={24} />
-        </button>
+      {/* Header with gradient accent */}
+      <div className="relative bg-gradient-to-r from-blue-600  px-6 py-5">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16"></div>
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full -ml-12 -mb-12"></div>
+        
+        <div className="flex items-center justify-between relative z-10">
+          <div className="flex items-center gap-3">
+            <div className="bg-white/20 p-2.5 rounded-xl backdrop-blur-sm">
+              <Building2 className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-white text-2xl font-bold tracking-tight">Office Details</h2>
+              
+            </div>
+          </div>
+          <button
+            onClick={() => setShowDetailsModal(false)}
+            className="text-white/80 hover:text-white hover:bg-white/10 rounded-lg p-2 transition-all duration-200"
+          >
+            <X size={22} />
+          </button>
+        </div>
       </div>
 
-      {/* Body */}
-      <div className="p-6 space-y-6 text-white flex-1 overflow-y-auto">
-
-        {/* Office Name */}
-        <div className="text-center">
-          <div className="text-sm text-blue-200 uppercase tracking-wide">
-            Name of the Office
-          </div>
-          <div className="text-2xl font-bold mt-1">
-            {selectedOffice.name}
+      {/* Body with enhanced design */}
+      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+        {/* Office Name Card */}
+        <div className="bg-white/5 rounded-2xl border border-white/10 p-6 backdrop-blur-sm">
+          <div className="flex items-start gap-4">
+            <div className="bg-blue-500/20 p-3 rounded-xl">
+              <Building2 className="w-6 h-6 text-blue-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-blue-300 text-xs font-semibold uppercase tracking-wider mb-1">
+                Office Name
+              </p>
+              <h3 className="text-white text-2xl font-bold leading-tight">
+                {selectedOffice.name}
+              </h3>
+            </div>
           </div>
         </div>
 
-        <hr className="border-white/20" />
-
-        {/* Date */}
-        <div className="text-center">
-          <div className="text-sm text-blue-200 uppercase tracking-wide">
-            Date & Time Created
+        {/* Information Grid */}
+        <div className="grid grid-cols-2 gap-4">
+          {/* Date Created Card */}
+          <div className="bg-white/5 rounded-xl border border-white/10 p-4 backdrop-blur-sm hover:bg-white/10 transition-all duration-200">
+            <div className="flex items-center gap-2 mb-2">
+              <Calendar className="w-4 h-4 text-green-400" />
+              <p className="text-green-300 text-xs font-semibold uppercase tracking-wider">
+                Date Created
+              </p>
+            </div>
+            <p className="text-white font-medium text-sm">
+              {new Date(selectedOffice.dateCreated).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })}
+            </p>
           </div>
-          <div className="font-semibold mt-1">
-            {new Date(selectedOffice.dateCreated).toLocaleString()}
+
+          {/* Time Created Card */}
+          <div className="bg-white/5 rounded-xl border border-white/10 p-4 backdrop-blur-sm hover:bg-white/10 transition-all duration-200">
+            <div className="flex items-center gap-2 mb-2">
+              <Clock className="w-4 h-4 text-purple-400" />
+              <p className="text-purple-300 text-xs font-semibold uppercase tracking-wider">
+                Time Created
+              </p>
+            </div>
+            <p className="text-white font-medium text-sm">
+              {new Date(selectedOffice.dateCreated).toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+              })}
+            </p>
           </div>
         </div>
 
+        {/* Full Date & Time Card */}
+        <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-xl border border-blue-500/20 p-4 backdrop-blur-sm">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="bg-white/10 p-1.5 rounded-lg">
+              <Calendar className="w-4 h-4 text-blue-400" />
+            </div>
+            <p className="text-blue-300 text-xs font-semibold uppercase tracking-wider">
+              Full Timestamp
+            </p>
+          </div>
+          <p className="text-white font-mono text-sm">
+            {new Date(selectedOffice.dateCreated).toLocaleString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              hour12: true
+            })}
+          </p>
+        </div>
+
+        {/* Office ID (if available) */}
+       
       </div>
 
-      {/* Footer */}
-      <div className="mt-auto flex justify-end gap-3 px-6 py-4 border-t border-white/20 bg-[#0F2544]">
-
+      {/* Footer with enhanced buttons */}
+      <div className="flex justify-end gap-3 px-6 py-5 border-t border-white/10 bg-black/20 backdrop-blur-sm">
         <button
           onClick={() => setShowDetailsModal(false)}
-          className="px-5 py-2 rounded-lg bg-white/10 text-white hover:bg-white/20 text-lg font-semibold"
+          className="px-5 py-2.5 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all duration-200 font-semibold text-sm flex items-center gap-2"
         >
+          <X size={16} />
           Close
         </button>
 
@@ -468,9 +538,10 @@ export default function AddOfficePage() {
             setShowDetailsModal(false);
             handleEdit(selectedOffice);
           }}
-          className="px-5 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-lg font-semibold flex items-center gap-2"
+          className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white transition-all duration-200 font-semibold text-sm flex items-center gap-2 shadow-lg"
         >
-          <Edit size={18} /> Edit
+          <Edit size={16} />
+          Edit Office
         </button>
 
         <button
@@ -478,17 +549,15 @@ export default function AddOfficePage() {
             setShowDetailsModal(false);
             handleDeleteClick(selectedOffice);
           }}
-          className="px-5 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-lg font-semibold flex items-center gap-2"
+          className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white transition-all duration-200 font-semibold text-sm flex items-center gap-2 shadow-lg"
         >
-          <Trash2 size={18} /> Delete
+          <Trash2 size={16} />
+          Delete Office
         </button>
-
       </div>
     </aside>
   </div>
 )}
-
-
 
       {/* 🟥 Delete Confirmation Modal */}
       {deleteModal && officeToDelete && (
@@ -523,4 +592,3 @@ export default function AddOfficePage() {
     </div>
   );
 }
-

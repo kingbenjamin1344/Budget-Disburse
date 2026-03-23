@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "react-toastify";
-import { Search, Plus, Edit, Trash2, X, ScanEye, Camera, Upload, Loader, Wifi, WifiOff } from "lucide-react";
+import { Search, Plus, Edit, Trash2, X, ScanEye, Camera, Upload, Loader, Wifi, WifiOff, Building2, Calendar, Clock, DollarSign, FileText, User, Tag, FolderOpen, Receipt, CreditCard } from "lucide-react";
 import { performOCR, initTesseractWorker, terminateTesseractWorker, getOCRStatus, isNetworkOnline, preprocessImage, type OCRResult } from "@/lib/offlineTesseract";
 
 // =================== Floating Scan Button ===================
@@ -686,6 +686,16 @@ const isBudgetEnough = () => {
     }
   };
 
+  // Helper function to format currency
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-PH', {
+      style: 'currency',
+      currency: 'PHP',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
+  };
+
   // ====== Filter & Pagination ======
   const filtered = disbursements.filter((item) => {
     const matchesSearch =
@@ -800,7 +810,7 @@ const isBudgetEnough = () => {
                 <th className="px-3 py-2 text-left">Category</th>
                 <th className="px-3 py-2 text-left">Amount</th>
                 <th className="px-3 py-2 text-left">Date</th>
-              </tr>
+               </tr>
             </thead>
             <tbody>
               {currentItems.length > 0 ? (
@@ -812,13 +822,13 @@ const isBudgetEnough = () => {
                     <td className="px-6 py-3">{d.expenseType}</td>
                     <td className="px-6 py-3">{d.expenseCategory}</td>
                    <td className="px-6 py-3">
-  <span className="px-3 py-1 rounded-full bg-green-100 text-gray-700 border border-gray-700 font-semibold">
-    ₱{parseFloat(d.amount).toLocaleString()}
-  </span>
-</td>
+                      <span className="px-3 py-1 rounded-full bg-green-100 text-gray-700 border border-gray-700 font-semibold">
+                        ₱{parseFloat(d.amount).toLocaleString()}
+                      </span>
+                    </td>
                     <td className="px-6 py-3">{new Date(d.dateCreated).toLocaleDateString()}</td>
                    
-                  </tr>
+                   </tr>
                 ))
               ) : (
                 <tr>
@@ -827,8 +837,8 @@ const isBudgetEnough = () => {
                       <img src="/img/disburse.png" alt="No data" className="mb-2 max-w-[200px] h-auto object-contain" />
                       <span>No disbursement records found.</span>
                     </div>
-                  </td>
-                </tr>
+                   </td>
+                 </tr>
               )}
             </tbody>
           </table>
@@ -1053,135 +1063,220 @@ const isBudgetEnough = () => {
   </div>
 )}
 
-{/* 🟦 Disbursement Details Panel */}
+{/* 🟦 Disbursement Details Panel - Enhanced Modern UI */}
 {showDetailsModal && selectedDisbursement && (
   <div className="fixed inset-0 z-50 flex">
-    {/* Overlay */}
+    {/* Overlay with blur effect */}
     <div
-      className="absolute inset-0 bg-black/40"
+      className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-all duration-300"
       onClick={() => setShowDetailsModal(false)}
     ></div>
 
     {/* Right-side Sliding Panel */}
     <aside
-      className="ml-auto w-full sm:w-[520px] h-full bg-[#0F2544] shadow-xl overflow-hidden z-10 flex flex-col"
+      className="ml-auto w-full sm:w-[600px] h-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 shadow-2xl overflow-hidden z-10 flex flex-col animate-slide-in"
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-white/20">
-        <h2 className="text-white text-2xl font-bold">Disbursement Details</h2>
-        <button
-          onClick={() => setShowDetailsModal(false)}
-          className="text-white hover:text-gray-300"
-        >
-          <X size={24} />
-        </button>
+      {/* Header with gradient accent */}
+      <div className="relative bg-gradient-to-r from-blue-600 to-blue-800 px-6 py-5">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16"></div>
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full -ml-12 -mb-12"></div>
+        
+        <div className="flex items-center justify-between relative z-10">
+          <div className="flex items-center gap-3">
+            <div className="bg-white/20 p-2.5 rounded-xl backdrop-blur-sm">
+              <Receipt className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-white text-2xl font-bold tracking-tight">Disbursement Details</h2>
+              <p className="text-blue-100 text-sm mt-0.5">View and manage disbursement information</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowDetailsModal(false)}
+            className="text-white/80 hover:text-white hover:bg-white/10 rounded-lg p-2 transition-all duration-200"
+          >
+            <X size={22} />
+          </button>
+        </div>
       </div>
 
-      {/* Body */}
-      <div className="p-6 space-y-6 text-white flex-1 overflow-y-auto">
+      {/* Body with enhanced design */}
+      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 custom-scrollbar">
 
-        {/* DV No */}
-        <div className="text-center">
-          <div className="text-sm text-blue-200 uppercase tracking-wide">
-            DV No.
-          </div>
-          <div className="text-2xl font-bold mt-1">
-            {selectedDisbursement.dvNo}
-          </div>
-        </div>
-
-        <hr className="border-white/20" />
-
-        {/* Payee */}
-        <div className="text-center">
-          <div className="text-sm text-blue-200 uppercase tracking-wide">
-            Payee
-          </div>
-          <div className="text-2xl font-bold mt-1">
-            {selectedDisbursement.payee}
+        {/* DV No Card */}
+        <div className="bg-white/5 rounded-2xl border border-white/10 p-6 backdrop-blur-sm hover:bg-white/10 transition-all duration-300">
+          <div className="flex items-start gap-4">
+            <div className="bg-blue-500/20 p-3 rounded-xl">
+              <FileText className="w-6 h-6 text-blue-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-blue-300 text-xs font-semibold uppercase tracking-wider mb-1">
+                Disbursement Voucher Number
+              </p>
+              <h3 className="text-white text-2xl font-bold leading-tight">
+                {selectedDisbursement.dvNo}
+              </h3>
+            </div>
           </div>
         </div>
 
-        <hr className="border-white/20" />
-
-        {/* Office */}
-        <div className="text-center">
-          <div className="text-sm text-blue-200 uppercase tracking-wide">
-            Office
-          </div>
-          <div className="text-2xl font-bold mt-1">
-            {selectedDisbursement.office}
-          </div>
-        </div>
-
-        <hr className="border-white/20" />
-
-        {/* Amount */}
-        <div className="flex justify-between items-center bg-white/10 rounded-lg p-4">
-          <span className="text-lg text-blue-100 font-semibold">
-            Amount
-          </span>
-          <span className="text-2xl font-extrabold">
-            ₱{parseFloat(selectedDisbursement.amount).toLocaleString()}
-          </span>
-        </div>
-
-        <hr className="border-white/20" />
-
-        {/* Category */}
-        <div className="flex justify-between items-center">
-          <span className="text-blue-200">
-            Category
-          </span>
-          <span className="text-xl font-bold">
-            {selectedDisbursement.expenseCategory}
-          </span>
-        </div>
-
-        {/* Type */}
-        <div className="flex justify-between items-center">
-          <span className="text-blue-200">
-            Type
-          </span>
-          <span className="text-xl font-bold">
-            {selectedDisbursement.expenseType}
-          </span>
-        </div>
-
-        <hr className="border-white/20" />
-
-        {/* Date */}
-        <div className="text-center">
-          <div className="text-sm text-blue-200 uppercase tracking-wide">
-            Date & Time Created
-          </div>
-          <div className="font-semibold mt-1">
-            {new Date(selectedDisbursement.dateCreated).toLocaleString()}
+        {/* Payee Card */}
+        <div className="bg-white/5 rounded-2xl border border-white/10 p-6 backdrop-blur-sm hover:bg-white/10 transition-all duration-300">
+          <div className="flex items-start gap-4">
+            <div className="bg-purple-500/20 p-3 rounded-xl">
+              <User className="w-6 h-6 text-purple-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-purple-300 text-xs font-semibold uppercase tracking-wider mb-1">
+                Payee / Recipient
+              </p>
+              <h3 className="text-white text-xl font-bold leading-tight">
+                {selectedDisbursement.payee}
+              </h3>
+            </div>
           </div>
         </div>
 
+        {/* Office Card */}
+        <div className="bg-white/5 rounded-2xl border border-white/10 p-6 backdrop-blur-sm hover:bg-white/10 transition-all duration-300">
+          <div className="flex items-start gap-4">
+            <div className="bg-green-500/20 p-3 rounded-xl">
+              <Building2 className="w-6 h-6 text-green-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-green-300 text-xs font-semibold uppercase tracking-wider mb-1">
+                Office
+              </p>
+              <h3 className="text-white text-xl font-bold leading-tight">
+                {selectedDisbursement.office}
+              </h3>
+            </div>
+          </div>
+        </div>
+
+        {/* Expense Details Section */}
+        <div className="space-y-3">
+          
+
+          {/* Category Card */}
+          <div className="bg-white/5 rounded-xl border border-white/10 p-4 backdrop-blur-sm hover:bg-white/10 transition-all duration-200">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="bg-yellow-500/20 p-2 rounded-lg">
+                  <FolderOpen className="w-4 h-4 text-yellow-400" />
+                </div>
+                <div>
+                  <p className="text-yellow-300 text-xs font-semibold uppercase tracking-wider">
+                    Category
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-white text-lg font-bold">
+                  {selectedDisbursement.expenseCategory}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Expense Type Card */}
+          <div className="bg-white/5 rounded-xl border border-white/10 p-4 backdrop-blur-sm hover:bg-white/10 transition-all duration-200">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="bg-orange-500/20 p-2 rounded-lg">
+                  <CreditCard className="w-4 h-4 text-orange-400" />
+                </div>
+                <div>
+                  <p className="text-orange-300 text-xs font-semibold uppercase tracking-wider">
+                    Expense Type
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-white text-lg font-bold">
+                  {selectedDisbursement.expenseType}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Amount Card */}
+        <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-2xl border border-green-500/30 p-6 backdrop-blur-sm">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <div className="bg-green-500/30 p-3 rounded-xl">
+                <DollarSign className="w-6 h-6 text-green-400" />
+              </div>
+              <div>
+                <p className="text-green-300 text-xs font-semibold uppercase tracking-wider">
+                  Amount Disbursed
+                </p>
+                <p className="text-gray-300 text-xs">Total amount released</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-white text-3xl font-bold">
+                {formatCurrency(parseFloat(selectedDisbursement.amount))}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Date Created Card */}
+        <div className="bg-white/5 rounded-2xl border border-white/10 p-6 backdrop-blur-sm hover:bg-white/10 transition-all duration-300">
+          <div className="flex items-start gap-4">
+            <div className="bg-blue-500/20 p-3 rounded-xl">
+              <Calendar className="w-6 h-6 text-blue-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-blue-300 text-xs font-semibold uppercase tracking-wider mb-1">
+                Date 
+              </p>
+              <div className="space-y-2">
+                <p className="text-white font-medium">
+                  {new Date(selectedDisbursement.dateCreated).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </p>
+                <div className="flex items-center gap-2 text-gray-300 text-sm">
+                  
+                
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Full Timestamp Card */}
+       
+
+        {/* Disbursement ID */}
+      
       </div>
 
-      {/* Footer */}
-      <div className="mt-auto flex justify-end gap-3 px-6 py-4 border-t border-white/20 bg-[#0F2544]">
-
+      {/* Footer with enhanced buttons */}
+      <div className="flex justify-end gap-3 px-6 py-5 border-t border-white/10 bg-black/20 backdrop-blur-sm">
         <button
           onClick={() => setShowDetailsModal(false)}
-          className="px-5 py-2 rounded-lg bg-white/10 text-white hover:bg-white/20 text-lg font-semibold"
+          className="px-5 py-2.5 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all duration-200 font-semibold text-sm flex items-center gap-2"
         >
+          <X size={16} />
           Close
         </button>
 
-        {/*
         <button
           onClick={() => {
             setShowDetailsModal(false);
             handleEdit(selectedDisbursement.id);
           }}
-          className="px-5 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-lg font-semibold flex items-center gap-2"
+          className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white transition-all duration-200 font-semibold text-sm flex items-center gap-2 shadow-lg"
         >
-          <Edit size={18} /> Edit
+          <Edit size={16} />
+          Edit Disbursement
         </button>
 
         <button
@@ -1189,24 +1284,18 @@ const isBudgetEnough = () => {
             setShowDetailsModal(false);
             openDeleteModal(selectedDisbursement.id, selectedDisbursement.payee);
           }}
-          className="px-5 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-lg font-semibold flex items-center gap-2"
+          className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white transition-all duration-200 font-semibold text-sm flex items-center gap-2 shadow-lg"
         >
-          <Trash2 size={18} /> Delete
+          <Trash2 size={16} />
+          Delete Disbursement
         </button>
-        */}
       </div>
     </aside>
   </div>
 )}
 
 
-
-
-
-
-
-
-      {/* =================== Delete Modal =================== 
+      {/* =================== Delete Modal =================== */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
           <div className="absolute inset-0 bg-black opacity-30 pointer-events-auto"></div>
@@ -1235,7 +1324,6 @@ const isBudgetEnough = () => {
           </div>
         </div>
       )}
-      */}
 
       {/* =================== OCR Scanner Modal =================== */}
       {showScanModal && (

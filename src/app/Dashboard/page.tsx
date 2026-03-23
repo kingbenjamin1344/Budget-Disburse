@@ -186,57 +186,77 @@ const fetchRecentLogs = async () => {
     </div>
     {/* Divider line */}
 <hr className="border-gray-300 mt-4 mb-6" />
-      {/* === TOP CARDS === */}
+      {/* === TOP CARDS - MODERN UI === */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Offices */}
-        <div className="bg-gradient-to-r from-[#1e3a8a] to-[#0f172a] text-white rounded-xl p-6 relative overflow-hidden shadow-md 
-                        hover:shadow-xl hover:scale-105 transition transform duration-300 group">
-          <div className="flex flex-col justify-center h-full">
-            <p className="text-3xl font-semibold">{stats.offices}</p>
-            <p className="text-sm text-white/80 mt-1">Number of Offices</p>
-          </div>
-          <div className="absolute top-1/2 right-6 transform -translate-y-1/2 bg-blue-500/80 p-3 rounded-full shadow-lg 
-                          transition-transform duration-300 group-hover:scale-125">
-            <Building2 size={32} className="text-white" />
+        <div className="group relative overflow-hidden rounded-2xl bg-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div className="relative p-6 z-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-blue-100 rounded-xl group-hover:bg-white/20 transition-colors duration-300">
+                <Building2 className="w-6 h-6 text-blue-600 group-hover:text-white" />
+              </div>
+              <span className="text-3xl font-bold text-gray-800 group-hover:text-white transition-colors duration-300">
+                {stats.offices}
+              </span>
+            </div>
+            <p className="text-sm font-medium text-gray-600 group-hover:text-white/90 transition-colors duration-300">
+              Number of Offices
+            </p>
           </div>
         </div>
 
         {/* Expense Types */}
-        <div className="bg-gradient-to-r from-[#1e3a8a] to-[#0f172a] text-white rounded-xl p-6 relative overflow-hidden shadow-md 
-                        hover:shadow-xl hover:scale-105 transition transform duration-300 group">
-          <div className="flex flex-col justify-center h-full">
-            <p className="text-3xl font-semibold">{stats.expenseTypes}</p>
-            <p className="text-sm text-white/80 mt-1">Number of Expense Types</p>
-          </div>
-          <div className="absolute top-1/2 right-6 transform -translate-y-1/2 bg-green-500/80 p-3 rounded-full shadow-lg 
-                          transition-transform duration-300 group-hover:scale-125">
-            <BarChart3 size={32} className="text-white" />
+        <div className="group relative overflow-hidden rounded-2xl bg-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <div className="absolute inset-0 bg-gradient-to-br from-green-500 to-green-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div className="relative p-6 z-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-green-100 rounded-xl group-hover:bg-white/20 transition-colors duration-300">
+                <BarChart3 className="w-6 h-6 text-green-600 group-hover:text-white" />
+              </div>
+              <span className="text-3xl font-bold text-gray-800 group-hover:text-white transition-colors duration-300">
+                {stats.expenseTypes}
+              </span>
+            </div>
+            <p className="text-sm font-medium text-gray-600 group-hover:text-white/90 transition-colors duration-300">
+              Number of Expense Types
+            </p>
           </div>
         </div>
 
         {/* Total Budget */}
-        <div className="bg-gradient-to-r from-[#1e3a8a] to-[#0f172a] text-white rounded-xl p-6 relative overflow-hidden shadow-md 
-                        hover:shadow-xl hover:scale-105 transition transform duration-300 group">
-          <div className="flex flex-col justify-center h-full">
-            <p className="text-2xl font-semibold">{currency(totalBudgetSum)}</p>
-            <p className="text-sm text-white/80 mt-1">Overall Total Budget</p>
-          </div>
-          <div className="absolute top-1/2 right-6 transform -translate-y-1/2 bg-orange-500/80 p-3 rounded-full shadow-lg 
-                          transition-transform duration-300 group-hover:scale-125">
-            <Wallet size={32} className="text-white" />
+        <div className="group relative overflow-hidden rounded-2xl bg-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-500 to-orange-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div className="relative p-6 z-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-orange-100 rounded-xl group-hover:bg-white/20 transition-colors duration-300">
+                <Wallet className="w-6 h-6 text-orange-600 group-hover:text-white" />
+              </div>
+              <span className="text-2xl font-bold text-gray-800 group-hover:text-white transition-colors duration-300">
+                {currency(totalBudgetSum)}
+              </span>
+            </div>
+            <p className="text-sm font-medium text-gray-600 group-hover:text-white/90 transition-colors duration-300">
+              Overall Total Budget
+            </p>
           </div>
         </div>
 
         {/* Actual Expenditure */}
-        <div className="bg-gradient-to-r from-[#1e3a8a] to-[#0f172a] text-white rounded-xl p-6 relative overflow-hidden shadow-md 
-                        hover:shadow-xl hover:scale-105 transition transform duration-300 group">
-          <div className="flex flex-col justify-center h-full">
-            <p className="text-2xl font-semibold">{currency(stats.totalExpenditure)}</p>
-            <p className="text-sm text-white/80 mt-1">Actual Expenditure</p>
-          </div>
-          <div className="absolute top-1/2 right-6 transform -translate-y-1/2 bg-violet-500/80 p-3 rounded-full shadow-lg 
-                          transition-transform duration-300 group-hover:scale-125">
-            <PieChart size={32} className="text-white" />
+        <div className="group relative overflow-hidden rounded-2xl bg-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div className="relative p-6 z-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-purple-100 rounded-xl group-hover:bg-white/20 transition-colors duration-300">
+                <PieChart className="w-6 h-6 text-purple-600 group-hover:text-white" />
+              </div>
+              <span className="text-2xl font-bold text-gray-800 group-hover:text-white transition-colors duration-300">
+                {currency(stats.totalExpenditure)}
+              </span>
+            </div>
+            <p className="text-sm font-medium text-gray-600 group-hover:text-white/90 transition-colors duration-300">
+              Actual Expenditure
+            </p>
           </div>
         </div>
       </div>

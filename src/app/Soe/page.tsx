@@ -24,10 +24,11 @@ export default function SoePage() {
   const [officeFilter, setOfficeFilter] = useState('');
   const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
   const currentYear = String(new Date().getFullYear());
-  const [monthFilterFrom, setMonthFilterFrom] = useState('01');
-  const [yearFilterFrom, setYearFilterFrom] = useState(currentYear);
-  const [monthFilterTo, setMonthFilterTo] = useState(currentMonth);
-  const [yearFilterTo, setYearFilterTo] = useState(currentYear);
+  const [monthFilterFrom, setMonthFilterFrom] = useState('');
+  const [yearFilterFrom, setYearFilterFrom] = useState('');
+  const [monthFilterTo, setMonthFilterTo] = useState('');
+  const [yearFilterTo, setYearFilterTo] = useState('');
+  const [filterApplied, setFilterApplied] = useState(false);
 
   // Helper function to format numbers as Philippine Peso
   const formatPeso = (value: number) => {
@@ -469,7 +470,7 @@ export default function SoePage() {
     const calculateTotals = (office: string, category: string) => {
       if (!office || !category) return 0;
       
-      // Filter disbursements by office, category, and date range
+      // Filter disbursements by office, category, and date range (only if filter is applied)
       const relevantDisbs = disbs.filter((d: any) => {
         if (!d.dateCreated) return false;
         
@@ -485,12 +486,14 @@ export default function SoePage() {
         const disbMonth = String(dt.getMonth() + 1).padStart(2, '0');
         const disbYear = String(dt.getFullYear());
         
-        // Check if disbursement date is within the selected range
-        const startDate = new Date(parseInt(yearFilterFrom), parseInt(monthFilterFrom) - 1, 1);
-        const endDate = new Date(parseInt(yearFilterTo), parseInt(monthFilterTo), 0, 23, 59, 59);
-        
-        if (dt < startDate || dt > endDate) {
-          return false;
+        // Only apply date range filter if user has clicked "Set" and all values are provided
+        if (filterApplied && monthFilterFrom && monthFilterTo && yearFilterTo) {
+          const startDate = new Date(parseInt(yearFilterFrom || currentYear), parseInt(monthFilterFrom) - 1, 1);
+          const endDate = new Date(parseInt(yearFilterTo), parseInt(monthFilterTo), 0, 23, 59, 59);
+          
+          if (dt < startDate || dt > endDate) {
+            return false;
+          }
         }
         
         // Finally check office and category
@@ -549,7 +552,7 @@ export default function SoePage() {
   // Recompute whenever raw data or filters change
   useEffect(() => {
     computeFiltered(rawBudgetData, rawDisbData);
-  }, [rawBudgetData, rawDisbData, officeFilter, monthFilterFrom, yearFilterFrom, monthFilterTo, yearFilterTo]);
+  }, [rawBudgetData, rawDisbData, officeFilter, monthFilterFrom, yearFilterFrom, monthFilterTo, yearFilterTo, filterApplied]);
 
   useEffect(() => {
     return () => {
@@ -627,92 +630,97 @@ export default function SoePage() {
 {/* Divider line */}
 <hr className="border-gray-300 mb-6" />
 
-      {/* Filters: office, month range, year range */}
-      <div className="flex flex-col gap-4 mb-4">
-        <div className="flex flex-col sm:flex-row items-center gap-2">
-          <input
-            type="text"
-            placeholder="Search office..."
-            value={officeFilter}
-            onChange={(e) => setOfficeFilter(e.target.value)}
-            className="w-full sm:w-1/3 border border-gray-300 rounded px-3 py-2"
-          />
+      {/* Filters: Search bar and Month/Year/Set controls */}
+      <div className="flex flex-col sm:flex-row items-center gap-3 mb-6">
+        {/* Search Bar */}
+        <input
+          type="text"
+          placeholder="Search Bar"
+          value={officeFilter}
+          onChange={(e) => setOfficeFilter(e.target.value)}
+          className="flex-1 border border-gray-300 rounded px-3 py-2 w-full sm:w-auto"
+        />
 
-          <button
-            onClick={() => { setOfficeFilter(''); setMonthFilterFrom('01'); setYearFilterFrom(currentYear); setMonthFilterTo(currentMonth); setYearFilterTo(currentYear); }}
-            className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 transition whitespace-nowrap"
+        {/* Month/Year/Set Controls */}
+        <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap">
+          {/* First Month Dropdown */}
+          <select
+            value={monthFilterFrom}
+            onChange={(e) => setMonthFilterFrom(e.target.value)}
+            className="border border-gray-300 rounded px-3 py-2 text-sm flex-1 sm:flex-none w-full sm:w-auto"
           >
-            Clear Filters
+            <option value="" disabled>Select Month</option>
+            {[
+              ['01','January'],['02','February'],['03','March'],['04','April'],['05','May'],['06','June'],
+              ['07','July'],['08','August'],['09','September'],['10','October'],['11','November'],['12','December']
+            ].map(([val, label]) => (
+              <option key={val} value={val}>{label}</option>
+            ))}
+          </select>
+
+          {/* Second Month Dropdown */}
+          <select
+            value={monthFilterTo}
+            onChange={(e) => setMonthFilterTo(e.target.value)}
+            className="border border-gray-300 rounded px-3 py-2 text-sm flex-1 sm:flex-none w-full sm:w-auto"
+          >
+            <option value="" disabled>Select Month</option>
+            {[
+              ['01','January'],['02','February'],['03','March'],['04','April'],['05','May'],['06','June'],
+              ['07','July'],['08','August'],['09','September'],['10','October'],['11','November'],['12','December']
+            ].map(([val, label]) => (
+              <option key={val} value={val}>{label}</option>
+            ))}
+          </select>
+
+          {/* Year Dropdown */}
+          <select
+            value={yearFilterTo}
+            onChange={(e) => setYearFilterTo(e.target.value)}
+            className="border border-gray-300 rounded px-3 py-2 text-sm flex-1 sm:flex-none w-full sm:w-auto"
+          >
+            <option value="" disabled>Select Year</option>
+            {[...new Set(rawDisbData.map(d => {
+              try { return new Date(d.dateCreated).getFullYear(); } catch { return null; }
+            })).values()]
+              .filter(Boolean)
+              .sort((a: any, b: any) => b - a)
+              .map((y: any) => (
+                <option key={y} value={String(y)}>{String(y)}</option>
+              ))}
+          </select>
+
+          {/* Set Button */}
+          <button
+            onClick={() => {
+              // Validate all fields are selected
+              if (!monthFilterFrom || !monthFilterTo || !yearFilterTo) {
+                toast.error('Please select both months and year');
+                return;
+              }
+              // Apply filter - data will recompute via useEffect
+              setFilterApplied(true);
+            }}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition whitespace-nowrap flex-1 sm:flex-none w-full sm:w-auto"
+          >
+            Set
           </button>
         </div>
 
-        {/* Date Range Section */}
-        <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Date Range</h3>
-          <div className="flex flex-col sm:flex-row gap-3 items-center sm:items-end">
-            {/* From Date */}
-            <div className="flex-1 flex gap-2 items-center">
-              <span className="text-xs font-medium text-gray-600 whitespace-nowrap">From:</span>
-              <select
-                value={monthFilterFrom}
-                onChange={(e) => setMonthFilterFrom(e.target.value)}
-                className="flex-1 border border-gray-300 rounded px-2 py-2 text-sm"
-              >
-                {[
-                  ['01','January'],['02','February'],['03','March'],['04','April'],['05','May'],['06','June'],
-                  ['07','July'],['08','August'],['09','September'],['10','October'],['11','November'],['12','December']
-                ].map(([val, label]) => (
-                  <option key={val} value={val}>{label}</option>
-                ))}
-              </select>
-              <select
-                value={yearFilterFrom}
-                onChange={(e) => setYearFilterFrom(e.target.value)}
-                className="flex-1 border border-gray-300 rounded px-2 py-2 text-sm"
-              >
-                {[...new Set(rawDisbData.map(d => {
-                  try { return new Date(d.dateCreated).getFullYear(); } catch { return null; }
-                })).values()]
-                  .filter(Boolean)
-                  .sort((a: any, b: any) => b - a)
-                  .map((y: any) => (
-                    <option key={y} value={String(y)}>{String(y)}</option>
-                  ))}
-              </select>
-            </div>
-
-            {/* To Date */}
-            <div className="flex-1 flex gap-2 items-center">
-              <span className="text-xs font-medium text-gray-600 whitespace-nowrap">To:</span>
-              <select
-                value={monthFilterTo}
-                onChange={(e) => setMonthFilterTo(e.target.value)}
-                className="flex-1 border border-gray-300 rounded px-2 py-2 text-sm"
-              >
-                {[
-                  ['01','January'],['02','February'],['03','March'],['04','April'],['05','May'],['06','June'],
-                  ['07','July'],['08','August'],['09','September'],['10','October'],['11','November'],['12','December']
-                ].map(([val, label]) => (
-                  <option key={val} value={val}>{label}</option>
-                ))}
-              </select>
-              <select
-                value={yearFilterTo}
-                onChange={(e) => setYearFilterTo(e.target.value)}
-                className="flex-1 border border-gray-300 rounded px-2 py-2 text-sm"
-              >
-                {[...new Set(rawDisbData.map(d => {
-                  try { return new Date(d.dateCreated).getFullYear(); } catch { return null; }
-                })).values()]
-                  .filter(Boolean)
-                  .sort((a: any, b: any) => b - a)
-                  .map((y: any) => (
-                    <option key={y} value={String(y)}>{String(y)}</option>
-                  ))}
-              </select>
-            </div>
-          </div>
-        </div>
+        {/* Clear Filters Button */}
+        <button
+          onClick={() => { 
+            setOfficeFilter(''); 
+            setMonthFilterFrom(''); 
+            setYearFilterFrom(''); 
+            setMonthFilterTo(''); 
+            setYearFilterTo('');
+            setFilterApplied(false);
+          }}
+          className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 transition whitespace-nowrap flex-1 sm:flex-none w-full sm:w-auto"
+        >
+          Clear
+        </button>
       </div>
 
 

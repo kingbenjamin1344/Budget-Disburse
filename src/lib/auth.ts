@@ -1,6 +1,31 @@
 import jwt from 'jsonwebtoken';
 
-const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'f77737058b7cda6894c2b8552d18e26722398fcfc8ea7adddf8f6f5e9ec6a698';
+// ⚠️ SECURITY: Never use hardcoded secrets in production
+function getAuthSecret(): string {
+  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+  
+  // Development fallback - should NOT be used in production
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        'CRITICAL: AUTH_SECRET and NEXTAUTH_SECRET environment variables are not set. ' +
+        'This is required for production deployments. ' +
+        'Generate a secure secret with: openssl rand -base64 32'
+      );
+    }
+    
+    // Development warning
+    console.warn(
+      '⚠️ WARNING: Using temporary development secret. ' +
+      'Set AUTH_SECRET environment variable for security.'
+    );
+    return 'dev-temporary-secret-not-for-production-use-only-for-testing';
+  }
+  
+  return secret;
+}
+
+const AUTH_SECRET = getAuthSecret();
 
 function parseCookieHeader(cookieHeader?: string) {
   if (!cookieHeader) return {};
