@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Custom hook for fetching data with client-side caching
  * Prevents duplicate requests and improves performance
  */
