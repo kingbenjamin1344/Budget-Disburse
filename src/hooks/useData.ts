@@ -6,7 +6,6 @@
 import { useEffect, useState, useRef } from 'react';
 
 interface CacheEntry {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any;
   timestamp: number;
   ttl: number; // Time to live in milliseconds
