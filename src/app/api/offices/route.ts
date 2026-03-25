@@ -3,36 +3,16 @@ import { NextResponse } from "next/server";
 import logAction from "../../../lib/log";
 import { getUserNameFromRequest } from "../../../lib/auth";
 
-// Add timeout wrapper
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error(`Database query timeout after ${timeoutMs}ms`)), timeoutMs)
-    ),
-  ]);
-}
 
 export async function GET() {
-  try {
-    const offices = await withTimeout(
-      prisma.office.findMany({
-        orderBy: { id: "desc" },
-      }),
-      5000 // 5 second timeout
-    );
-    return NextResponse.json(offices, {
-      headers: {
-        'Cache-Control': 'private, s-maxage=60, stale-while-revalidate=120',
-      },
-    });
-  } catch (error) {
-    console.error('Error fetching offices:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch offices', offices: [] },
-      { status: 500 }
-    );
-  }
+  const offices = await prisma.office.findMany({
+    orderBy: { id: "desc" },
+  });
+  return NextResponse.json(offices, {
+    headers: {
+      'Cache-Control': 'private, s-maxage=60, stale-while-revalidate=120',
+    },
+  });
 }
 
 export async function POST(request: Request) {
