@@ -30,17 +30,9 @@ export default function AddOfficePage() {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchOffices = async () => {
-    try {
-      const res = await fetch("/api/offices", {
-        signal: AbortSignal.timeout(10000) // 10 second timeout
-      });
-      const data = await res.json();
-      setOffices(data.offices || data || []);
-    } catch (error) {
-      console.error('Failed to fetch offices:', error);
-      setOffices([]);
-      toast.error("Failed to load offices");
-    }
+    const res = await fetch("/api/offices");
+    const data = await res.json();
+    setOffices(data);
   };
 
   useEffect(() => {
