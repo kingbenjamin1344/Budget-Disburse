@@ -30,32 +30,58 @@ export default function AddOfficePage() {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchOffices = async () => {
-    const res = await fetch("/api/offices");
-    const data = await res.json();
-    setOffices(data);
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      const res = await fetch("/api/offices", {
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      
+      if (!res.ok) throw new Error('Failed to fetch offices');
+      const data = await res.json();
+      setOffices(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching offices:', error);
+      setOffices([]);
+      toast.error("Failed to load offices");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
-    fetchOffices().then(() => {
-      setIsLoading(false);
-    });
+    fetchOffices();
   }, []);
 
   const handleAddOffice = async () => {
     if (!newOffice.trim()) return toast.error("Please enter an office name.");
     setLoading(true);
-    const res = await fetch("/api/offices", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newOffice }),
-    });
-    if (res.ok) {
-      setNewOffice("");
-      setAddModal(false);
-      fetchOffices();
-      toast.success("Office created successfully");
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const res = await fetch("/api/offices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newOffice }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        setNewOffice("");
+        setAddModal(false);
+        fetchOffices();
+        toast.success("Office created successfully");
+      } else {
+        toast.error("Failed to create office");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to create office");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleEdit = (office: any) => {
@@ -67,20 +93,30 @@ export default function AddOfficePage() {
   const handleSaveEdit = async () => {
     if (!editName.trim() || !editingOffice) return toast.error("Please enter a name");
     setLoading(true);
-    const res = await fetch("/api/offices", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: editingOffice.id, name: editName }),
-    });
-    if (res.ok) {
-      setEditModal(false);
-      setEditingOffice(null);
-      fetchOffices();
-      toast.success("Office updated successfully");
-    } else {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const res = await fetch("/api/offices", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editingOffice.id, name: editName }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        setEditModal(false);
+        setEditingOffice(null);
+        fetchOffices();
+        toast.success("Office updated successfully");
+      } else {
+        toast.error("Failed to update office");
+      }
+    } catch (error) {
+      console.error(error);
       toast.error("Failed to update office");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleDeleteClick = (office: any) => {
@@ -91,11 +127,15 @@ export default function AddOfficePage() {
   const handleConfirmDelete = async () => {
     if (!officeToDelete) return;
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
       const res = await fetch("/api/offices", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: officeToDelete.id }),
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
       if (!res.ok) throw new Error("Failed to delete office");
 
       setDeleteModal(false);
