@@ -11,6 +11,10 @@
     "restartPolicyMaxRetries": 5
   },
   "variables": {
+    "DATABASE_URL": {
+      "description": "MySQL database connection string - Update password from your MySQL service",
+      "value": "mysql://root:bwqqeEeutHUBuOoEZXsrJejjWXvLaguG@mysql.railway.internal:3306/railway"
+    },
     "NODE_ENV": {
       "description": "Node environment - set to production for Railway",
       "value": "production"
