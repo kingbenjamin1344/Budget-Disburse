@@ -46,7 +46,7 @@ export default function SoePage() {
       '07': 'Jul', '08': 'Aug', '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec'
     };
 
-    let filenameparts: string[] = ['SOE'];
+    const filenameparts: string[] = ['SOE'];
 
     // Add office if filtered
     if (officeFilter && officeFilter.trim()) {

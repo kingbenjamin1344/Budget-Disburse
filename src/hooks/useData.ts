@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Custom hook for fetching data with client-side caching
  * Prevents duplicate requests and improves performance
  */
@@ -6,7 +6,7 @@
 import { useEffect, useState, useRef } from 'react';
 
 interface CacheEntry {
-  data: any; // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data: any;
   timestamp: number;
   ttl: number; // Time to live in milliseconds
 }
