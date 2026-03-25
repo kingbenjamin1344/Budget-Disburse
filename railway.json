@@ -14,6 +14,14 @@
     "NODE_ENV": {
       "description": "Node environment - set to production for Railway",
       "value": "production"
+    },
+    "AUTH_SECRET": {
+      "description": "Authentication secret for NextAuth.js - used during build and runtime",
+      "value": "szyhJETF271r2u0/63g2vtF0UUUC7XtMQa5mQn3vVwA="
+    },
+    "NEXTAUTH_SECRET": {
+      "description": "NextAuth.js secret - alias for AUTH_SECRET",
+      "value": "szyhJETF271r2u0/63g2vtF0UUUC7XtMQa5mQn3vVwA="
     }
   }
 }
