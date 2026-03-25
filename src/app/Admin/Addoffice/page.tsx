@@ -30,15 +30,21 @@ export default function AddOfficePage() {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchOffices = async () => {
-    const res = await fetch("/api/offices");
-    const data = await res.json();
-    setOffices(data);
+    try {
+      const res = await fetch("/api/offices");
+      if (!res.ok) throw new Error(`Failed to fetch offices: ${res.status} ${res.statusText}`);
+      const data = await res.json();
+      setOffices(data);
+    } catch (error) {
+      console.error("Error fetching offices:", error);
+      toast.error("Failed to load offices. Please refresh the page.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
-    fetchOffices().then(() => {
-      setIsLoading(false);
-    });
+    fetchOffices();
   }, []);
 
   const handleAddOffice = async () => {
