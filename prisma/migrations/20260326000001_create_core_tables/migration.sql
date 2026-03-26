@@ -1,5 +1,5 @@
 -- CreateTable office (must be first due to foreign keys)
-CREATE TABLE `office` (
+CREATE TABLE IF NOT EXISTS `office` (
     `id` INT NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(191) NOT NULL,
     `dateCreated` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -9,7 +9,7 @@ CREATE TABLE `office` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable budget
-CREATE TABLE `budget` (
+CREATE TABLE IF NOT EXISTS `budget` (
     `id` INT NOT NULL AUTO_INCREMENT,
     `officeId` INT NOT NULL,
     `officeName` VARCHAR(191) NOT NULL,
@@ -26,7 +26,7 @@ CREATE TABLE `budget` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable disbursement
-CREATE TABLE `disbursement` (
+CREATE TABLE IF NOT EXISTS `disbursement` (
     `id` INT NOT NULL AUTO_INCREMENT,
     `dvNo` VARCHAR(191) NOT NULL,
     `payee` VARCHAR(191) NOT NULL,
@@ -44,7 +44,7 @@ CREATE TABLE `disbursement` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable expense
-CREATE TABLE `expense` (
+CREATE TABLE IF NOT EXISTS `expense` (
     `id` INT NOT NULL AUTO_INCREMENT,
     `type` VARCHAR(191) NOT NULL,
     `category` VARCHAR(191) NOT NULL,
@@ -55,7 +55,7 @@ CREATE TABLE `expense` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable log
-CREATE TABLE `log` (
+CREATE TABLE IF NOT EXISTS `log` (
     `id` INT NOT NULL AUTO_INCREMENT,
     `message` VARCHAR(191) NOT NULL,
     `type` VARCHAR(191) NOT NULL,
