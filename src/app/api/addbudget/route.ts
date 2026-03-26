@@ -204,11 +204,14 @@ export async function DELETE(req: Request) {
   try {
     const { id } = await req.json();
 
-    const existingBudget = await prisma.budget.findUnique({ where: { id } });
+    const existingBudget = await prisma.budget.findUnique({ 
+      where: { id },
+      include: { office: true }
+    });
     await prisma.budget.delete({ where: { id } });
     const actor = getUserNameFromRequest(req);
     await logAction({
-      message: `id=${id}, office="${existingBudget?.officeName || "<unknown>"}", PS=${existingBudget?.ps}, MOOE=${existingBudget?.mooe}, CO=${existingBudget?.co}, total=${existingBudget?.total}`,
+      message: `id=${id}, office="${existingBudget?.office?.name || "<unknown>"}", PS=${existingBudget?.ps}, MOOE=${existingBudget?.mooe}, CO=${existingBudget?.co}, total=${existingBudget?.total}`,
       type: "Budget",
       action: "delete",
       performedBy: actor || undefined,
