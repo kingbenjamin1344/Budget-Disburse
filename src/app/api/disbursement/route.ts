@@ -43,12 +43,33 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { dvNo, payee, office, expenseType, expenseCategory, amount, date } = body;
 
-    const existingOffice = await prisma.office.findFirst({
+    // Find office by name, or create it if it doesn't exist
+    let existingOffice = await prisma.office.findFirst({
       where: { name: office },
     });
 
     if (!existingOffice) {
-      return NextResponse.json({ error: "Office not found" }, { status: 400 });
+      console.warn(`Office not found in POST: "${office}". Auto-creating...`);
+      try {
+        existingOffice = await prisma.office.create({
+          data: { name: office },
+        });
+        console.log(`✅ Office created: "${office}" with ID ${existingOffice.id}`);
+      } catch (err: any) {
+        if (err.code === 'P2002') {
+          existingOffice = await prisma.office.findFirst({
+            where: { name: office },
+          });
+          if (!existingOffice) {
+            return NextResponse.json(
+              { error: `Failed to create or find office: "${office}"` },
+              { status: 500 }
+            );
+          }
+        } else {
+          throw err;
+        }
+      }
     }
 
     const createData: any = {
@@ -103,12 +124,33 @@ export async function PUT(req: Request) {
     const body = await req.json();
     const { id, dvNo, payee, office, expenseType, expenseCategory, amount, date } = body;
 
-    const existingOffice = await prisma.office.findFirst({
+    // Find office by name, or create it if it doesn't exist
+    let existingOffice = await prisma.office.findFirst({
       where: { name: office },
     });
 
     if (!existingOffice) {
-      return NextResponse.json({ error: "Office not found" }, { status: 400 });
+      console.warn(`Office not found in PUT: "${office}". Auto-creating...`);
+      try {
+        existingOffice = await prisma.office.create({
+          data: { name: office },
+        });
+        console.log(`✅ Office created: "${office}" with ID ${existingOffice.id}`);
+      } catch (err: any) {
+        if (err.code === 'P2002') {
+          existingOffice = await prisma.office.findFirst({
+            where: { name: office },
+          });
+          if (!existingOffice) {
+            return NextResponse.json(
+              { error: `Failed to create or find office: "${office}"` },
+              { status: 500 }
+            );
+          }
+        } else {
+          throw err;
+        }
+      }
     }
 
     const updateData: any = {

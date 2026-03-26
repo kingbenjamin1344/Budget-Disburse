@@ -51,17 +51,34 @@ export async function POST(req: Request) {
       );
     }
 
-    // Find office by name
-    const existingOffice = await prisma.office.findFirst({
+    // Find office by name, or create it if it doesn't exist
+    let existingOffice = await prisma.office.findFirst({
       where: { name: office },
     });
 
     if (!existingOffice) {
-      console.warn(`Office not found: "${office}". Available offices:`, await prisma.office.findMany());
-      return NextResponse.json(
-        { error: `Office not found: "${office}"` }, 
-        { status: 400 }
-      );
+      console.warn(`Office not found: "${office}". Auto-creating...`);
+      try {
+        existingOffice = await prisma.office.create({
+          data: { name: office },
+        });
+        console.log(`✅ Office created: "${office}" with ID ${existingOffice.id}`);
+      } catch (err: any) {
+        // If create fails (e.g., unique constraint), try to find it again
+        if (err.code === 'P2002') {
+          existingOffice = await prisma.office.findFirst({
+            where: { name: office },
+          });
+          if (!existingOffice) {
+            return NextResponse.json(
+              { error: `Failed to create or find office: "${office}"` },
+              { status: 500 }
+            );
+          }
+        } else {
+          throw err;
+        }
+      }
     }
 
     // Create budget with both officeId and officeName
