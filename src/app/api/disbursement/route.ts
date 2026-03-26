@@ -41,32 +41,55 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { dvNo, payee, office, expenseType, expenseCategory, amount, date } = body;
+    let { dvNo, payee, office, expenseType, expenseCategory, amount, date } = body;
 
-    // Find office by name, or create it if it doesn't exist
+    // Validate required fields
+    if (!dvNo || !payee || !office || !expenseType || !expenseCategory || amount === undefined) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    // Sanitize inputs
+    office = String(office).trim();
+    dvNo = String(dvNo).trim();
+    payee = String(payee).trim();
+    expenseType = String(expenseType).trim();
+    expenseCategory = String(expenseCategory).trim();
+    amount = parseFloat(String(amount));
+
+    if (isNaN(amount) || amount <= 0) {
+      return NextResponse.json(
+        { error: "Amount must be a valid positive number" },
+        { status: 400 }
+      );
+    }
+
+    console.log(`\n📝 [POST /disbursement] Saving: dvNo="${dvNo}", payee="${payee}", office="${office}", amount=${amount}`);
+
+    // Find office by name
     let existingOffice = await prisma.office.findFirst({
       where: { name: office },
     });
 
-    console.log(`[POST /disbursement] Looking for office "${office}"...`);
-
     if (!existingOffice) {
-      console.warn(`Office not found in POST: "${office}". Auto-creating...`);
+      console.warn(`⚠️  Office not found: "${office}". Auto-creating...`);
       try {
         existingOffice = await prisma.office.create({
           data: { name: office },
         });
-        console.log(`✅ Office created: "${office}" with ID ${existingOffice.id}`);
+        console.log(`✅ Created office: "${office}" (ID: ${existingOffice.id})`);
       } catch (err: any) {
         if (err.code === 'P2002') {
-          console.log(`Office create failed with P2002 (unique constraint), retrying find...`);
+          console.log(`ℹ️  Office exists (concurrent creation), retrying find...`);
           existingOffice = await prisma.office.findFirst({
             where: { name: office },
           });
           if (!existingOffice) {
             return NextResponse.json(
-              { error: `Failed to create or find office: "${office}"` },
-              { status: 500 }
+              { error: "Office concurrency issue - retry" },
+              { status: 503 }
             );
           }
         } else {
@@ -74,14 +97,14 @@ export async function POST(req: Request) {
         }
       }
     } else {
-      console.log(`✅ Office found: "${office}" with ID ${existingOffice.id}`);
+      console.log(`✅ Found office: "${office}" (ID: ${existingOffice.id})`);
     }
 
-    // Verify office object has valid ID before creating disbursement
-    if (!existingOffice || !existingOffice.id) {
-      console.error(`[ERROR] existingOffice is invalid:`, existingOffice);
+    // Verify office ID
+    if (!existingOffice?.id || typeof existingOffice.id !== 'number') {
+      console.error(`❌ Invalid office ID:`, existingOffice);
       return NextResponse.json(
-        { error: `Invalid office object: ${JSON.stringify(existingOffice)}` },
+        { error: "Invalid office data - cannot save disbursement" },
         { status: 500 }
       );
     }
@@ -91,10 +114,8 @@ export async function POST(req: Request) {
       payee,
       expenseType,
       expenseCategory,
-      amount: parseFloat(amount),
-      office: {
-        connect: { id: existingOffice.id }
-      }
+      amount,
+      officeId: existingOffice.id
     };
     if (date) {
       const parsed = new Date(date);
@@ -205,9 +226,7 @@ export async function PUT(req: Request) {
       expenseType,
       expenseCategory,
       amount: parseFloat(amount),
-      office: {
-        connect: { id: existingOffice.id }
-      }
+      officeId: existingOffice.id
     };
     if (date) {
       const parsed = new Date(date);

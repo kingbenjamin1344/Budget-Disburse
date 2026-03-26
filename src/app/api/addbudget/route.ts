@@ -42,40 +42,62 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { office, ps, mooe, co, total } = body;
+    let { office, ps, mooe, co, total } = body;
 
-    if (!office || ps === undefined || mooe === undefined || co === undefined) {
+    // Validate and sanitize office input
+    if (!office || (typeof office === 'string' && office.trim() === '')) {
       return NextResponse.json(
-        { error: "Missing required fields: office, ps, mooe, co" }, 
+        { error: "Office name is required" }, 
         { status: 400 }
       );
     }
 
-    // Find office by name, or create it if it doesn't exist
+    if (ps === undefined || mooe === undefined || co === undefined) {
+      return NextResponse.json(
+        { error: "Missing required fields: ps, mooe, co" }, 
+        { status: 400 }
+      );
+    }
+
+    // Trim and normalize office name
+    office = String(office).trim();
+    ps = parseFloat(String(ps));
+    mooe = parseFloat(String(mooe));
+    co = parseFloat(String(co));
+    total = parseFloat(String(total)) || (ps + mooe + co);
+
+    // Validate parsed numbers
+    if (isNaN(ps) || isNaN(mooe) || isNaN(co)) {
+      return NextResponse.json(
+        { error: "PS, MOOE, CO must be valid numbers" }, 
+        { status: 400 }
+      );
+    }
+
+    console.log(`\n📝 [POST /addbudget] Saving budget for office: "${office}" (ps=${ps}, mooe=${mooe}, co=${co})`);
+
+    // Find office by name
     let existingOffice = await prisma.office.findFirst({
       where: { name: office },
     });
 
-    console.log(`[POST /addbudget] Looking for office "${office}"...`);
-
     if (!existingOffice) {
-      console.warn(`Office not found: "${office}". Auto-creating...`);
+      console.warn(`⚠️  Office not found: "${office}". Auto-creating...`);
       try {
         existingOffice = await prisma.office.create({
           data: { name: office },
         });
-        console.log(`✅ Office created: "${office}" with ID ${existingOffice.id}`);
+        console.log(`✅ Created office: "${office}" (ID: ${existingOffice.id})`);
       } catch (err: any) {
-        // If create fails (e.g., unique constraint), try to find it again
         if (err.code === 'P2002') {
-          console.log(`Office create failed with P2002 (unique constraint), retrying find...`);
+          console.log(`ℹ️  Office exists (concurrent creation), retrying find...`);
           existingOffice = await prisma.office.findFirst({
             where: { name: office },
           });
           if (!existingOffice) {
             return NextResponse.json(
-              { error: `Failed to create or find office: "${office}"` },
-              { status: 500 }
+              { error: "Office concurrency issue - retry" },
+              { status: 503 }
             );
           }
         } else {
@@ -83,31 +105,33 @@ export async function POST(req: Request) {
         }
       }
     } else {
-      console.log(`✅ Office found: "${office}" with ID ${existingOffice.id}`);
+      console.log(`✅ Found office: "${office}" (ID: ${existingOffice.id})`);
     }
 
-    // Verify office object has valid ID before creating budget
-    if (!existingOffice || !existingOffice.id) {
-      console.error(`[ERROR] existingOffice is invalid:`, existingOffice);
+    // Verify office ID is valid
+    if (!existingOffice?.id || typeof existingOffice.id !== 'number') {
+      console.error(`❌ Invalid office ID:`, existingOffice);
       return NextResponse.json(
-        { error: `Invalid office object: ${JSON.stringify(existingOffice)}` },
+        { error: "Invalid office data - cannot save budget" },
         { status: 500 }
       );
     }
 
-    console.log(`[PRE-CREATE] Office ID to use: ${existingOffice.id}, Office name: ${existingOffice.name}`);
+    console.log(`✓ Using officeId: ${existingOffice.id}`);
 
-    // Create budget with office connection using Prisma relation
+    // Create budget with direct officeId assignment
     const newBudget = await prisma.budget.create({
       data: {
-        ps: parseFloat(String(ps)),
-        mooe: parseFloat(String(mooe)),
-        co: parseFloat(String(co)),
-        total: parseFloat(String(total)) || (parseFloat(String(ps)) + parseFloat(String(mooe)) + parseFloat(String(co))),
+        ps,
+        mooe,
+        co,
+        total,
         officeId: existingOffice.id
       },
       include: { office: true },
     });
+
+    console.log(`✅ Budget created successfully (ID: ${newBudget.id})`);
 
     const actor = getUserNameFromRequest(req);
     await logAction({
@@ -158,32 +182,54 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   try {
     const body = await req.json();
-    const { id, office, ps, mooe, co, total } = body;
+    let { id, office, ps, mooe, co, total } = body;
 
-    // Find office by name, or create it if it doesn't exist
+    if (!id) {
+      return NextResponse.json(
+        { error: "Budget ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Sanitize inputs
+    office = String(office).trim();
+    ps = parseFloat(String(ps));
+    mooe = parseFloat(String(mooe));
+    co = parseFloat(String(co));
+    total = parseFloat(String(total)) || (ps + mooe + co);
+
+    // Validate
+    if (!office || isNaN(ps) || isNaN(mooe) || isNaN(co)) {
+      return NextResponse.json(
+        { error: "Invalid input - office and amounts required" },
+        { status: 400 }
+      );
+    }
+
+    console.log(`\n📝 [PUT /addbudget] Updating budget ${id} for office: "${office}"`);
+
+    // Find office by name
     let existingOffice = await prisma.office.findFirst({
       where: { name: office },
     });
 
-    console.log(`[PUT /addbudget] Looking for office "${office}"...`);
-
     if (!existingOffice) {
-      console.warn(`Office not found: "${office}". Auto-creating...`);
+      console.warn(`⚠️  Office not found: "${office}". Auto-creating...`);
       try {
         existingOffice = await prisma.office.create({
           data: { name: office },
         });
-        console.log(`✅ Office created: "${office}" with ID ${existingOffice.id}`);
+        console.log(`✅ Created office: "${office}" (ID: ${existingOffice.id})`);
       } catch (err: any) {
         if (err.code === 'P2002') {
-          console.log(`Office create failed with P2002 (unique constraint), retrying find...`);
+          console.log(`ℹ️  Office exists (concurrent creation), retrying find...`);
           existingOffice = await prisma.office.findFirst({
             where: { name: office },
           });
           if (!existingOffice) {
             return NextResponse.json(
-              { error: `Failed to create or find office: "${office}"` },
-              { status: 500 }
+              { error: "Office concurrency issue - retry" },
+              { status: 503 }
             );
           }
         } else {
@@ -191,19 +237,18 @@ export async function PUT(req: Request) {
         }
       }
     } else {
-      console.log(`✅ Office found: "${office}" with ID ${existingOffice.id}`);
+      console.log(`✅ Found office: "${office}" (ID: ${existingOffice.id})`);
     }
 
-    // Verify office object has valid ID before updating budget
-    if (!existingOffice || !existingOffice.id) {
-      console.error(`[ERROR] existingOffice is invalid:`, existingOffice);
+    if (!existingOffice?.id || typeof existingOffice.id !== 'number') {
+      console.error(`❌ Invalid office ID:`, existingOffice);
       return NextResponse.json(
-        { error: `Invalid office object: ${JSON.stringify(existingOffice)}` },
+        { error: "Invalid office - cannot update budget" },
         { status: 500 }
       );
     }
 
-    // Update using office connection
+    // Update budget
     const existing = await prisma.budget.findUnique({ where: { id }, include: { office: true } });
     const updated = await prisma.budget.update({
       where: { id },
@@ -216,6 +261,8 @@ export async function PUT(req: Request) {
       },
       include: { office: true },
     });
+
+    console.log(`✅ Budget ${id} updated successfully`);
 
     const actor = getUserNameFromRequest(req);
     await logAction({
