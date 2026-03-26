@@ -104,9 +104,7 @@ export async function POST(req: Request) {
         mooe: parseFloat(String(mooe)),
         co: parseFloat(String(co)),
         total: parseFloat(String(total)) || (parseFloat(String(ps)) + parseFloat(String(mooe)) + parseFloat(String(co))),
-        office: {
-          connect: { id: existingOffice.id }
-        }
+        officeId: existingOffice.id
       },
       include: { office: true },
     });
@@ -214,9 +212,7 @@ export async function PUT(req: Request) {
         mooe,
         co,
         total,
-        office: {
-          connect: { id: existingOffice.id }
-        }
+        officeId: existingOffice.id
       },
       include: { office: true },
     });
