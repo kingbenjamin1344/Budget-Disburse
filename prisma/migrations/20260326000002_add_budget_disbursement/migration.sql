@@ -1,5 +1,5 @@
 -- CreateTable budget
-CREATE TABLE `budget` (
+CREATE TABLE IF NOT EXISTS `budget` (
     `id` INT NOT NULL AUTO_INCREMENT,
     `officeId` INT NOT NULL,
     `officeName` VARCHAR(191) NOT NULL,
@@ -16,7 +16,7 @@ CREATE TABLE `budget` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable disbursement
-CREATE TABLE `disbursement` (
+CREATE TABLE IF NOT EXISTS `disbursement` (
     `id` INT NOT NULL AUTO_INCREMENT,
     `dvNo` VARCHAR(191) NOT NULL,
     `payee` VARCHAR(191) NOT NULL,
