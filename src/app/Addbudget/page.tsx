@@ -109,7 +109,7 @@ export default function AddBudgetPage() {
 
   const handleEdit = (index: number) => {
     const budget = budgets[index];
-    const office = offices.find((o) => o.name === budget.office?.name);
+    const office = offices.find((o) => o.name === budget.office);
     setOfficeId(office?.id || "");
     setPs(String(budget.ps));
     setMooe(String(budget.mooe));
