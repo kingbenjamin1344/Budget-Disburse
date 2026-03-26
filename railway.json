@@ -5,7 +5,7 @@
     "buildCommand": "npm run build"
   },
   "deploy": {
-    "preDeployCommand": "npx prisma migrate resolve --rolled-back 20260326_drop_officename_columns 2>/dev/null || true && npx prisma migrate deploy",
+    "preDeployCommand": "npx prisma migrate deploy && node scripts/seed-manual.js",
     "startCommand": "npm start",
     "restartPolicyType": "on_failure",
     "restartPolicyMaxRetries": 5
