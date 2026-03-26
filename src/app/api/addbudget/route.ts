@@ -182,7 +182,8 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   try {
     const body = await req.json();
-    let { id, office, ps, mooe, co, total } = body;
+    const { id } = body;
+    let { office, ps, mooe, co, total } = body;
 
     if (!id) {
       return NextResponse.json(

@@ -41,7 +41,8 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    let { dvNo, payee, office, expenseType, expenseCategory, amount, date } = body;
+    const { date } = body;
+    let { dvNo, payee, office, expenseType, expenseCategory, amount } = body;
 
     // Validate required fields
     if (!dvNo || !payee || !office || !expenseType || !expenseCategory || amount === undefined) {
