@@ -9,10 +9,13 @@ CREATE TABLE IF NOT EXISTS `office` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- Disable foreign key checks during seeding
+SET FOREIGN_KEY_CHECKS=0;
+
 -- Seed initial office if empty
-INSERT IGNORE INTO `office` (`name`, `dateCreated`) 
-SELECT 'Administrative Office', CURRENT_TIMESTAMP(3) 
-WHERE NOT EXISTS (SELECT 1 FROM `office` LIMIT 1);
+INSERT IGNORE INTO `office` (`name`, `dateCreated`) VALUES ('Administrative Office', CURRENT_TIMESTAMP(3));
+INSERT IGNORE INTO `office` (`name`, `dateCreated`) VALUES ('Finance Department', CURRENT_TIMESTAMP(3));
+INSERT IGNORE INTO `office` (`name`, `dateCreated`) VALUES ('Human Resources', CURRENT_TIMESTAMP(3));
 
 CREATE TABLE IF NOT EXISTS `budget` (
     `id` INT NOT NULL AUTO_INCREMENT,
@@ -55,17 +58,9 @@ CREATE TABLE IF NOT EXISTS `expense` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- Seed initial expenses if empty
-INSERT IGNORE INTO `expense` (`type`, `category`, `dateCreated`, `updatedAt`) 
-SELECT 'Operational', 'Software', CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3) 
-WHERE NOT EXISTS (SELECT 1 FROM `expense` LIMIT 1);
-
-INSERT IGNORE INTO `expense` (`type`, `category`, `dateCreated`, `updatedAt`) 
-SELECT 'Personnel', 'Salary', CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3) 
-WHERE NOT EXISTS (SELECT 1 FROM `expense` WHERE `type` = 'Personnel' LIMIT 1);
-
-INSERT IGNORE INTO `expense` (`type`, `category`, `dateCreated`, `updatedAt`) 
-SELECT 'Infrastructure', 'Maintenance', CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3) 
-WHERE NOT EXISTS (SELECT 1 FROM `expense` WHERE `type` = 'Infrastructure' LIMIT 1);
+INSERT IGNORE INTO `expense` (`type`, `category`, `dateCreated`, `updatedAt`) VALUES ('Operational', 'Software', CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3));
+INSERT IGNORE INTO `expense` (`type`, `category`, `dateCreated`, `updatedAt`) VALUES ('Personnel', 'Salary', CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3));
+INSERT IGNORE INTO `expense` (`type`, `category`, `dateCreated`, `updatedAt`) VALUES ('Infrastructure', 'Maintenance', CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3));
 
 CREATE TABLE IF NOT EXISTS `log` (
     `id` INT NOT NULL AUTO_INCREMENT,
@@ -77,3 +72,6 @@ CREATE TABLE IF NOT EXISTS `log` (
     INDEX `log_type_createdAt_idx`(`type`, `createdAt`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Re-enable foreign key checks
+SET FOREIGN_KEY_CHECKS=1;
