@@ -5,7 +5,7 @@
     "buildCommand": "npm run build"
   },
   "deploy": {
-    "preDeployCommand": "npx prisma migrate resolve --rolled-back 20260326000001_create_core_tables && npx prisma migrate deploy",
+    "preDeployCommand": "npx prisma migrate deploy",
     "startCommand": "npm start",
     "restartPolicyType": "on_failure",
     "restartPolicyMaxRetries": 5
