@@ -69,37 +69,13 @@ export async function POST(req: Request) {
 
     console.log(`\n📝 [POST /disbursement] Saving: dvNo="${dvNo}", payee="${payee}", office="${office}", amount=${amount}`);
 
-    // Find office by name
-    let existingOffice = await prisma.office.findFirst({
+    // Atomically find or create office (no race conditions)
+    const existingOffice = await prisma.office.upsert({
       where: { name: office },
+      update: {},
+      create: { name: office },
     });
-
-    if (!existingOffice) {
-      console.warn(`⚠️  Office not found: "${office}". Auto-creating...`);
-      try {
-        existingOffice = await prisma.office.create({
-          data: { name: office },
-        });
-        console.log(`✅ Created office: "${office}" (ID: ${existingOffice.id})`);
-      } catch (err: any) {
-        if (err.code === 'P2002') {
-          console.log(`ℹ️  Office exists (concurrent creation), retrying find...`);
-          existingOffice = await prisma.office.findFirst({
-            where: { name: office },
-          });
-          if (!existingOffice) {
-            return NextResponse.json(
-              { error: "Office concurrency issue - retry" },
-              { status: 503 }
-            );
-          }
-        } else {
-          throw err;
-        }
-      }
-    } else {
-      console.log(`✅ Found office: "${office}" (ID: ${existingOffice.id})`);
-    }
+    console.log(`✅ Office ready: "${office}" (ID: ${existingOffice.id})`);
 
     // Verify office ID
     if (!existingOffice?.id || typeof existingOffice.id !== 'number') {
@@ -178,48 +154,13 @@ export async function PUT(req: Request) {
     const body = await req.json();
     const { id, dvNo, payee, office, expenseType, expenseCategory, amount, date } = body;
 
-    // Find office by name, or create it if it doesn't exist
-    let existingOffice = await prisma.office.findFirst({
+    // Atomically find or create office (no race conditions)
+    const existingOffice = await prisma.office.upsert({
       where: { name: office },
+      update: {},
+      create: { name: office },
     });
-
-    console.log(`[PUT /disbursement] Looking for office "${office}"...`);
-
-    if (!existingOffice) {
-      console.warn(`Office not found in PUT: "${office}". Auto-creating...`);
-      try {
-        existingOffice = await prisma.office.create({
-          data: { name: office },
-        });
-        console.log(`✅ Office created: "${office}" with ID ${existingOffice.id}`);
-      } catch (err: any) {
-        if (err.code === 'P2002') {
-          console.log(`Office create failed with P2002 (unique constraint), retrying find...`);
-          existingOffice = await prisma.office.findFirst({
-            where: { name: office },
-          });
-          if (!existingOffice) {
-            return NextResponse.json(
-              { error: `Failed to create or find office: "${office}"` },
-              { status: 500 }
-            );
-          }
-        } else {
-          throw err;
-        }
-      }
-    } else {
-      console.log(`✅ Office found: "${office}" with ID ${existingOffice.id}`);
-    }
-
-    // Verify office object has valid ID before updating disbursement
-    if (!existingOffice || !existingOffice.id) {
-      console.error(`[ERROR] existingOffice is invalid:`, existingOffice);
-      return NextResponse.json(
-        { error: `Invalid office object: ${JSON.stringify(existingOffice)}` },
-        { status: 500 }
-      );
-    }
+    console.log(`[PUT /disbursement] Office ready: "${office}" (ID: ${existingOffice.id})`);
 
     const updateData: any = {
       dvNo,
