@@ -61,6 +61,10 @@ export default function AddBudgetPage() {
     if (!officeId) return toast.error("Please select an office");
 
     const selectedOffice = offices.find((o) => o.id === officeId);
+    
+    if (!selectedOffice) {
+      return toast.error("Selected office not found");
+    }
 
     if (
       editingId === null &&
@@ -69,18 +73,22 @@ export default function AddBudgetPage() {
       return toast.error("This office already has a budget allocated.") as any;
     }
 
-    const budgetData = {
-      id: editingId !== null ? budgets[editingId]?.id : undefined,
-      office: selectedOffice?.name,
+    const isEditing = editingId !== null;
+    const budgetData: any = {
+      office: selectedOffice.name,
       ps: parseFloat(ps) || 0,
       mooe: parseFloat(mooe) || 0,
       co: parseFloat(co) || 0,
       total: totalBudget,
-      dateCreated: new Date().toLocaleDateString(),
     };
 
+    // Only include ID for PUT requests
+    if (isEditing) {
+      budgetData.id = budgets[editingId]?.id;
+    }
+
     try {
-      const method = editingId !== null ? "PUT" : "POST";
+      const method = isEditing ? "PUT" : "POST";
       const res = await fetch("/api/addbudget", {
         method,
         headers: { "Content-Type": "application/json" },
