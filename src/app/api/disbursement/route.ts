@@ -48,6 +48,8 @@ export async function POST(req: Request) {
       where: { name: office },
     });
 
+    console.log(`[POST /disbursement] Looking for office "${office}"...`);
+
     if (!existingOffice) {
       console.warn(`Office not found in POST: "${office}". Auto-creating...`);
       try {
@@ -57,6 +59,7 @@ export async function POST(req: Request) {
         console.log(`✅ Office created: "${office}" with ID ${existingOffice.id}`);
       } catch (err: any) {
         if (err.code === 'P2002') {
+          console.log(`Office create failed with P2002 (unique constraint), retrying find...`);
           existingOffice = await prisma.office.findFirst({
             where: { name: office },
           });
@@ -70,6 +73,17 @@ export async function POST(req: Request) {
           throw err;
         }
       }
+    } else {
+      console.log(`✅ Office found: "${office}" with ID ${existingOffice.id}`);
+    }
+
+    // Verify office object has valid ID before creating disbursement
+    if (!existingOffice || !existingOffice.id) {
+      console.error(`[ERROR] existingOffice is invalid:`, existingOffice);
+      return NextResponse.json(
+        { error: `Invalid office object: ${JSON.stringify(existingOffice)}` },
+        { status: 500 }
+      );
     }
 
     const createData: any = {
@@ -110,10 +124,27 @@ export async function POST(req: Request) {
       amount: newDisbursement.amount,
       dateCreated: newDisbursement.dateCreated,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("POST /api/disbursement error:", error);
+    
+    if (error.code === 'P2003') {
+      console.error("❌ Foreign key constraint violation details:", {
+        code: error.code,
+        meta: error.meta,
+        message: error.message,
+      });
+      return NextResponse.json(
+        { 
+          error: "Foreign key constraint violated - office may not exist",
+          details: `FK violation: ${error.meta?.field_name || 'unknown field'}`,
+          errorCode: error.code
+        }, 
+        { status: 409 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: "Failed to add disbursement" },
+      { error: "Failed to add disbursement", errorCode: error.code }, 
       { status: 500 }
     );
   }
@@ -130,6 +161,8 @@ export async function PUT(req: Request) {
       where: { name: office },
     });
 
+    console.log(`[PUT /disbursement] Looking for office "${office}"...`);
+
     if (!existingOffice) {
       console.warn(`Office not found in PUT: "${office}". Auto-creating...`);
       try {
@@ -139,6 +172,7 @@ export async function PUT(req: Request) {
         console.log(`✅ Office created: "${office}" with ID ${existingOffice.id}`);
       } catch (err: any) {
         if (err.code === 'P2002') {
+          console.log(`Office create failed with P2002 (unique constraint), retrying find...`);
           existingOffice = await prisma.office.findFirst({
             where: { name: office },
           });
@@ -152,6 +186,17 @@ export async function PUT(req: Request) {
           throw err;
         }
       }
+    } else {
+      console.log(`✅ Office found: "${office}" with ID ${existingOffice.id}`);
+    }
+
+    // Verify office object has valid ID before updating disbursement
+    if (!existingOffice || !existingOffice.id) {
+      console.error(`[ERROR] existingOffice is invalid:`, existingOffice);
+      return NextResponse.json(
+        { error: `Invalid office object: ${JSON.stringify(existingOffice)}` },
+        { status: 500 }
+      );
     }
 
     const updateData: any = {
@@ -194,10 +239,27 @@ export async function PUT(req: Request) {
       amount: updated.amount,
       dateCreated: updated.dateCreated,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("PUT /api/disbursement error:", error);
+    
+    if (error.code === 'P2003') {
+      console.error("❌ Foreign key constraint violation details:", {
+        code: error.code,
+        meta: error.meta,
+        message: error.message,
+      });
+      return NextResponse.json(
+        { 
+          error: "Foreign key constraint violated - office may not exist",
+          details: `FK violation: ${error.meta?.field_name || 'unknown field'}`,
+          errorCode: error.code
+        }, 
+        { status: 409 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: "Failed to update disbursement" },
+      { error: "Failed to update disbursement", errorCode: error.code },
       { status: 500 }
     );
   }

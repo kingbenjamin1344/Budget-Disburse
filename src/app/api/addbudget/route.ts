@@ -56,6 +56,8 @@ export async function POST(req: Request) {
       where: { name: office },
     });
 
+    console.log(`[POST /addbudget] Looking for office "${office}"...`);
+
     if (!existingOffice) {
       console.warn(`Office not found: "${office}". Auto-creating...`);
       try {
@@ -66,6 +68,7 @@ export async function POST(req: Request) {
       } catch (err: any) {
         // If create fails (e.g., unique constraint), try to find it again
         if (err.code === 'P2002') {
+          console.log(`Office create failed with P2002 (unique constraint), retrying find...`);
           existingOffice = await prisma.office.findFirst({
             where: { name: office },
           });
@@ -79,7 +82,20 @@ export async function POST(req: Request) {
           throw err;
         }
       }
+    } else {
+      console.log(`✅ Office found: "${office}" with ID ${existingOffice.id}`);
     }
+
+    // Verify office object has valid ID before creating budget
+    if (!existingOffice || !existingOffice.id) {
+      console.error(`[ERROR] existingOffice is invalid:`, existingOffice);
+      return NextResponse.json(
+        { error: `Invalid office object: ${JSON.stringify(existingOffice)}` },
+        { status: 500 }
+      );
+    }
+
+    console.log(`[PRE-CREATE] Office ID to use: ${existingOffice.id}, Office name: ${existingOffice.name}`);
 
     // Create budget with office connection using Prisma relation
     const newBudget = await prisma.budget.create({
@@ -113,10 +129,28 @@ export async function POST(req: Request) {
       total: newBudget.total,
       dateCreated: newBudget.dateCreated.toLocaleDateString(),
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("POST /addbudget error:", error);
+    
+    // Provide more detailed error info for FK violations
+    if (error.code === 'P2003') {
+      console.error("❌ Foreign key constraint violation details:", {
+        code: error.code,
+        meta: error.meta,
+        message: error.message,
+      });
+      return NextResponse.json(
+        { 
+          error: "Foreign key constraint violated - office may not exist",
+          details: `FK violation: ${error.meta?.field_name || 'unknown field'}`,
+          errorCode: error.code
+        }, 
+        { status: 409 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: "Failed to add budget", details: String(error) }, 
+      { error: "Failed to add budget", details: String(error), errorCode: error.code }, 
       { status: 500 }
     );
   }
@@ -133,6 +167,8 @@ export async function PUT(req: Request) {
       where: { name: office },
     });
 
+    console.log(`[PUT /addbudget] Looking for office "${office}"...`);
+
     if (!existingOffice) {
       console.warn(`Office not found: "${office}". Auto-creating...`);
       try {
@@ -142,6 +178,7 @@ export async function PUT(req: Request) {
         console.log(`✅ Office created: "${office}" with ID ${existingOffice.id}`);
       } catch (err: any) {
         if (err.code === 'P2002') {
+          console.log(`Office create failed with P2002 (unique constraint), retrying find...`);
           existingOffice = await prisma.office.findFirst({
             where: { name: office },
           });
@@ -155,6 +192,17 @@ export async function PUT(req: Request) {
           throw err;
         }
       }
+    } else {
+      console.log(`✅ Office found: "${office}" with ID ${existingOffice.id}`);
+    }
+
+    // Verify office object has valid ID before updating budget
+    if (!existingOffice || !existingOffice.id) {
+      console.error(`[ERROR] existingOffice is invalid:`, existingOffice);
+      return NextResponse.json(
+        { error: `Invalid office object: ${JSON.stringify(existingOffice)}` },
+        { status: 500 }
+      );
     }
 
     // Update using office connection
@@ -193,9 +241,26 @@ export async function PUT(req: Request) {
         dateCreated: updated.dateCreated.toLocaleDateString(),
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("PUT /addbudget error:", error);
-    return NextResponse.json({ error: "Failed to update budget" }, { status: 500 });
+    
+    if (error.code === 'P2003') {
+      console.error("❌ Foreign key constraint violation details:", {
+        code: error.code,
+        meta: error.meta,
+        message: error.message,
+      });
+      return NextResponse.json(
+        { 
+          error: "Foreign key constraint violated - office may not exist",
+          details: `FK violation: ${error.meta?.field_name || 'unknown field'}`,
+          errorCode: error.code
+        }, 
+        { status: 409 }
+      );
+    }
+    
+    return NextResponse.json({ error: "Failed to update budget", errorCode: error.code }, { status: 500 });
   }
 }
 
