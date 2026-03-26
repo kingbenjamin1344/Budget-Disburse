@@ -15,7 +15,7 @@ export async function GET() {
     // Format for frontend
     const formatted = budgets.map((b) => ({
       id: b.id,
-      office: b.officeName || b.office.name, // ✅ prefer stored officeName
+      office: b.officeName || b.office?.name || "Unknown", // ✅ safer access
       ps: b.ps,
       mooe: b.mooe,
       co: b.co,
@@ -31,7 +31,10 @@ export async function GET() {
     });
   } catch (error) {
     console.error("GET /addbudget error:", error);
-    return NextResponse.json({ error: "Failed to fetch budgets" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch budgets", details: String(error) }, 
+      { status: 500 }
+    );
   }
 }
 
@@ -41,24 +44,35 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { office, ps, mooe, co, total } = body;
 
+    if (!office || ps === undefined || mooe === undefined || co === undefined) {
+      return NextResponse.json(
+        { error: "Missing required fields: office, ps, mooe, co" }, 
+        { status: 400 }
+      );
+    }
+
     // Find office by name
     const existingOffice = await prisma.office.findFirst({
       where: { name: office },
     });
 
     if (!existingOffice) {
-      return NextResponse.json({ error: "Office not found" }, { status: 400 });
+      console.warn(`Office not found: "${office}". Available offices:`, await prisma.office.findMany());
+      return NextResponse.json(
+        { error: `Office not found: "${office}"` }, 
+        { status: 400 }
+      );
     }
 
     // Create budget with both officeId and officeName
     const newBudget = await prisma.budget.create({
       data: {
         officeId: existingOffice.id,
-        officeName: existingOffice.name, // ✅ store readable name
-        ps,
-        mooe,
-        co,
-        total,
+        officeName: existingOffice.name,
+        ps: parseFloat(String(ps)),
+        mooe: parseFloat(String(mooe)),
+        co: parseFloat(String(co)),
+        total: parseFloat(String(total)) || (parseFloat(String(ps)) + parseFloat(String(mooe)) + parseFloat(String(co))),
       },
       include: { office: true },
     });
@@ -73,19 +87,20 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       message: "Budget added successfully",
-      data: {
-        id: newBudget.id,
-        office: newBudget.officeName,
-        ps: newBudget.ps,
-        mooe: newBudget.mooe,
-        co: newBudget.co,
-        total: newBudget.total,
-        dateCreated: newBudget.dateCreated.toLocaleDateString(),
-      },
+      id: newBudget.id,
+      office: newBudget.officeName,
+      ps: newBudget.ps,
+      mooe: newBudget.mooe,
+      co: newBudget.co,
+      total: newBudget.total,
+      dateCreated: newBudget.dateCreated.toLocaleDateString(),
     });
   } catch (error) {
     console.error("POST /addbudget error:", error);
-    return NextResponse.json({ error: "Failed to add budget" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to add budget", details: String(error) }, 
+      { status: 500 }
+    );
   }
 }
 

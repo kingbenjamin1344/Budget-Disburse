@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import LogoutModal from "@/components/LogoutModal";
+import ManageAccountModal from "@/components/ManageAccountModal";
 
 import { useRouter, usePathname } from "next/navigation";
 import {
@@ -17,6 +18,7 @@ import {
   LogOut,
   CirclePlus,
   BellRing,
+  Settings,
 } from "lucide-react";
 
 export default function DashboardLayout({ children }) {
@@ -26,13 +28,15 @@ export default function DashboardLayout({ children }) {
   const [sidebarMini, setSidebarMini] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showManageAccountModal, setShowManageAccountModal] = useState(false);
+  const [username, setUsername] = useState("");
 
   const links = [
     { name: "Dashboard", icon: <LayoutDashboard size={20} />, path: "/Dashboard" },
     { name: "Add Budget", icon: <HandCoins size={20} />, path: "/Addbudget" },
     { name: "Disbursement", icon: <Tickets size={20} />, path: "/Disbursement" },
-    { name: "SOE", icon: <AppWindowMac size={20} />, path: "/Soe" },
-    { name: "Logs", icon: <BellRing size={20} />, path: "/Logs" },
+    { name: "SOE", icon: <AppWindowMac size={20} />, path: "/Soe" }
+   /* { name: "Logs", icon: <BellRing size={20} />, path: "/Logs" }, */
   ];
 
   const adminLinks = [
@@ -62,6 +66,11 @@ export default function DashboardLayout({ children }) {
         if (!isMounted) return;
         if (!res.ok) {
           window.location.href = "/login";
+        } else {
+          const data = await res.json();
+          if (data.username) {
+            setUsername(data.username);
+          }
         }
       } catch (e) {
         if (!isMounted) return;
@@ -91,7 +100,7 @@ export default function DashboardLayout({ children }) {
           >
             <Menu />
           </button>
-          <h1 className="text-xl md:text-2xl font-semibold text-white drop-shadow-sm font-[var(--font-inter)]">
+          <h1 className="text-xl md:text-2xl font-semibold text-white drop-shadow-sm">
             Budget and Disbursement Management System
           </h1>
         </div>
@@ -102,7 +111,7 @@ export default function DashboardLayout({ children }) {
         {/* SIDEBAR */}
         <aside
           id="sidebar"
-          className={`relative fixed md:static z-20 top-16 left-0 h-full p-4 flex flex-col justify-between transition-all duration-300
+          className={`fixed md:static z-20 top-16 left-0 h-full p-4 flex flex-col justify-between transition-all duration-300
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
           ${sidebarMini ? "w-20" : "w-64"}`}
           style={{ backgroundColor: "#0b1a44ff" }}
@@ -136,10 +145,12 @@ export default function DashboardLayout({ children }) {
                 className={`flex items-center justify-between px-3 py-2 rounded-md w-full transition-all
                 ${sidebarMini ? "justify-center" : ""} text-white`}
               >
-                <div className="flex items-center space-x-3">
-                  <UserStar size={20} color="white" />
-                  {!sidebarMini && <span>Admin</span>}
-                </div>
+
+<div className="flex items-center space-x-3">
+  <UserStar size={20} color="white" />
+  {!sidebarMini && <span className="ml-4">Admin</span>}
+</div>
+
 
                 {!sidebarMini && (
                   <ChevronRight
@@ -204,10 +215,19 @@ export default function DashboardLayout({ children }) {
                 LGU Magallanes
               </p>
             )}
+            {/* Manage Account Button */}
+            <button
+              onClick={() => setShowManageAccountModal(true)}
+              className={`flex items-center justify-center space-x-3 px-3 py-2 mt-3 rounded-md w-full text-white transition-all
+              bg-blue-600 hover:bg-blue-700`}
+            >
+              <Settings size={20} color="white" />
+              {!sidebarMini && <span>Manage Account</span>}
+            </button>
             {/* Logout Button */}
             <button
               onClick={() => setShowLogoutModal(true)}
-              className={`flex items-center justify-center space-x-3 px-3 py-2 mt-3 rounded-md w-full text-white transition-all
+              className={`flex items-center justify-center space-x-3 px-3 py-2 mt-2 rounded-md w-full text-white transition-all
               bg-red-700 hover:bg-red-800`}
             >
               <LogOut size={20} color="white" />
@@ -240,7 +260,7 @@ export default function DashboardLayout({ children }) {
         <main id="main-content" className="flex-1 p-6 overflow-y-auto flex flex-col">
           <div
             id="content-card"
-            className="bg-white rounded-xl shadow-md p-8 w-full flex-1"
+            className="bg-white rounded-xl shadow-md p-2 w-full flex-1"
           >
             {children}
           </div>
@@ -254,6 +274,12 @@ export default function DashboardLayout({ children }) {
           setShowLogoutModal(false);
           handleLogout();
         }}
+      />
+
+      <ManageAccountModal
+        isOpen={showManageAccountModal}
+        onClose={() => setShowManageAccountModal(false)}
+        username={username}
       />
     </div>
   );

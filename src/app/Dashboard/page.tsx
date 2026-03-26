@@ -1,15 +1,11 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
+import { Suspense } from "react";
 import { Building2, Wallet, BarChart3, PieChart } from "lucide-react";
-import {
-  PieChart as RePieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  Legend,
-  ResponsiveContainer, BarChart, XAxis, YAxis, Bar, LabelList
-} from "recharts";
+import { ChartSkeleton, CardGridSkeleton, TableSkeleton } from "@/components/LoadingFallback";
+import { PieChartComponent, BarChartComponent } from "@/components/DashboardCharts";
 
 // --- TYPES ---
 type Expense = {
@@ -190,57 +186,77 @@ const fetchRecentLogs = async () => {
     </div>
     {/* Divider line */}
 <hr className="border-gray-300 mt-4 mb-6" />
-      {/* === TOP CARDS === */}
+      {/* === TOP CARDS - MODERN UI === */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Offices */}
-        <div className="bg-gradient-to-r from-[#1e3a8a] to-[#0f172a] text-white rounded-xl p-6 relative overflow-hidden shadow-md 
-                        hover:shadow-xl hover:scale-105 transition transform duration-300 group">
-          <div className="flex flex-col justify-center h-full">
-            <p className="text-3xl font-semibold">{stats.offices}</p>
-            <p className="text-sm text-white/80 mt-1">Number of Offices</p>
-          </div>
-          <div className="absolute top-1/2 right-6 transform -translate-y-1/2 bg-blue-500/80 p-3 rounded-full shadow-lg 
-                          transition-transform duration-300 group-hover:scale-125">
-            <Building2 size={32} className="text-white" />
+        <div className="group relative overflow-hidden rounded-2xl bg-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div className="relative p-6 z-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-blue-100 rounded-xl group-hover:bg-white/20 transition-colors duration-300">
+                <Building2 className="w-6 h-6 text-blue-600 group-hover:text-white" />
+              </div>
+              <span className="text-3xl font-bold text-gray-800 group-hover:text-white transition-colors duration-300">
+                {stats.offices}
+              </span>
+            </div>
+            <p className="text-sm font-medium text-gray-600 group-hover:text-white/90 transition-colors duration-300">
+              Number of Offices
+            </p>
           </div>
         </div>
 
         {/* Expense Types */}
-        <div className="bg-gradient-to-r from-[#1e3a8a] to-[#0f172a] text-white rounded-xl p-6 relative overflow-hidden shadow-md 
-                        hover:shadow-xl hover:scale-105 transition transform duration-300 group">
-          <div className="flex flex-col justify-center h-full">
-            <p className="text-3xl font-semibold">{stats.expenseTypes}</p>
-            <p className="text-sm text-white/80 mt-1">Number of Expense Types</p>
-          </div>
-          <div className="absolute top-1/2 right-6 transform -translate-y-1/2 bg-green-500/80 p-3 rounded-full shadow-lg 
-                          transition-transform duration-300 group-hover:scale-125">
-            <BarChart3 size={32} className="text-white" />
+        <div className="group relative overflow-hidden rounded-2xl bg-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <div className="absolute inset-0 bg-gradient-to-br from-green-500 to-green-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div className="relative p-6 z-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-green-100 rounded-xl group-hover:bg-white/20 transition-colors duration-300">
+                <BarChart3 className="w-6 h-6 text-green-600 group-hover:text-white" />
+              </div>
+              <span className="text-3xl font-bold text-gray-800 group-hover:text-white transition-colors duration-300">
+                {stats.expenseTypes}
+              </span>
+            </div>
+            <p className="text-sm font-medium text-gray-600 group-hover:text-white/90 transition-colors duration-300">
+              Number of Expense Types
+            </p>
           </div>
         </div>
 
         {/* Total Budget */}
-        <div className="bg-gradient-to-r from-[#1e3a8a] to-[#0f172a] text-white rounded-xl p-6 relative overflow-hidden shadow-md 
-                        hover:shadow-xl hover:scale-105 transition transform duration-300 group">
-          <div className="flex flex-col justify-center h-full">
-            <p className="text-2xl font-semibold">{currency(totalBudgetSum)}</p>
-            <p className="text-sm text-white/80 mt-1">Overall Total Budget</p>
-          </div>
-          <div className="absolute top-1/2 right-6 transform -translate-y-1/2 bg-orange-500/80 p-3 rounded-full shadow-lg 
-                          transition-transform duration-300 group-hover:scale-125">
-            <Wallet size={32} className="text-white" />
+        <div className="group relative overflow-hidden rounded-2xl bg-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-500 to-orange-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div className="relative p-6 z-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-orange-100 rounded-xl group-hover:bg-white/20 transition-colors duration-300">
+                <Wallet className="w-6 h-6 text-orange-600 group-hover:text-white" />
+              </div>
+              <span className="text-2xl font-bold text-gray-800 group-hover:text-white transition-colors duration-300">
+                {currency(totalBudgetSum)}
+              </span>
+            </div>
+            <p className="text-sm font-medium text-gray-600 group-hover:text-white/90 transition-colors duration-300">
+              Overall Total Budget
+            </p>
           </div>
         </div>
 
         {/* Actual Expenditure */}
-        <div className="bg-gradient-to-r from-[#1e3a8a] to-[#0f172a] text-white rounded-xl p-6 relative overflow-hidden shadow-md 
-                        hover:shadow-xl hover:scale-105 transition transform duration-300 group">
-          <div className="flex flex-col justify-center h-full">
-            <p className="text-2xl font-semibold">{currency(stats.totalExpenditure)}</p>
-            <p className="text-sm text-white/80 mt-1">Actual Expenditure</p>
-          </div>
-          <div className="absolute top-1/2 right-6 transform -translate-y-1/2 bg-violet-500/80 p-3 rounded-full shadow-lg 
-                          transition-transform duration-300 group-hover:scale-125">
-            <PieChart size={32} className="text-white" />
+        <div className="group relative overflow-hidden rounded-2xl bg-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div className="relative p-6 z-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-purple-100 rounded-xl group-hover:bg-white/20 transition-colors duration-300">
+                <PieChart className="w-6 h-6 text-purple-600 group-hover:text-white" />
+              </div>
+              <span className="text-2xl font-bold text-gray-800 group-hover:text-white transition-colors duration-300">
+                {currency(stats.totalExpenditure)}
+              </span>
+            </div>
+            <p className="text-sm font-medium text-gray-600 group-hover:text-white/90 transition-colors duration-300">
+              Actual Expenditure
+            </p>
           </div>
         </div>
       </div>
@@ -275,10 +291,13 @@ const fetchRecentLogs = async () => {
 
       {officeBudgets.length === 0 && (
         <div className="py-6 text-gray-500 italic flex flex-col items-center justify-center">
-          <img
+          <Image
             src="/img/disburse.png"
             alt="No data"
-            className="mb-2 max-w-[200px] h-auto object-contain"
+            width={200}
+            height={200}
+            className="mb-2 object-contain"
+            loading="lazy"
           />
           <span>No disbursement records yet.</span>
         </div>
@@ -287,182 +306,32 @@ const fetchRecentLogs = async () => {
   </div>
 
 {/* === BUDGET ALLOCATION BY CATEGORY (VERTICAL BAR CHART WITH LABELS) === */}
-<div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-  <h3 className="text-lg font-semibold mb-4 text-gray-700">
-    Budget Allocation by Category
-  </h3>
-
-  {totalBudgetSum === 0 ? (
-    <div className="py-6 text-gray-500 italic flex flex-col items-center justify-center">
-      <img
-        src="/img/disburse.png"
-        alt="No data"
-        className="mb-2 max-w-[200px] h-auto object-contain"
-      />
-      <span>No budget data available.</span>
-    </div>
-  ) : (
-    <div className="h-64">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          data={categoryData}
-          margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
-        >
-          <XAxis dataKey="name" />
-          <YAxis />
-          <Tooltip formatter={(value) => currency(value as number)} />
-          <Bar dataKey="value">
-            {categoryData.map((entry, index) => (
-              <Cell
-                key={index}
-                fill={
-                  index === 0
-                    ? "#2563eb" // PS
-                    : index === 1
-                    ? "#16a34a" // MOOE
-                    : "#f97316" // CO
-                }
-              />
-            ))}
-            <LabelList
-              dataKey="value"
-              position="top"
-              formatter={(value) => currency(value as number)}
-            />
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  )}
-</div>
+<Suspense fallback={<ChartSkeleton />}>
+  <BarChartComponent 
+    categoryData={categoryData} 
+    chartData={chartData}
+    COLORS={COLORS}
+    currency={currency}
+  />
+</Suspense>
 
 
 
   {/* === PIE CHART === */}
-  <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-    <h3 className="text-lg font-semibold mb-4 text-gray-700">
-      Budget Appropriation - Actual Expenditure = Variance
-    </h3>
-
-    <div className="h-60">
-      <ResponsiveContainer width="100%" height="100%">
-        <RePieChart>
-          <Pie
-            data={chartData}
-            dataKey="value"
-            nameKey="name"
-            cx="50%"
-            cy="50%"
-            outerRadius={70}
-            label={({  value }) =>
-              `₱${Number(value || 0).toLocaleString()}`
-            }
-          >
-            {chartData.map((entry, index) => (
-              <Cell key={index} fill={COLORS[index % COLORS.length]} />
-            ))}
-          </Pie>
-          <Tooltip
-            formatter={(value: number) =>
-              `₱${Number(value || 0).toLocaleString()}`
-            }
-          />
-          <Legend />
-        </RePieChart>
-      </ResponsiveContainer>
-    </div>
-  </div>
+  <Suspense fallback={<ChartSkeleton />}>
+    <PieChartComponent 
+      chartData={chartData} 
+      categoryData={categoryData}
+      COLORS={COLORS}
+      currency={currency}
+    />
+  </Suspense>
 
 
 
 
 {/* === RECENT LOGS FULL-WIDTH CARD === */}
-<div className="col-span-full w-full">
-  <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4 w-full">
 
-    <div className="flex items-center justify-between mb-3">
-      <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
-        <span className="bg-blue-100 p-2 rounded-full border border-blue-400">
-          <svg xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 text-blue-600"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth="2">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-          </svg>
-        </span>
-        Recent Logs
-      </h3>
-
-      <a
-        href="/Logs"
-        className="text-blue-600 hover:text-blue-800 text-sm font-semibold underline"
-      >
-        View All Logs
-      </a>
-    </div>
-
-    {/* FULL WIDTH TABLE - COMPACT HEIGHT */}
-    <div className="overflow-x-auto w-full max-h-[360px] overflow-y-hidden rounded-lg">
-      <table className="w-full min-w-max border-collapse">
-        <thead
-          className="text-white border-b bg-cover bg-center"
-          style={{ backgroundImage: "url('/img/blue.jpg')" }}
-        >
-          <tr>
-            <th className="px-2 py-2 text-center font-semibold border-b border-gray-300">Log Type</th>
-            <th className="px-2 py-2 text-center font-semibold border-b border-gray-300">Action</th>
-            <th className="px-4 py-2 text-left font-semibold border-b border-gray-300">Message</th>
-            <th className="px-4 py-2 text-left font-semibold border-b border-gray-300">Date Created</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {recentLogs.length === 0 ? (
-            <tr>
-              <td colSpan={4} className="py-5 text-gray-500 italic text-center">
-                <div className="flex flex-col items-center justify-center">
-                  <img src="/img/logs.png" alt="No data" className="mb-1 max-w-[150px]" />
-                  <span>No recent logs.</span>
-                </div>
-              </td>
-            </tr>
-          ) : (
-            recentLogs.map((log) => (
-              <tr key={log.id} className="border-b hover:bg-gray-200">
-                <td className="px-4 py-2 text-center text-sm">{log.type}</td>
-
-                <td className="px-4 py-2 text-center text-sm">
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-semibold border-2 ${
-                      log.action?.toLowerCase() === "create"
-                        ? "bg-green-200 border-green-700"
-                        : log.action?.toLowerCase() === "delete"
-                        ? "bg-red-200 border-red-700"
-                        : log.action?.toLowerCase() === "update"
-                        ? "bg-blue-200 border-blue-700"
-                        : "bg-gray-300 border-gray-600"
-                    }`}
-                  >
-                    {log.action?.charAt(0).toUpperCase() + log.action?.slice(1)}
-                  </span>
-                </td>
-
-                <td className="px-4 py-2 text-gray-700 text-sm">{log.message}</td>
-
-                <td className="px-4 py-2 text-gray-700 text-sm">
-                  {new Date(log.createdAt).toLocaleString()}
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
-
-  </div>
-</div>
 
 
 

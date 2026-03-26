@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "react-toastify";
-import { Search, Plus, Edit, Trash2, X, ScanEye, Camera, Upload, Loader } from "lucide-react";
-import { performOCR, initTesseractWorker, terminateTesseractWorker } from "@/lib/offlineTesseract";
+import { Search, Plus, Edit, Trash2, X, ScanEye, Camera, Upload, Loader, Wifi, WifiOff, Building2, Calendar, Clock, DollarSign, FileText, User, Tag, FolderOpen, Receipt, CreditCard } from "lucide-react";
+import { performOCR, initTesseractWorker, terminateTesseractWorker, getOCRStatus, isNetworkOnline, preprocessImage, type OCRResult } from "@/lib/offlineTesseract";
 
 // =================== Floating Scan Button ===================
 interface FloatingScanButtonProps {
@@ -54,45 +54,78 @@ export default function DisbursementPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  // ====== Loading State ======
+  const [isLoading, setIsLoading] = useState(true);
+
+  // ====== Keyword Mapping for Dynamic Category Detection ======
+  const [categoryKeywords, setCategoryKeywords] = useState<any>({});
+
   // ====== OCR Scanner States ======
   const [showScanModal, setShowScanModal] = useState(false);
   const [scanMode, setScanMode] = useState<"camera" | "upload">("camera");
   const [cameraActive, setCameraActive] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrResult, setOcrResult] = useState("");
+  const [isOnlineMode, setIsOnlineMode] = useState(true);
+  const [ocrAvailable, setOcrAvailable] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ====== Fetch Offices, Expenses, Budgets ======
+
+
+  // ====== Fetch Offices, Expenses, Budgets & Check Network Status ======
   useEffect(() => {
     async function loadData() {
       try {
-        const [officeRes, expenseRes, budgetRes] = await Promise.all([
+        const [officeRes, expenseRes, budgetRes, keywordRes] = await Promise.all([
           fetch("/api/offices"),
           fetch("/api/expenses"),
           fetch("/api/addbudget"),
+          fetch("/api/expense-keywords"),
         ]);
         const officeData = await officeRes.json();
         const expenseData = await expenseRes.json();
         const budgetData = await budgetRes.json();
+        const keywordData = await keywordRes.json();
 
         setOffices(officeData.map((o: any) => o.name));
         setExpenses(expenseData.map((e: any) => ({ type: e.type, category: e.category })));
         setBudgets(budgetData);
+        
+        // Set keyword mapping for dynamic category detection
+        if (keywordData.keywords) {
+          setCategoryKeywords(keywordData.keywords);
+        }
       } catch (err) {
         console.error("Failed to fetch data:", err);
+      } finally {
+        setIsLoading(false);
       }
     }
     loadData();
 
+    // Check network status
+    const updateNetworkStatus = () => {
+      setIsOnlineMode(isNetworkOnline());
+    };
+    updateNetworkStatus();
+    window.addEventListener("online", updateNetworkStatus);
+    window.addEventListener("offline", updateNetworkStatus);
+
     // Initialize Tesseract worker on component mount for offline OCR
     initTesseractWorker().catch((err) => {
       console.warn("Tesseract initialization delayed (will load on first OCR use):", err);
+      setOcrAvailable(false);
+    }).then(() => {
+      const status = getOCRStatus();
+      setOcrAvailable(status.available);
     });
 
     // Cleanup: terminate Tesseract worker on unmount
     return () => {
+      window.removeEventListener("online", updateNetworkStatus);
+      window.removeEventListener("offline", updateNetworkStatus);
       terminateTesseractWorker().catch(console.error);
     };
   }, []);
@@ -162,16 +195,82 @@ const startCamera = async () => {
   const handlePerformOCR = async (imageData: string) => {
     setOcrLoading(true);
     try {
+      // Validate that imageData is not empty or too small
+      if (!imageData || imageData.length < 100) {
+        throw new Error("Invalid image data - image may be too small or corrupted");
+      }
+
       // Initialize worker if not already done
       await initTesseractWorker();
 
-      const text = await performOCR(imageData);
-      setOcrResult(text);
+      // First pass: Standard PSM mode for general document layout
+      let result1, result2;
+      try {
+        result1 = await performOCR(imageData, { psm: 6 });
+      } catch (err) {
+        console.warn("First OCR pass failed, trying with different parameters:", err);
+        result1 = { text: "", confidence: 0, raw: "" };
+      }
       
-      // Parse disbursement data from OCR text
-      parseAndFillForm(text);
+      // Second pass: Uniform block mode for better text extraction
+      try {
+        result2 = await performOCR(imageData, { psm: 11 });
+      } catch (err) {
+        console.warn("Second OCR pass failed:", err);
+        result2 = { text: "", confidence: 0, raw: "" };
+      }
+      
+      // Combine text from both passes for more complete extraction
+      const combinedText = (result1.text || "") + "\n" + (result2.text || "");
+      const avgConfidence = result1.confidence && result2.confidence 
+        ? (result1.confidence + result2.confidence) / 2 
+        : (result1.confidence || result2.confidence || 0);
+      
+      // Check if we actually extracted any text
+      if (!combinedText.trim()) {
+        throw new Error("No text could be extracted from the image. Please try with a clearer image of a document with visible text.");
+      }
+      
+      setOcrResult(combinedText);
+      
+      // Check OCR confidence quality
+      if (avgConfidence < 60) {
+        toast.warning(`⚠️ Low OCR confidence (${avgConfidence.toFixed(0)}%). Please review and manually correct extracted data.`, {
+          autoClose: 4000,
+        });
+      } else if (avgConfidence >= 80) {
+        toast.success(`✓ High confidence OCR (${avgConfidence.toFixed(0)}%)`, {
+          autoClose: 2000,
+        });
+      }
+      
+      // Parse disbursement data from combined OCR text
+      parseAndFillForm(combinedText);
+      
+      // Show appropriate success message
+      if (isOnlineMode) {
+        toast.info("OCR completed (Online mode)", { autoClose: 2000 });
+      } else {
+        toast.info("OCR completed (Offline mode)", { autoClose: 2000 });
+      }
     } catch (err) {
-      toast.error("OCR failed. Please try again or check internet connection for language data.");
+      const errMsg = String(err);
+      let userMessage = "OCR failed. Please try again with a clearer image.";
+      
+      // Provide more specific error messages
+      if (errMsg.includes("image")) {
+        userMessage = "Could not read the image. Please ensure the image is clear, not blurry, and contains readable text.";
+      } else if (errMsg.includes("text") || errMsg.includes("extract")) {
+        userMessage = "No text was found in the image. Try with a clearer photo of a document or paper.";
+      } else if (!isOnlineMode && errMsg.includes("timeout")) {
+        userMessage = "Offline mode OCR is taking too long. Try with a smaller image or switch to online mode.";
+      } else if (errMsg.includes("network")) {
+        userMessage = "Network error. Please check your connection and try again.";
+      } else if (errMsg.includes("corrupted")) {
+        userMessage = "Image data appears to be corrupted. Please recapture the image and try again.";
+      }
+      
+      toast.error(userMessage, { autoClose: 4000 });
       console.error("OCR Error:", err);
     } finally {
       setOcrLoading(false);
@@ -208,24 +307,92 @@ const startCamera = async () => {
     const raw = text || "";
     const ltext = raw.toLowerCase();
 
-    // Extract DV Number (looks for DV: or DV No or standalone digits)
-    const dvMatch = raw.match(/dv\s*(no\.?|number)?[:\s]*([0-9]{3,5}-[0-9]{3,5})/i);
-    const dvNo = dvMatch ? dvMatch[2] : "";
+    // ============ Date Extraction (FIRST - before DV extraction to avoid conflicts) ============
+    let dateStr = "";
+    // Order matters: Check MM/DD/YYYY first (most common in Philippine documents)
+    const datePatterns = [
+      /(\d{2}\/\d{2}\/\d{4})/, // 03/20/2026 (MM/DD/YYYY) - Philippine format, TRY FIRST
+      /(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})/, // 20 March 2026
+      /(\d{1,2}[-\s][A-Za-z]{3,9}[-\s]\d{4})/, // 20-March-2026 or 20 Mar 2026
+      /(\d{4}-\d{2}-\d{2})/, // 2026-03-20 (only if valid month/day, not DV number)
+    ];
+    
+    for (const p of datePatterns) {
+      const m = raw.match(p);
+      if (m) {
+        const extracted = m[1];
+        
+        // For YYYY-MM-DD format, validate that it's a real date (month 01-12, day 01-31)
+        // This prevents matching DV numbers like "2025-18-0812" which have invalid months
+        if (p.source === '(\\d{4}-\\d{2}-\\d{2})') {
+          const parts = extracted.split('-');
+          const month = parseInt(parts[1], 10);
+          const day = parseInt(parts[2], 10);
+          // Skip if month > 12 or day > 31 (invalid date)
+          if (month > 12 || day > 31) {
+            continue;
+          }
+        }
+        
+        dateStr = extracted;
+        break;
+      }
+    }
+    const normalizedDate = normalizeDate(dateStr);
 
+    // ============ Enhanced DV Number Extraction ============
+    // Try multiple patterns for Philippine DV format
+    // Explicitly check for "DV" label first, then fall back to number patterns
+    // Avoid matching date patterns (YYYY-MM-DD)
+    let dvNo = "";
+    
+    // First: Look for explicit "DV No." pattern
+    const dvExplicitMatch = raw.match(/dv[\s:]*no\.?[\s:]*([A-Z0-9-]+)/i);
+    if (dvExplicitMatch) {
+      dvNo = dvExplicitMatch[1].trim().substring(0, 50);
+    } else {
+      // Second: Look for DV with specific format (000-0000-00-0000)
+      const dvFormatMatch = raw.match(/\b(\d{3}-\d{4}-\d{2}-\d{4})\b/);
+      if (dvFormatMatch) {
+        dvNo = dvFormatMatch[1].trim().substring(0, 50);
+      } else {
+        // Third: Look for generic DV number pattern
+        const dvNumberMatch = raw.match(/dv\s*(no\.?|number)?[:\s]*([0-9]{3,5}-[0-9]{3,5})/i);
+        if (dvNumberMatch) {
+          dvNo = dvNumberMatch[2].trim().substring(0, 50);
+        } else {
+          // Fourth: Look for generic number-dash-number pattern BUT exclude date patterns
+          // Only match if it's not the same as the extracted date
+          const genericMatch = raw.match(/\b([0-9]{4,5})-([0-9]{3,5})\b/);
+          if (genericMatch && genericMatch[0] !== dateStr) {
+            dvNo = genericMatch[0].trim().substring(0, 50);
+          }
+        }
+      }
+    }
 
-    // Extract Amount (looks for peso sign or common amount patterns)
-    const amountMatch = raw.match(/(?:₱|p\.?|\$)\s*([\d,]+\.?\d*)/i) || raw.match(/amount[:\s]*([\d,]+\.?\d*)/i);
-    const amount = amountMatch ? amountMatch[1].replace(/,/g, "") : "";
+    // ============ Enhanced Amount Detection (Philippine Peso Format) ============
+    // Supports various formats: ₱1,234.50, ₱1234.5, Amount: 1234, $5000.25, etc.
+    const amountMatch = 
+      raw.match(/₱\s*([\d,]+(?:\.\d{1,2})?)/) ||
+      raw.match(/(?:amount|total)[:\s]*(?:₱\s*)?([\d,]+(?:\.\d{1,2})?)/i) ||
+      raw.match(/([\d,]+(?:\.\d{1,2})?)\s*(?:pesos?|php)/i) ||
+      raw.match(/(?:p\.?|\$)\s*([\d,]+(?:\.\d{1,2})?)/i);
+    
+    const amount = amountMatch 
+      ? amountMatch[1].replace(/,/g, "")
+      : "";
 
-    // Extract Payee (look for 'payee:' or lines with title-case words)
-    const payeeMatch = raw.match(/payee[:\s]*([A-Za-z0-9 .,&'-]{2,80})/i);
-    const payee = payeeMatch ? payeeMatch[1].trim() : "";
+    // ============ Payee Extraction ============
+    const payeeMatch = raw.match(/(?:payee|received by|recipient)[:\s]*([A-Za-z0-9 .,&'-]{2,80})/i);
+    const payee = payeeMatch 
+      ? payeeMatch[1].trim().substring(0, 100)
+      : "";
 
-
-    // Detect Office by matching known office names
+    // ============ Office Detection ============
     let office = "";
     if (offices && offices.length) {
-      // find longest matching office name in text
+      // Find longest matching office name in text
       const candidates = offices.filter((o) => o && ltext.includes(o.toLowerCase()));
       if (candidates.length) {
         candidates.sort((a, b) => b.length - a.length);
@@ -233,9 +400,11 @@ const startCamera = async () => {
       }
     }
 
-    // Detect Expense Type by matching known expense types
+    // ============ Improved Expense Type & Category Detection ============
     let expenseType = "";
     let expenseCategory = "";
+    
+    // First: Try exact matching of expense types
     if (expenses && expenses.length) {
       const found = expenses.find((e) => {
         if (!e?.type) return false;
@@ -247,28 +416,49 @@ const startCamera = async () => {
       }
     }
 
-    // Fallback: detect explicit category tokens (PS, MOOE, CO)
-    const catMatch = raw.match(/\b(MOOE|PS|CO)\b/i);
-    if (catMatch) {
-      expenseCategory = catMatch[1].toUpperCase();
-    }
-
-    // Extract Date (common formats)
-    let dateStr = "";
-    const datePatterns = [
-      /(\d{4}-\d{2}-\d{2})/, // 2025-11-25
-      /(\d{2}\/\d{2}\/\d{4})/, // 25/11/2025
-      /(\d{1,2}[-\s][A-Za-z]{3,9}[-\s]\d{4})/, // 25 Nov 2025
-      /(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})/, // 25 November 2025
-    ];
-    for (const p of datePatterns) {
-      const m = raw.match(p);
-      if (m) {
-        dateStr = m[1];
-        break;
+    // Second: Try substring/partial matching for expense types (more flexible)
+    if (!expenseType && expenses && expenses.length) {
+      // For each expense type, check if the text contains significant parts of it
+      const candidates = expenses.filter((e) => {
+        if (!e?.type) return false;
+        const typeWords = e.type.toLowerCase().split(/\s+/);
+        // Match if text contains at least one significant word from the expense type
+        return typeWords.some(word => word.length > 3 && ltext.includes(word));
+      });
+      if (candidates.length) {
+        // Prefer longer matches
+        candidates.sort((a, b) => b.type.length - a.type.length);
+        expenseType = candidates[0].type;
+        expenseCategory = candidates[0].category || "";
       }
     }
-    const normalizedDate = normalizeDate(dateStr);
+
+    // ============ Dynamic LGU Keyword Detection (Budget Classification) ============
+    // Uses keywords from database/API instead of hardcoding
+    if (!expenseCategory && Object.keys(categoryKeywords).length > 0) {
+      // Check each category's keywords
+      for (const [category, data] of Object.entries(categoryKeywords)) {
+        const categoryData = data as any;
+        if (categoryData.keywords && Array.isArray(categoryData.keywords)) {
+          // Check if any keyword matches (case-insensitive)
+          const keywordFound = categoryData.keywords.some((keyword: string) =>
+            ltext.includes(keyword.toLowerCase())
+          );
+          if (keywordFound) {
+            expenseCategory = category;
+            break;
+          }
+        }
+      }
+    }
+
+    // Fallback: detect explicit category tokens (PS, MOOE, CO) if still not found
+    if (!expenseCategory) {
+      const catMatch = raw.match(/\b(MOOE|PS|CO)\b/i);
+      if (catMatch) {
+        expenseCategory = catMatch[1].toUpperCase();
+      }
+    }
 
     // Update form data with extracted values (preserve previous values if extraction empty)
     setFormData((prev) => ({
@@ -308,8 +498,19 @@ const startCamera = async () => {
   // ====== Auto-fill category when expenseType changes ======
   useEffect(() => {
     const match = expenses.find((e) => e.type === formData.expenseType);
-    if (match) setFormData((prev) => ({ ...prev, expenseCategory: match.category }));
+    if (match && formData.expenseCategory !== match.category) {
+      setFormData((prev) => ({ ...prev, expenseCategory: match.category }));
+    }
   }, [formData.expenseType, expenses]);
+
+  // When category changes, clear expenseType if it doesn't belong to the category
+  useEffect(() => {
+    if (!formData.expenseCategory) return;
+    const typesForCategory = expenses.filter((e) => e.category === formData.expenseCategory).map((e) => e.type);
+    if (formData.expenseType && !typesForCategory.includes(formData.expenseType)) {
+      setFormData((prev) => ({ ...prev, expenseType: "" }));
+    }
+  }, [formData.expenseCategory, expenses]);
 
   // ====== Remaining Budget Calculation ======
   const remainingBudget = useMemo(() => {
@@ -318,7 +519,7 @@ const startCamera = async () => {
     const budget = budgets.find(
       (b) => b.office.toLowerCase() === formData.office.toLowerCase()
     );
-    if (!budget) return "";
+    if (!budget) return "Not budgeted yet";
 
     const category = formData.expenseCategory.toLowerCase();
     let budgetAmount = 0;
@@ -354,6 +555,47 @@ const startCamera = async () => {
       date: "",
     });
   };
+// ====== Budget Validation (before review modal) ======
+const isBudgetEnough = () => {
+  if (!formData.office || !formData.expenseCategory || !formData.amount) return true;
+
+  const budget = budgets.find(
+    (b) => b.office.toLowerCase() === formData.office.toLowerCase()
+  );
+
+  if (!budget) {
+    toast.error("No budget found for this office!");
+    return false;
+  }
+
+  const category = formData.expenseCategory.toLowerCase();
+  let budgetAmount = 0;
+
+  if (category === "ps") budgetAmount = parseFloat(budget.ps) || 0;
+  else if (category === "mooe") budgetAmount = parseFloat(budget.mooe) || 0;
+  else if (category === "co") budgetAmount = parseFloat(budget.co) || 0;
+
+  const disbursedAmount = disbursements
+    .filter(
+      (d) =>
+        d.office.toLowerCase() === formData.office.toLowerCase() &&
+        d.expenseCategory.toLowerCase() === category &&
+        d.id !== editingId
+    )
+    .reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+
+  const newTotal = disbursedAmount + parseFloat(formData.amount);
+
+  if (newTotal > budgetAmount) {
+    const remaining = (budgetAmount - disbursedAmount).toLocaleString();
+    toast.error(
+      `Budget exceeded!\nYou only have ₱${remaining} remaining for ${formData.expenseCategory}.`
+    );
+    return false;
+  }
+
+  return true;
+};
 
   const handleSave = async () => {
     if (!formData.dvNo || !formData.payee || !formData.office || !formData.expenseType || !formData.amount) {
@@ -444,6 +686,16 @@ const startCamera = async () => {
     }
   };
 
+  // Helper function to format currency
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-PH', {
+      style: 'currency',
+      currency: 'PHP',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
+  };
+
   // ====== Filter & Pagination ======
   const filtered = disbursements.filter((item) => {
     const matchesSearch =
@@ -504,23 +756,10 @@ const startCamera = async () => {
           </select>
 
           <select
-            value={filterExpense}
-            onChange={(e) => {
-              setFilterExpense(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="border border-gray-300 rounded-md px-3 py-2"
-          >
-            <option value="">Filter by Expense Type</option>
-            {expenses.map((e) => (
-              <option key={e.type} value={e.type}>{e.type}</option>
-            ))}
-          </select>
-
-          <select
             value={filterCategory}
             onChange={(e) => {
               setFilterCategory(e.target.value);
+              setFilterExpense("");
               setCurrentPage(1);
             }}
             className="border border-gray-300 rounded-md px-3 py-2"
@@ -529,6 +768,22 @@ const startCamera = async () => {
             {[...new Set(expenses.map((e) => e.category))].map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
+          </select>
+
+          <select
+            value={filterExpense}
+            onChange={(e) => {
+              setFilterExpense(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="border border-gray-300 rounded-md px-3 py-2"
+          >
+            <option value="">Filter by Expense Type</option>
+            {expenses
+              .filter((ex) => !filterCategory || ex.category === filterCategory)
+              .map((e) => (
+                <option key={e.type} value={e.type}>{e.type}</option>
+              ))}
           </select>
 
           {/* Record Disbursement Button */}
@@ -555,7 +810,7 @@ const startCamera = async () => {
                 <th className="px-3 py-2 text-left">Category</th>
                 <th className="px-3 py-2 text-left">Amount</th>
                 <th className="px-3 py-2 text-left">Date</th>
-              </tr>
+               </tr>
             </thead>
             <tbody>
               {currentItems.length > 0 ? (
@@ -567,13 +822,13 @@ const startCamera = async () => {
                     <td className="px-6 py-3">{d.expenseType}</td>
                     <td className="px-6 py-3">{d.expenseCategory}</td>
                    <td className="px-6 py-3">
-  <span className="px-3 py-1 rounded-full bg-green-100 text-gray-700 border border-gray-700 font-semibold">
-    ₱{parseFloat(d.amount).toLocaleString()}
-  </span>
-</td>
+                      <span className="px-3 py-1 rounded-full bg-green-100 text-gray-700 border border-gray-700 font-semibold">
+                        ₱{parseFloat(d.amount).toLocaleString()}
+                      </span>
+                    </td>
                     <td className="px-6 py-3">{new Date(d.dateCreated).toLocaleDateString()}</td>
                    
-                  </tr>
+                   </tr>
                 ))
               ) : (
                 <tr>
@@ -582,48 +837,37 @@ const startCamera = async () => {
                       <img src="/img/disburse.png" alt="No data" className="mb-2 max-w-[200px] h-auto object-contain" />
                       <span>No disbursement records found.</span>
                     </div>
-                  </td>
-                </tr>
+                   </td>
+                 </tr>
               )}
             </tbody>
           </table>
         </div>
 
-        {/* Pagination */}
+        {/* Pagination - right bottom */}
         <div className="border-t border-gray-200 p-2 bg-gray-50">
-          <div className="flex justify-end">
+          <div className="flex justify-end items-end">
             <nav aria-label="Page navigation">
-              <ul className="inline-flex -space-x-px text-sm">
+              <ul className="inline-flex text-sm shadow-md rounded-lg overflow-hidden bg-white">
                 <li>
                   <button
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
-                    className={`px-3 py-2 border border-gray-300 rounded-l-lg hover:bg-gray-100 ${
-                      currentPage === 1 ? "opacity-50 cursor-not-allowed" : ""
-                    }`}
+                    className={`px-5 py-2 border-r border-gray-200 font-semibold text-gray-600 bg-white transition-all ${currentPage === 1 ? "opacity-50 cursor-not-allowed" : "hover:bg-blue-50 hover:text-blue-600"}`}
                   >
-                    Previous
+                    Prev
                   </button>
                 </li>
-                {[...Array(totalPages)].map((_, index) => (
-                  <li key={index}>
-                    <button
-                      onClick={() => handlePageChange(index + 1)}
-                      className={`px-3 py-2 border border-gray-300 hover:bg-gray-100 ${
-                        currentPage === index + 1 ? "bg-blue-500 text-white" : "text-gray-700"
-                      }`}
-                    >
-                      {index + 1}
-                    </button>
-                  </li>
-                ))}
+                <li>
+                  <span className="px-5 py-2 font-bold text-blue-700 bg-white text-lg border-r border-gray-200 select-none">
+                    {currentPage}
+                  </span>
+                </li>
                 <li>
                   <button
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
-                    className={`px-3 py-2 border border-gray-300 rounded-r-lg hover:bg-gray-100 ${
-                      currentPage === totalPages ? "opacity-50 cursor-not-allowed" : ""
-                    }`}
+                    className={`px-5 py-2 font-semibold text-gray-600 bg-white transition-all ${currentPage === totalPages ? "opacity-50 cursor-not-allowed" : "hover:bg-blue-50 hover:text-blue-600"}`}
                   >
                     Next
                   </button>
@@ -676,27 +920,41 @@ const startCamera = async () => {
 
       {/* Body */}
       <div className="p-5 space-y-4">
-        {/* DV No */}
-        <div className="bg-gray-100 rounded-lg p-3">
-          <label className="text-xs text-gray-500">DV No.</label>
-          <input
-            type="text"
-            placeholder="DV No."
-            value={formData.dvNo}
-            onChange={(e) => setFormData({ ...formData, dvNo: e.target.value })}
-            className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
-          />
+        {/* DV No + Date Row */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* DV No */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-600 mb-1">DV No.</label>
+            <input
+              type="text"
+              placeholder="DV No."
+              value={formData.dvNo}
+              onChange={(e) => setFormData({ ...formData, dvNo: e.target.value })}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 bg-white text-gray-700 font-semibold focus:border-blue-500 focus:ring-1 focus:ring-blue-200 transition"
+            />
+          </div>
+
+          {/* Date */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-600 mb-1">Date</label>
+            <input
+              type="date"
+              value={formData.date}
+              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 bg-white text-gray-700 font-semibold focus:border-blue-500 focus:ring-1 focus:ring-blue-200 transition"
+            />
+          </div>
         </div>
 
         {/* Payee */}
-        <div className="bg-gray-100 rounded-lg p-3">
-          <label className="text-xs text-gray-500">Payee</label>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-gray-600 mb-1">Payee</label>
           <input
             type="text"
             placeholder="Payee"
             value={formData.payee}
             onChange={(e) => setFormData({ ...formData, payee: e.target.value })}
-            className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 bg-white text-gray-700 font-semibold focus:border-blue-500 focus:ring-1 focus:ring-blue-200 transition"
           />
         </div>
 
@@ -717,32 +975,37 @@ const startCamera = async () => {
           </select>
         </div>
 
-        {/* Expense Type */}
+        {/* Category (select first) */}
+        <div className="bg-gray-100 rounded-lg p-3">
+          <label className="text-xs text-gray-500">Category</label>
+          <select
+            value={formData.expenseCategory}
+            onChange={(e) => setFormData({ ...formData, expenseCategory: e.target.value, expenseType: "" })}
+            className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
+          >
+            <option value="">Select Category</option>
+            {[...new Set(expenses.map((e) => e.category))].map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Expense Type (filtered by category) */}
         <div className="bg-gray-100 rounded-lg p-3">
           <label className="text-xs text-gray-500">Expense Type</label>
           <select
             value={formData.expenseType}
             onChange={(e) => setFormData({ ...formData, expenseType: e.target.value })}
             className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
+            disabled={!formData.expenseCategory}
           >
-            <option value="">Select Type</option>
-            {expenses.map((e) => (
-              <option key={e.type} value={e.type}>
-                {e.type}
-              </option>
-            ))}
+            <option value="">{formData.expenseCategory ? "Select Type" : "Select Category first"}</option>
+            {expenses
+              .filter((ex) => !formData.expenseCategory || ex.category === formData.expenseCategory)
+              .map((ex) => (
+                <option key={ex.type} value={ex.type}>{ex.type}</option>
+              ))}
           </select>
-        </div>
-
-        {/* Category */}
-        <div className="bg-gray-100 rounded-lg p-3">
-          <label className="text-xs text-gray-500">Category</label>
-          <input
-            type="text"
-            value={formData.expenseCategory}
-            readOnly
-            className="w-full bg-gray-200 mt-1 outline-none font-semibold text-gray-700"
-          />
         </div>
 
         {/* Remaining Budget */}
@@ -776,106 +1039,255 @@ const startCamera = async () => {
         >
           Cancel
         </button>
-        <button
-          onClick={handleSave}
-          className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-        >
-          {editingId ? "Save Changes" : "Save"}
-        </button>
+<button
+  onClick={() => {
+    // Required fields check first
+    if (!formData.dvNo || !formData.payee || !formData.office || !formData.expenseType || !formData.amount) {
+      toast.error("Please fill all required fields");
+      return;
+    }
+
+    // 🔥 Budget validation BEFORE saving
+    if (!isBudgetEnough()) return;
+
+    // ✅ Save directly if valid
+    handleSave();
+  }}
+  className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+>
+  {editingId ? "Save Changes" : "Save"}
+</button>
+
       </div>
     </div>
   </div>
 )}
 
-
-{/* 🟦 Disbursement Details Panel */}
+{/* 🟦 Disbursement Details Panel - Enhanced Modern UI */}
 {showDetailsModal && selectedDisbursement && (
   <div className="fixed inset-0 z-50 flex">
-    {/* Overlay */}
+    {/* Overlay with blur effect */}
     <div
-      className="absolute inset-0 bg-black/20"
+      className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-all duration-300"
       onClick={() => setShowDetailsModal(false)}
     ></div>
 
     {/* Right-side Sliding Panel */}
     <aside
-      className="ml-auto w-full sm:w-[520px] h-full bg-white rounded-xl shadow-lg overflow-hidden z-10 pointer-events-auto flex flex-col"
+      className="ml-auto w-full sm:w-[600px] h-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 shadow-2xl overflow-hidden z-10 flex flex-col animate-slide-in"
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 bg-[#1E3358]">
-        <h2 className="text-white text-2xl font-bold">Disbursement Details</h2>
-        <button
-          onClick={() => setShowDetailsModal(false)}
-          className="text-white hover:text-gray-200"
-        >
-          <X size={24} />
-        </button>
-      </div>
-
-      {/* Body */}
-      <div className="p-6 space-y-6 text-gray-800 flex-1 overflow-y-auto">
-        <div className="text-center">
-          <div className="text-sm text-gray-500">DV No.</div>
-          <div className="font-bold text-xl">{selectedDisbursement.dvNo}</div>
-        </div>
-        <hr className="border-gray-200" />
-
-        <div className="text-center">
-          <div className="text-sm text-gray-500">Payee</div>
-          <div className="font-bold text-xl">{selectedDisbursement.payee}</div>
-        </div>
-        <hr className="border-gray-200" />
-
-        <div className="text-center">
-          <div className="text-sm text-gray-500">Office</div>
-          <div className="font-bold text-xl">{selectedDisbursement.office}</div>
-        </div>
-        <hr className="border-gray-200" />
-
-        <div className="text-center">
-          <div className="text-sm text-gray-500">Amount</div>
-          <div className="font-bold text-xl">₱{parseFloat(selectedDisbursement.amount).toLocaleString()}</div>
-        </div>
-        <hr className="border-gray-200" />
-
-        <div className="text-center">
-          <div className="text-sm text-gray-500">Type</div>
-          <div className="font-bold text-xl">{selectedDisbursement.expenseType}</div>
-        </div>
-        <hr className="border-gray-200" />
-
-        <div className="text-center">
-          <div className="text-sm text-gray-500">Category</div>
-          <div className="font-bold text-xl">{selectedDisbursement.expenseCategory}</div>
-        </div>
-        <hr className="border-gray-200" />
-
-        <div className="text-center">
-          <div className="text-sm text-gray-500">Date</div>
-          <div className="font-bold text-xl">{new Date(selectedDisbursement.dateCreated).toLocaleString()}</div>
+      {/* Header with gradient accent */}
+      <div className="relative bg-gradient-to-r from-blue-600 to-blue-800 px-6 py-5">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16"></div>
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full -ml-12 -mb-12"></div>
+        
+        <div className="flex items-center justify-between relative z-10">
+          <div className="flex items-center gap-3">
+            <div className="bg-white/20 p-2.5 rounded-xl backdrop-blur-sm">
+              <Receipt className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-white text-2xl font-bold tracking-tight">Disbursement Details</h2>
+              <p className="text-blue-100 text-sm mt-0.5">View and manage disbursement information</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowDetailsModal(false)}
+            className="text-white/80 hover:text-white hover:bg-white/10 rounded-lg p-2 transition-all duration-200"
+          >
+            <X size={22} />
+          </button>
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="mt-auto flex justify-end gap-3 px-6 py-4 bg-white border-t">
+      {/* Body with enhanced design */}
+      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 custom-scrollbar">
+
+        {/* DV No Card */}
+        <div className="bg-white/5 rounded-2xl border border-white/10 p-6 backdrop-blur-sm hover:bg-white/10 transition-all duration-300">
+          <div className="flex items-start gap-4">
+            <div className="bg-blue-500/20 p-3 rounded-xl">
+              <FileText className="w-6 h-6 text-blue-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-blue-300 text-xs font-semibold uppercase tracking-wider mb-1">
+                Disbursement Voucher Number
+              </p>
+              <h3 className="text-white text-2xl font-bold leading-tight">
+                {selectedDisbursement.dvNo}
+              </h3>
+            </div>
+          </div>
+        </div>
+
+        {/* Payee Card */}
+        <div className="bg-white/5 rounded-2xl border border-white/10 p-6 backdrop-blur-sm hover:bg-white/10 transition-all duration-300">
+          <div className="flex items-start gap-4">
+            <div className="bg-purple-500/20 p-3 rounded-xl">
+              <User className="w-6 h-6 text-purple-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-purple-300 text-xs font-semibold uppercase tracking-wider mb-1">
+                Payee / Recipient
+              </p>
+              <h3 className="text-white text-xl font-bold leading-tight">
+                {selectedDisbursement.payee}
+              </h3>
+            </div>
+          </div>
+        </div>
+
+        {/* Office Card */}
+        <div className="bg-white/5 rounded-2xl border border-white/10 p-6 backdrop-blur-sm hover:bg-white/10 transition-all duration-300">
+          <div className="flex items-start gap-4">
+            <div className="bg-green-500/20 p-3 rounded-xl">
+              <Building2 className="w-6 h-6 text-green-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-green-300 text-xs font-semibold uppercase tracking-wider mb-1">
+                Office
+              </p>
+              <h3 className="text-white text-xl font-bold leading-tight">
+                {selectedDisbursement.office}
+              </h3>
+            </div>
+          </div>
+        </div>
+
+        {/* Expense Details Section */}
+        <div className="space-y-3">
+          
+
+          {/* Category Card */}
+          <div className="bg-white/5 rounded-xl border border-white/10 p-4 backdrop-blur-sm hover:bg-white/10 transition-all duration-200">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="bg-yellow-500/20 p-2 rounded-lg">
+                  <FolderOpen className="w-4 h-4 text-yellow-400" />
+                </div>
+                <div>
+                  <p className="text-yellow-300 text-xs font-semibold uppercase tracking-wider">
+                    Category
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-white text-lg font-bold">
+                  {selectedDisbursement.expenseCategory}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Expense Type Card */}
+          <div className="bg-white/5 rounded-xl border border-white/10 p-4 backdrop-blur-sm hover:bg-white/10 transition-all duration-200">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="bg-orange-500/20 p-2 rounded-lg">
+                  <CreditCard className="w-4 h-4 text-orange-400" />
+                </div>
+                <div>
+                  <p className="text-orange-300 text-xs font-semibold uppercase tracking-wider">
+                    Expense Type
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-white text-lg font-bold">
+                  {selectedDisbursement.expenseType}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Amount Card */}
+        <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-2xl border border-green-500/30 p-6 backdrop-blur-sm">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <div className="bg-green-500/30 p-3 rounded-xl">
+                <DollarSign className="w-6 h-6 text-green-400" />
+              </div>
+              <div>
+                <p className="text-green-300 text-xs font-semibold uppercase tracking-wider">
+                  Amount Disbursed
+                </p>
+                <p className="text-gray-300 text-xs">Total amount released</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-white text-3xl font-bold">
+                {formatCurrency(parseFloat(selectedDisbursement.amount))}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Date Created Card */}
+        <div className="bg-white/5 rounded-2xl border border-white/10 p-6 backdrop-blur-sm hover:bg-white/10 transition-all duration-300">
+          <div className="flex items-start gap-4">
+            <div className="bg-blue-500/20 p-3 rounded-xl">
+              <Calendar className="w-6 h-6 text-blue-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-blue-300 text-xs font-semibold uppercase tracking-wider mb-1">
+                Date 
+              </p>
+              <div className="space-y-2">
+                <p className="text-white font-medium">
+                  {new Date(selectedDisbursement.dateCreated).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </p>
+                <div className="flex items-center gap-2 text-gray-300 text-sm">
+                  
+                
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Full Timestamp Card */}
+       
+
+        {/* Disbursement ID */}
+      
+      </div>
+
+      {/* Footer with enhanced buttons */}
+      <div className="flex justify-end gap-3 px-6 py-5 border-t border-white/10 bg-black/20 backdrop-blur-sm">
         <button
           onClick={() => setShowDetailsModal(false)}
-          className="px-5 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 text-lg font-semibold"
+          className="px-5 py-2.5 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all duration-200 font-semibold text-sm flex items-center gap-2"
         >
+          <X size={16} />
           Close
         </button>
+
         <button
-          onClick={() => { setShowDetailsModal(false); handleEdit(selectedDisbursement.id); }}
-          className="px-5 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-lg font-semibold"
+          onClick={() => {
+            setShowDetailsModal(false);
+            handleEdit(selectedDisbursement.id);
+          }}
+          className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white transition-all duration-200 font-semibold text-sm flex items-center gap-2 shadow-lg"
         >
-          <Edit />
+          <Edit size={16} />
+          Edit Disbursement
         </button>
+
         <button
-          onClick={() => { setShowDetailsModal(false); openDeleteModal(selectedDisbursement.id, selectedDisbursement.payee); }}
-          className="px-5 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 text-lg font-semibold"
+          onClick={() => {
+            setShowDetailsModal(false);
+            openDeleteModal(selectedDisbursement.id, selectedDisbursement.payee);
+          }}
+          className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white transition-all duration-200 font-semibold text-sm flex items-center gap-2 shadow-lg"
         >
-          <Trash2 />
+          <Trash2 size={16} />
+          Delete Disbursement
         </button>
       </div>
     </aside>
@@ -883,72 +1295,59 @@ const startCamera = async () => {
 )}
 
 
-
-
-
-
-
-    {/* =================== Delete Modal =================== */}
-{showDeleteModal && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-
-    {/* Subtle overlay (same as Add Modal) */}
-    <div
-      className="absolute inset-0 bg-black opacity-10 pointer-events-auto"
-      onClick={() => setShowDeleteModal(false)}
-    ></div>
-
-    {/* Modal */}
-    <div
-      className="bg-white rounded-xl shadow-lg w-[420px] overflow-hidden z-10 pointer-events-auto"
-      onClick={(e) => e.stopPropagation()}
-    >
-      {/* HEADER (Matched design but using danger color) */}
-      <div className="bg-red-600 flex items-center justify-between px-4 py-3">
-        <h2 className="text-white text-lg font-semibold">Confirm Delete</h2>
-        <button
-          onClick={() => setShowDeleteModal(false)}
-          className="text-white hover:text-gray-200"
-        >
-          <X size={20} />
-        </button>
-      </div>
-
-      {/* BODY */}
-      <div className="p-6">
-        <p className="text-gray-700 text-center mb-2">
-          Are you sure you want to delete the disbursement for{" "}
-          <span className="font-semibold">{deletePayee}</span>?
-        </p>
-      </div>
-
-      {/* FOOTER (Same layout & style as Add Modal) */}
-      <div className="flex justify-end gap-3 px-4 py-3 bg-gray-50 border-t">
-        <button
-          onClick={() => setShowDeleteModal(false)}
-          className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
-        >
-          Cancel
-        </button>
-
-        <button
-          onClick={handleConfirmDelete}
-          className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
-        >
-          Delete
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-
+      {/* =================== Delete Modal =================== */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 bg-black opacity-30 pointer-events-auto"></div>
+          <div className="bg-white rounded-lg shadow-lg w-96 p-6 z-10 pointer-events-auto">
+            <h2 className="text-lg font-semibold mb-3 text-center text-red-600">
+              Confirm Delete
+            </h2>
+            <p className="text-gray-700 text-center mb-5">
+              Are you sure you want to delete the disbursement for{" "}
+              <span className="font-semibold">{deletePayee}</span>?
+            </p>
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 rounded-md border bg-gray-200 border-gray-300 hover:bg-gray-100 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 rounded-md bg-red-500 text-white hover:bg-red-600 transition"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* =================== OCR Scanner Modal =================== */}
       {showScanModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-gray-100 border-b p-4 flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Disbursement Document Scanner</h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-semibold">Disbursement Document Scanner</h2>
+                <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-sm font-medium ${
+                  isOnlineMode 
+                    ? "bg-green-100 text-green-800" 
+                    : "bg-yellow-100 text-yellow-800"
+                }`}>
+                  {isOnlineMode ? (
+                    <>
+                      <Wifi className="w-4 h-4" /> Online
+                    </>
+                  ) : (
+                    <>
+                      <WifiOff className="w-4 h-4" /> Offline
+                    </>
+                  )}
+                </div>
+              </div>
               <button
                 onClick={closeScanModal}
                 className="text-gray-500 hover:text-gray-700"
@@ -985,16 +1384,37 @@ const startCamera = async () => {
                      {/* Camera Mode */}
 {scanMode === "camera" && (
   <div className="space-y-3">
-    {/* Video Preview */}
-    <video
-      ref={videoRef}
-      autoPlay
-      playsInline
-      muted
-      className={`w-full max-h-96 bg-black rounded-lg object-cover mb-2 transition-opacity ${
-        cameraActive ? "opacity-100" : "opacity-0"
-      }`}
-    />
+    {/* Video Preview with Document Crop Guide */}
+    <div className="relative w-full bg-black rounded-lg overflow-hidden">
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        controlsList="nopictureinpicture"
+        className={`w-full max-h-96 bg-black rounded-lg object-cover mb-2 transition-opacity ${
+          cameraActive ? "opacity-100" : "opacity-0"
+        }`}
+      />
+      
+      {/* Document Crop Guide Overlay - Visible when camera is active */}
+      {cameraActive && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          {/* Darkened areas outside the guide */}
+          <div className="absolute inset-0 bg-black/40" />
+          
+          {/* White border rectangle showing capture area */}
+          <div className="border-4 border-white rounded-xl w-80 h-96 flex items-center justify-center">
+            <div className="text-white text-center text-sm font-semibold drop-shadow-lg">
+              
+            </div>
+          </div>
+          
+          {/* Corner markers for better visibility */}
+          
+        </div>
+      )}
+    </div>
 
     {!cameraActive ? (
       <button
@@ -1092,14 +1512,14 @@ const startCamera = async () => {
                         <span className="font-semibold">Office:</span> {formData.office}
                       </p>
                     )}
-                    {formData.expenseType && (
-                      <p>
-                        <span className="font-semibold">Expense Type:</span> {formData.expenseType}
-                      </p>
-                    )}
                     {formData.expenseCategory && (
                       <p>
                         <span className="font-semibold">Category:</span> {formData.expenseCategory}
+                      </p>
+                    )}
+                    {formData.expenseType && (
+                      <p>
+                        <span className="font-semibold">Expense Type:</span> {formData.expenseType}
                       </p>
                     )}
                     {formData.date && (
@@ -1145,6 +1565,16 @@ const startCamera = async () => {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* =================== Loading Overlay =================== */}
+      {isLoading && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg shadow-xl p-8 flex flex-col items-center gap-4">
+            <Loader className="w-12 h-12 text-blue-600 animate-spin" />
+            <p className="text-gray-700 font-semibold">Loading data...</p>
           </div>
         </div>
       )}

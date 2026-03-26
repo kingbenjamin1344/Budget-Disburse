@@ -1,5 +1,6 @@
-"use client";
+﻿"use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { RotateCcw, Printer, Minimize2, Maximize2, Save } from "lucide-react";
 import { toast } from "react-toastify";
@@ -15,6 +16,19 @@ export default function SoePage() {
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [saveFilename, setSaveFilename] = useState('');
   const [saving, setSaving] = useState(false);
+  const [pdfDownloadedModalOpen, setPdfDownloadedModalOpen] = useState(false);
+
+  // Filters
+  const [rawBudgetData, setRawBudgetData] = useState<any[]>([]);
+  const [rawDisbData, setRawDisbData] = useState<any[]>([]);
+  const [officeFilter, setOfficeFilter] = useState('');
+  const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+  const currentYear = String(new Date().getFullYear());
+  const [monthFilterFrom, setMonthFilterFrom] = useState('');
+  const [yearFilterFrom, setYearFilterFrom] = useState('');
+  const [monthFilterTo, setMonthFilterTo] = useState('');
+  const [yearFilterTo, setYearFilterTo] = useState('');
+  const [filterApplied, setFilterApplied] = useState(false);
 
   // Helper function to format numbers as Philippine Peso
   const formatPeso = (value: number) => {
@@ -23,6 +37,34 @@ export default function SoePage() {
       currency: "PHP",
       minimumFractionDigits: 2,
     }).format(value);
+  };
+
+  // Generate filename based on filters
+  const generateFilename = (): string => {
+    const monthNames: { [key: string]: string } = {
+      '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr', '05': 'May', '06': 'Jun',
+      '07': 'Jul', '08': 'Aug', '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec'
+    };
+
+    const filenameparts: string[] = ['SOE'];
+
+    // Add office if filtered
+    if (officeFilter && officeFilter.trim()) {
+      const officeName = officeFilter.trim().replace(/[^a-zA-Z0-9]/g, '').slice(0, 15);
+      filenameparts.push(officeName);
+    }
+
+    // Add date range
+    const fromMonth = monthNames[monthFilterFrom] || monthFilterFrom;
+    const toMonth = monthNames[monthFilterTo] || monthFilterTo;
+    
+    if (monthFilterFrom === monthFilterTo && yearFilterFrom === yearFilterTo) {
+      filenameparts.push(`${fromMonth}${yearFilterFrom}`);
+    } else {
+      filenameparts.push(`${fromMonth}${yearFilterFrom}-${toMonth}${yearFilterTo}`);
+    }
+
+    return filenameparts.join('_') + '.pdf';
   };
 
   const toggleCompress = () => {
@@ -130,6 +172,7 @@ export default function SoePage() {
       // totals row
       const totalsRow = document.createElement('tr');
       totalsRow.style.fontWeight = '700';
+      totalsRow.style.backgroundColor = '#e0d5ff';
       const totals = [
         'Overall Total',
         formatPeso(data.reduce((sum, r) => sum + r.budget.ps, 0)),
@@ -145,12 +188,18 @@ export default function SoePage() {
         formatPeso(data.reduce((sum, r) => sum + r.variance.co, 0)),
         formatPeso(data.reduce((sum, r) => sum + r.variance.total, 0)),
       ];
-      for (const c of totals) {
+      for (let idx = 0; idx < totals.length; idx++) {
+        const c = totals[idx];
         const td = document.createElement('td');
         td.textContent = String(c ?? '');
         td.style.border = '1px solid #e5e7eb';
         td.style.padding = '6px 8px';
         td.style.textAlign = 'right';
+        // Highlight total columns (indices 4, 8, 12 are the "Total" columns)
+        if (idx === 4 || idx === 8 || idx === 12) {
+          td.style.backgroundColor = '#a78bfa';
+          td.style.fontWeight = '700';
+        }
         totalsRow.appendChild(td);
       }
       if (totalsRow.firstChild) (totalsRow.firstChild as HTMLElement).style.textAlign = 'left';
@@ -174,7 +223,13 @@ export default function SoePage() {
       });
 
       const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('l', 'pt', 'a4');
+      // Use landscape orientation for better data visibility
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'pt',
+        format: 'a4',
+        compress: true
+      });
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
 
@@ -222,6 +277,9 @@ export default function SoePage() {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+    
+    // Show success modal
+    setPdfDownloadedModalOpen(true);
   };
 
   // Save PDF using File System Access API when available, otherwise fall back to download
@@ -247,6 +305,9 @@ export default function SoePage() {
           const writable = await handle.createWritable();
           await writable.write(blob);
           await writable.close();
+          
+          // Show success modal
+          setPdfDownloadedModalOpen(true);
 
         } catch (err: any) {
            // User canceled save dialog → just stop, do NOT download
@@ -265,6 +326,9 @@ export default function SoePage() {
            a.click();
            a.remove();
            URL.revokeObjectURL(url);
+           
+           // Show success modal
+           setPdfDownloadedModalOpen(true);
           }
 
       } else {
@@ -277,6 +341,9 @@ export default function SoePage() {
         a.click();
         a.remove();
         URL.revokeObjectURL(url);
+        
+        // Show success modal
+        setPdfDownloadedModalOpen(true);
       }
 
       return true;
@@ -336,6 +403,10 @@ export default function SoePage() {
         const budgetData = await budgetRes.json();
         const disbData = await disbRes.json();
 
+          // keep raw copies for filtering
+          setRawBudgetData(budgetData);
+          setRawDisbData(disbData);
+
         const calculateTotals = (office: string, category: string) => {
           if (!office || !category) return 0;
           return disbData
@@ -382,6 +453,8 @@ export default function SoePage() {
         });
 
         setData(merged);
+        // apply initial filters (none selected)
+        // computeFiltered will run via effect as well, but set once for immediate view
       } catch (err) {
         console.error("Error fetching data:", err);
       } finally {
@@ -391,6 +464,95 @@ export default function SoePage() {
 
     fetchData();
   }, []);
+
+  // compute merged data applying filters
+  const computeFiltered = (budgets: any[], disbs: any[]) => {
+    const calculateTotals = (office: string, category: string) => {
+      if (!office || !category) return 0;
+      
+      // Filter disbursements by office, category, and date range (only if filter is applied)
+      const relevantDisbs = disbs.filter((d: any) => {
+        if (!d.dateCreated) return false;
+        
+        let dt: Date;
+        try {
+          dt = new Date(d.dateCreated);
+          // Validate date is valid
+          if (isNaN(dt.getTime())) return false;
+        } catch (e) {
+          return false;
+        }
+        
+        const disbMonth = String(dt.getMonth() + 1).padStart(2, '0');
+        const disbYear = String(dt.getFullYear());
+        
+        // Only apply date range filter if user has clicked "Set" and all values are provided
+        if (filterApplied && monthFilterFrom && monthFilterTo && yearFilterTo) {
+          const startDate = new Date(parseInt(yearFilterFrom || currentYear), parseInt(monthFilterFrom) - 1, 1);
+          const endDate = new Date(parseInt(yearFilterTo), parseInt(monthFilterTo), 0, 23, 59, 59);
+          
+          if (dt < startDate || dt > endDate) {
+            return false;
+          }
+        }
+        
+        // Finally check office and category
+        return (
+          d.office?.toLowerCase() === office.toLowerCase() &&
+          d.expenseCategory?.toLowerCase() === category.toLowerCase()
+        );
+      });
+
+      // Sum all disbursements within the date range
+      return relevantDisbs.reduce((sum: number, d: any) => sum + Number(d.amount || 0), 0);
+    };
+
+    let merged = budgets.map((b: any) => {
+      const psActual = calculateTotals(b.office, "PS");
+      const mooeActual = calculateTotals(b.office, "MOOE");
+      const coActual = calculateTotals(b.office, "CO");
+      const totalActual = psActual + mooeActual + coActual;
+
+      const psVariance = (b.ps || 0) - psActual;
+      const mooeVariance = (b.mooe || 0) - mooeActual;
+      const coVariance = (b.co || 0) - coActual;
+      const totalVariance = (b.total || 0) - totalActual;
+
+      return {
+        office: b.office,
+        budget: {
+          ps: b.ps || 0,
+          mooe: b.mooe || 0,
+          co: b.co || 0,
+          total: b.total || 0,
+        },
+        actual: {
+          ps: psActual,
+          mooe: mooeActual,
+          co: coActual,
+          total: totalActual,
+        },
+        variance: {
+          ps: psVariance,
+          mooe: mooeVariance,
+          co: coVariance,
+          total: totalVariance,
+        },
+      };
+    });
+
+    if (officeFilter && officeFilter.trim()) {
+      const q = officeFilter.toLowerCase();
+      merged = merged.filter((m) => m.office.toLowerCase().includes(q));
+    }
+
+    setData(merged);
+  };
+
+  // Recompute whenever raw data or filters change
+  useEffect(() => {
+    computeFiltered(rawBudgetData, rawDisbData);
+  }, [rawBudgetData, rawDisbData, officeFilter, monthFilterFrom, yearFilterFrom, monthFilterTo, yearFilterTo, filterApplied]);
 
   useEffect(() => {
     return () => {
@@ -410,7 +572,23 @@ export default function SoePage() {
   }, []);
 
   return (
-    <div className="w-full transition-all duration-300">
+    <div className="w-full transition-all duration-300 relative">
+      {/* =================== Loading Screen =================== */}
+      {loading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+          <div className="flex flex-col items-center justify-center gap-4">
+            {/* Animated Spinner */}
+            <div className="relative w-16 h-16">
+              <div className="absolute inset-0 rounded-full border-4 border-gray-300" />
+              <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-600 border-r-blue-600 animate-spin" />
+            </div>
+            <p className="text-white text-lg font-semibold">Loading...</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Apply blur to main content when loading */}
+      <div className={`transition-all duration-300 ${loading ? "blur-sm" : ""}`}>
      {/* === HEADER === */}
 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
   {/* Title */}
@@ -423,7 +601,7 @@ export default function SoePage() {
     <button
       className="flex items-center bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition"
       onClick={() => {
-        const defaultName = `SOE_${new Date().toISOString().split('T')[0]}.pdf`;
+        const defaultName = generateFilename();
         setSaveFilename(defaultName);
         setSaveModalOpen(true);
       }}
@@ -451,6 +629,99 @@ export default function SoePage() {
 
 {/* Divider line */}
 <hr className="border-gray-300 mb-6" />
+
+      {/* Filters: Search bar and Month/Year/Set controls */}
+      <div className="flex flex-col sm:flex-row items-center gap-3 mb-6">
+        {/* Search Bar */}
+        <input
+          type="text"
+          placeholder="Search Bar"
+          value={officeFilter}
+          onChange={(e) => setOfficeFilter(e.target.value)}
+          className="flex-1 border border-gray-300 rounded px-3 py-2 w-full sm:w-auto"
+        />
+
+        {/* Month/Year/Set Controls */}
+        <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap">
+          {/* First Month Dropdown */}
+          <select
+            value={monthFilterFrom}
+            onChange={(e) => setMonthFilterFrom(e.target.value)}
+            className="border border-gray-300 rounded px-3 py-2 text-sm flex-1 sm:flex-none w-full sm:w-auto"
+          >
+            <option value="" disabled>Select Month</option>
+            {[
+              ['01','January'],['02','February'],['03','March'],['04','April'],['05','May'],['06','June'],
+              ['07','July'],['08','August'],['09','September'],['10','October'],['11','November'],['12','December']
+            ].map(([val, label]) => (
+              <option key={val} value={val}>{label}</option>
+            ))}
+          </select>
+
+          {/* Second Month Dropdown */}
+          <select
+            value={monthFilterTo}
+            onChange={(e) => setMonthFilterTo(e.target.value)}
+            className="border border-gray-300 rounded px-3 py-2 text-sm flex-1 sm:flex-none w-full sm:w-auto"
+          >
+            <option value="" disabled>Select Month</option>
+            {[
+              ['01','January'],['02','February'],['03','March'],['04','April'],['05','May'],['06','June'],
+              ['07','July'],['08','August'],['09','September'],['10','October'],['11','November'],['12','December']
+            ].map(([val, label]) => (
+              <option key={val} value={val}>{label}</option>
+            ))}
+          </select>
+
+          {/* Year Dropdown */}
+          <select
+            value={yearFilterTo}
+            onChange={(e) => setYearFilterTo(e.target.value)}
+            className="border border-gray-300 rounded px-3 py-2 text-sm flex-1 sm:flex-none w-full sm:w-auto"
+          >
+            <option value="" disabled>Select Year</option>
+            {[...new Set(rawDisbData.map(d => {
+              try { return new Date(d.dateCreated).getFullYear(); } catch { return null; }
+            })).values()]
+              .filter(Boolean)
+              .sort((a: any, b: any) => b - a)
+              .map((y: any) => (
+                <option key={y} value={String(y)}>{String(y)}</option>
+              ))}
+          </select>
+
+          {/* Set Button */}
+          <button
+            onClick={() => {
+              // Validate all fields are selected
+              if (!monthFilterFrom || !monthFilterTo || !yearFilterTo) {
+                toast.error('Please select both months and year');
+                return;
+              }
+              // Apply filter - data will recompute via useEffect
+              setFilterApplied(true);
+            }}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition whitespace-nowrap flex-1 sm:flex-none w-full sm:w-auto"
+          >
+            Set
+          </button>
+        </div>
+
+        {/* Clear Filters Button */}
+        <button
+          onClick={() => { 
+            setOfficeFilter(''); 
+            setMonthFilterFrom(''); 
+            setYearFilterFrom(''); 
+            setMonthFilterTo(''); 
+            setYearFilterTo('');
+            setFilterApplied(false);
+          }}
+          className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 transition whitespace-nowrap flex-1 sm:flex-none w-full sm:w-auto"
+        >
+          Clear
+        </button>
+      </div>
 
 
       {/* Save / Rename Modal */}
@@ -485,6 +756,38 @@ export default function SoePage() {
                 {saving ? 'Saving...' : 'Save'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* PDF Downloaded Success Modal */}
+      {pdfDownloadedModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black opacity-50" onClick={() => setPdfDownloadedModalOpen(false)} />
+          <div className="bg-white rounded-lg shadow-lg z-10 w-[min(400px,90%)] p-8 text-center">
+            <div className="flex justify-center mb-4">
+              <svg
+                className="w-16 h-16 text-green-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">PDF Downloaded</h3>
+            <p className="text-gray-600 mb-6">Your Statement of Expenditure has been successfully saved.</p>
+            <button
+              className="px-6 py-2 rounded bg-green-600 text-white hover:bg-green-700 transition"
+              onClick={() => setPdfDownloadedModalOpen(false)}
+            >
+              Okay
+            </button>
           </div>
         </div>
       )}
@@ -614,10 +917,13 @@ export default function SoePage() {
     <tr className="h-48">
       <td colSpan={13} className="text-gray-500 italic p-0">
         <div className="flex flex-col items-center justify-center h-full w-full">
-          <img
+          <Image
             src="/img/add.png"
             alt="No data"
-            className="mb-2 max-w-[200px] h-auto object-contain"
+            width={200}
+            height={200}
+            className="mb-2 object-contain"
+            loading="lazy"
           />
           <span>No disbursement records found.</span>
         </div>
@@ -727,6 +1033,7 @@ export default function SoePage() {
 
 
         </table>
+      </div>
       </div>
     </div>
   );

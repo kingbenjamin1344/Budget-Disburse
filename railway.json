@@ -1,0 +1,27 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "nixpacks",
+    "buildCommand": "npm run build"
+  },
+  "deploy": {
+    "preDeployCommand": "npx prisma migrate deploy",
+    "startCommand": "npm start",
+    "restartPolicyType": "on_failure",
+    "restartPolicyMaxRetries": 5
+  },
+  "variables": {
+    "NODE_ENV": {
+      "description": "Node environment - set to production for Railway",
+      "value": "production"
+    },
+    "AUTH_SECRET": {
+      "description": "Authentication secret for NextAuth.js - used during build and runtime",
+      "value": "szyhJETF271r2u0/63g2vtF0UUUC7XtMQa5mQn3vVwA="
+    },
+    "NEXTAUTH_SECRET": {
+      "description": "NextAuth.js secret - alias for AUTH_SECRET",
+      "value": "szyhJETF271r2u0/63g2vtF0UUUC7XtMQa5mQn3vVwA="
+    }
+  }
+}

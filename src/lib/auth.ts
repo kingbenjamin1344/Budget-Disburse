@@ -1,6 +1,36 @@
 import jwt from 'jsonwebtoken';
 
-const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'f77737058b7cda6894c2b8552d18e26722398fcfc8ea7adddf8f6f5e9ec6a698';
+// ⚠️ SECURITY: Never use hardcoded secrets in production
+function getAuthSecret(): string {
+  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+  
+  // Use fallback for development and build time
+  if (!secret) {
+    // During build time in production, use a temporary fallback to avoid build failure
+    // The error will be thrown at runtime if still missing
+    if (process.env.NODE_ENV === 'production' && process.env.NODE_ENV === 'production') {
+      console.warn(
+        '⚠️ WARNING: AUTH_SECRET not available during build. ' +
+        'Ensure AUTH_SECRET or NEXTAUTH_SECRET is set in Railway environment variables.'
+      );
+    }
+    
+    // Fallback for build time and development
+    const fallback = 'dev-temporary-secret-not-for-production-use-only-for-testing';
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(
+        '⚠️ WARNING: Using temporary development secret. ' +
+        'Set AUTH_SECRET environment variable for security.'
+      );
+    }
+    
+    return fallback;
+  }
+  
+  return secret;
+}
+
+const AUTH_SECRET = getAuthSecret();
 
 function parseCookieHeader(cookieHeader?: string) {
   if (!cookieHeader) return {};

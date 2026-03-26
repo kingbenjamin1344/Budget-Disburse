@@ -1,12 +1,11 @@
-generator client {
-  provider = "prisma-client-js"
-}
-
 datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
+generator client {
+  provider = "prisma-client-js"
+}
 model budget {
   id          Int      @id @default(autoincrement())
   officeId    Int
@@ -63,4 +62,12 @@ model log {
   createdAt   DateTime @default(now())
 
   @@index([type, createdAt])
+}
+
+model useradmin {
+  id        Int     @id @default(autoincrement())
+  username  String  @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now())
 }

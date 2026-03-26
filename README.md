@@ -1,4 +1,4 @@
-# Project: Budget-Disbursement
+Project: Budget-Disburse
 
 Environment variables required for secure admin-only login:
 
@@ -15,43 +15,39 @@ Notes:
 
 
 
-# Requirements 
-````
+requirements 
+
 MYSQL
 HeidiSQL
 Prisma
-````
 
-# Powershell
-````bash
+
+
+
+## powershell
+
 npm install
 npm run dev
-````
 
-# Migrate db
-step 1 run this command in terminal
-````bash
+## to migrate db
+
+## step 1 run this command in terminal
 npm install prisma @prisma/client mysql2
-````
 
 ## make a .env file and copy-paste
-````
-DATABASE_URL="mysql://root:password@localhost:3306/budget_disburse"
-````
+DATABASE_URL="mysql://root:new_password@localhost:3306/budget_disburse"
 
-## Open Heidi Sql 
-- create session
-- user:root
-- password:password
-- port:3306
+## open Heidi Sql 
+create session
+user:root
+password:
+port:3306
 
-## Create db name
+## create db name
 budget_disburse and run finaldisburse.sql in query
 
-## Run terminal
-````bash
+## run 
 npm run dev
-````
 
 
 

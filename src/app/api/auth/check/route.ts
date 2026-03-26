@@ -9,8 +9,11 @@ export async function GET(request: NextRequest) {
   if (!tokenCookie || !tokenCookie.value) return NextResponse.json({ authenticated: false }, { status: 401 });
 
   try {
-    jwt.verify(tokenCookie.value, AUTH_SECRET);
-    return NextResponse.json({ authenticated: true }, { status: 200 });
+    const decoded: any = jwt.verify(tokenCookie.value, AUTH_SECRET);
+    return NextResponse.json({ 
+      authenticated: true,
+      username: decoded?.user || decoded?.username || null 
+    }, { status: 200 });
   } catch (e) {
     return NextResponse.json({ authenticated: false }, { status: 401 });
   }
