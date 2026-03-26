@@ -9,16 +9,13 @@ generator client {
 model budget {
   id          Int      @id @default(autoincrement())
   officeId    Int
-  officeName  String
   ps          Float
   mooe        Float
   co          Float
   total       Float
   dateCreated DateTime @default(now())
   updatedAt   DateTime @updatedAt @default(now())
-  office      office   @relation(fields: [officeId], references: [id], map: "Budget_officeId_fkey")
-
-  @@index([officeId], map: "Budget_officeId_fkey")
+  office      office   @relation(fields: [officeId], references: [id], onDelete: Cascade)
 }
 
 model disbursement {
@@ -26,17 +23,13 @@ model disbursement {
   dvNo            String
   payee           String
   officeId        Int
-  officeName      String
   expenseType     String
   expenseCategory String
   amount          Float
   dateCreated     DateTime @default(now())
   updatedAt       DateTime @updatedAt @default(now())
-  office          office   @relation(fields: [officeId], references: [id], map: "Disbursement_officeId_fkey")
-
-  @@index([officeId], map: "Disbursement_officeId_fkey")
+  office          office   @relation(fields: [officeId], references: [id], onDelete: Cascade)
 }
-
 model expense {
   id          Int      @id @default(autoincrement())
   type        String

@@ -15,7 +15,7 @@ export async function GET() {
     // Format for frontend
     const formatted = budgets.map((b) => ({
       id: b.id,
-      office: b.officeName || b.office?.name || "Unknown", // ✅ safer access
+      office: b.office?.name || "Unknown",
       ps: b.ps,
       mooe: b.mooe,
       co: b.co,
@@ -81,22 +81,23 @@ export async function POST(req: Request) {
       }
     }
 
-    // Create budget with both officeId and officeName
+    // Create budget with office connection using Prisma relation
     const newBudget = await prisma.budget.create({
       data: {
-        officeId: existingOffice.id,
-        officeName: existingOffice.name,
         ps: parseFloat(String(ps)),
         mooe: parseFloat(String(mooe)),
         co: parseFloat(String(co)),
         total: parseFloat(String(total)) || (parseFloat(String(ps)) + parseFloat(String(mooe)) + parseFloat(String(co))),
+        office: {
+          connect: { id: existingOffice.id }
+        }
       },
       include: { office: true },
     });
 
     const actor = getUserNameFromRequest(req);
     await logAction({
-      message: `id=${newBudget.id}, office="${newBudget.officeName}", PS=${newBudget.ps}, MOOE=${newBudget.mooe}, CO=${newBudget.co}, total=${newBudget.total}`,
+      message: `id=${newBudget.id}, office="${newBudget.office.name}", PS=${newBudget.ps}, MOOE=${newBudget.mooe}, CO=${newBudget.co}, total=${newBudget.total}`,
       type: "Budget",
       action: "create",
       performedBy: actor || undefined,
@@ -105,7 +106,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       message: "Budget added successfully",
       id: newBudget.id,
-      office: newBudget.officeName,
+      office: newBudget.office.name,
       ps: newBudget.ps,
       mooe: newBudget.mooe,
       co: newBudget.co,
@@ -127,32 +128,54 @@ export async function PUT(req: Request) {
     const body = await req.json();
     const { id, office, ps, mooe, co, total } = body;
 
-    const existingOffice = await prisma.office.findFirst({
+    // Find office by name, or create it if it doesn't exist
+    let existingOffice = await prisma.office.findFirst({
       where: { name: office },
     });
 
     if (!existingOffice) {
-      return NextResponse.json({ error: "Office not found" }, { status: 400 });
+      console.warn(`Office not found: "${office}". Auto-creating...`);
+      try {
+        existingOffice = await prisma.office.create({
+          data: { name: office },
+        });
+        console.log(`✅ Office created: "${office}" with ID ${existingOffice.id}`);
+      } catch (err: any) {
+        if (err.code === 'P2002') {
+          existingOffice = await prisma.office.findFirst({
+            where: { name: office },
+          });
+          if (!existingOffice) {
+            return NextResponse.json(
+              { error: `Failed to create or find office: "${office}"` },
+              { status: 500 }
+            );
+          }
+        } else {
+          throw err;
+        }
+      }
     }
 
-    // Update both fields so officeName stays in sync
-    const existing = await prisma.budget.findUnique({ where: { id } });
+    // Update using office connection
+    const existing = await prisma.budget.findUnique({ where: { id }, include: { office: true } });
     const updated = await prisma.budget.update({
       where: { id },
       data: {
-        officeId: existingOffice.id,
-        officeName: existingOffice.name, // ✅ keep name synced
         ps,
         mooe,
         co,
         total,
+        office: {
+          connect: { id: existingOffice.id }
+        }
       },
       include: { office: true },
     });
 
     const actor = getUserNameFromRequest(req);
     await logAction({
-      message: `id=${updated.id}: office "${existing?.officeName || "<unknown>"}" -> "${updated.officeName}", PS ${existing?.ps} -> ${updated.ps}, MOOE ${existing?.mooe} -> ${updated.mooe}, CO ${existing?.co} -> ${updated.co}, total ${existing?.total} -> ${updated.total}`,
+      message: `id=${updated.id}: office "${existing?.office.name || "<unknown>"}" -> "${updated.office.name}", PS ${existing?.ps} -> ${updated.ps}, MOOE ${existing?.mooe} -> ${updated.mooe}, CO ${existing?.co} -> ${updated.co}, total ${existing?.total} -> ${updated.total}`,
       type: "Budget",
       action: "update",
       performedBy: actor || undefined,
@@ -162,7 +185,7 @@ export async function PUT(req: Request) {
       message: "Budget updated successfully",
       data: {
         id: updated.id,
-        office: updated.officeName,
+        office: updated.office.name,
         ps: updated.ps,
         mooe: updated.mooe,
         co: updated.co,

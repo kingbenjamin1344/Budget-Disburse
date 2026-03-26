@@ -16,7 +16,7 @@ export async function GET() {
       id: d.id,
       dvNo: d.dvNo,
       payee: d.payee,
-      office: d.officeName || d.office?.name,
+      office: d.office?.name,
       expenseType: d.expenseType,
       expenseCategory: d.expenseCategory,
       amount: d.amount,
@@ -75,11 +75,12 @@ export async function POST(req: Request) {
     const createData: any = {
       dvNo,
       payee,
-      officeId: existingOffice.id,
-      officeName: existingOffice.name,
       expenseType,
       expenseCategory,
       amount: parseFloat(amount),
+      office: {
+        connect: { id: existingOffice.id }
+      }
     };
     if (date) {
       const parsed = new Date(date);
@@ -93,7 +94,7 @@ export async function POST(req: Request) {
 
     const actor = getUserNameFromRequest(req);
     await logAction({
-      message: `${newDisbursement.dvNo}, payee="${newDisbursement.payee}", amount=${newDisbursement.amount}, office="${newDisbursement.officeName}", category="${newDisbursement.expenseCategory}" (id: ${newDisbursement.id})`,
+      message: `${newDisbursement.dvNo}, payee="${newDisbursement.payee}", amount=${newDisbursement.amount}, office="${newDisbursement.office.name}", category="${newDisbursement.expenseCategory}" (id: ${newDisbursement.id})`,
       type: "Disbursement",
       action: "create",
       performedBy: actor || undefined,
@@ -103,7 +104,7 @@ export async function POST(req: Request) {
       id: newDisbursement.id,
       dvNo: newDisbursement.dvNo,
       payee: newDisbursement.payee,
-      office: newDisbursement.officeName,
+      office: newDisbursement.office.name,
       expenseType: newDisbursement.expenseType,
       expenseCategory: newDisbursement.expenseCategory,
       amount: newDisbursement.amount,
@@ -156,18 +157,19 @@ export async function PUT(req: Request) {
     const updateData: any = {
       dvNo,
       payee,
-      officeId: existingOffice.id,
-      officeName: existingOffice.name,
       expenseType,
       expenseCategory,
       amount: parseFloat(amount),
+      office: {
+        connect: { id: existingOffice.id }
+      }
     };
     if (date) {
       const parsed = new Date(date);
       if (!isNaN(parsed.getTime())) updateData.dateCreated = parsed;
     }
 
-    const existing = await prisma.disbursement.findUnique({ where: { id } });
+    const existing = await prisma.disbursement.findUnique({ where: { id }, include: { office: true } });
     const updated = await prisma.disbursement.update({
       where: { id },
       data: updateData,
@@ -186,7 +188,7 @@ export async function PUT(req: Request) {
       id: updated.id,
       dvNo: updated.dvNo,
       payee: updated.payee,
-      office: updated.officeName,
+      office: updated.office.name,
       expenseType: updated.expenseType,
       expenseCategory: updated.expenseCategory,
       amount: updated.amount,
