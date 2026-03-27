@@ -412,16 +412,16 @@ export default function SoePage() {
           return disbData
             .filter(
               (d: any) =>
-                d.office?.name?.toLowerCase() === office.toLowerCase() &&
+                d.office?.toLowerCase() === office.toLowerCase() &&
                 d.expenseCategory?.toLowerCase() === category.toLowerCase()
             )
             .reduce((sum: number, d: any) => sum + Number(d.amount || 0), 0);
         };
 
         const merged = budgetData.map((b: any) => {
-          const psActual = calculateTotals(b.office?.name, "PS");
-          const mooeActual = calculateTotals(b.office?.name, "MOOE");
-          const coActual = calculateTotals(b.office?.name, "CO");
+          const psActual = calculateTotals(b.office, "PS");
+          const mooeActual = calculateTotals(b.office, "MOOE");
+          const coActual = calculateTotals(b.office, "CO");
           const totalActual = psActual + mooeActual + coActual;
 
           const psVariance = (b.ps || 0) - psActual;
@@ -430,7 +430,7 @@ export default function SoePage() {
           const totalVariance = (b.total || 0) - totalActual;
 
           return {
-            office: b.office?.name,
+            office: b.office,
             budget: {
               ps: b.ps || 0,
               mooe: b.mooe || 0,
@@ -498,7 +498,7 @@ export default function SoePage() {
         
         // Finally check office and category
         return (
-          d.office?.name?.toLowerCase() === office.toLowerCase() &&
+          d.office?.toLowerCase() === office.toLowerCase() &&
           d.expenseCategory?.toLowerCase() === category.toLowerCase()
         );
       });
@@ -508,9 +508,9 @@ export default function SoePage() {
     };
 
     let merged = budgets.map((b: any) => {
-      const psActual = calculateTotals(b.office?.name, "PS");
-      const mooeActual = calculateTotals(b.office?.name, "MOOE");
-      const coActual = calculateTotals(b.office?.name, "CO");
+      const psActual = calculateTotals(b.office, "PS");
+      const mooeActual = calculateTotals(b.office, "MOOE");
+      const coActual = calculateTotals(b.office, "CO");
       const totalActual = psActual + mooeActual + coActual;
 
       const psVariance = (b.ps || 0) - psActual;
@@ -519,7 +519,7 @@ export default function SoePage() {
       const totalVariance = (b.total || 0) - totalActual;
 
       return {
-        office: b.office?.name,
+        office: b.office,
         budget: {
           ps: b.ps || 0,
           mooe: b.mooe || 0,

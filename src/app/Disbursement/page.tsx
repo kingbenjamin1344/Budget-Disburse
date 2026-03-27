@@ -517,7 +517,7 @@ const startCamera = async () => {
     if (!formData.office || !formData.expenseCategory) return "";
 
     const budget = budgets.find(
-      (b) => b.office?.name?.toLowerCase() === formData.office.toLowerCase()
+      (b) => b.office?.toLowerCase() === formData.office.toLowerCase()
     );
     if (!budget) return "Not budgeted yet";
 
@@ -530,7 +530,7 @@ const startCamera = async () => {
     const disbursed = disbursements
       .filter(
         (d) =>
-          d.office?.name?.toLowerCase() === formData.office.toLowerCase() &&
+          d.office?.toLowerCase() === formData.office.toLowerCase() &&
           d.expenseCategory.toLowerCase() === category &&
           d.id !== editingId
       )
@@ -560,7 +560,7 @@ const isBudgetEnough = () => {
   if (!formData.office || !formData.expenseCategory || !formData.amount) return true;
 
   const budget = budgets.find(
-    (b) => b.office?.name?.toLowerCase() === formData.office.toLowerCase()
+    (b) => b.office?.toLowerCase() === formData.office.toLowerCase()
   );
 
   if (!budget) {
@@ -578,7 +578,7 @@ const isBudgetEnough = () => {
   const disbursedAmount = disbursements
     .filter(
       (d) =>
-        d.office?.name?.toLowerCase() === formData.office.toLowerCase() &&
+        d.office?.toLowerCase() === formData.office.toLowerCase() &&
         d.expenseCategory.toLowerCase() === category &&
         d.id !== editingId
     )
@@ -602,7 +602,7 @@ const isBudgetEnough = () => {
       toast.error("Please fill all required fields");
       return;
     }
-    const budget = budgets.find((b) => b.office?.name?.toLowerCase() === formData.office.toLowerCase());
+    const budget = budgets.find((b) => b.office?.toLowerCase() === formData.office.toLowerCase());
     if (!budget) {
       toast.error("No budget found for this office!");
       return;
@@ -617,7 +617,7 @@ const isBudgetEnough = () => {
     const disbursedAmount = disbursements
       .filter(
         (d) =>
-          d.office?.name?.toLowerCase() === formData.office.toLowerCase() &&
+          d.office?.toLowerCase() === formData.office.toLowerCase() &&
           d.expenseCategory.toLowerCase() === category &&
           d.id !== editingId
       )
@@ -701,7 +701,7 @@ const isBudgetEnough = () => {
     const matchesSearch =
       item.dvNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.payee.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesOffice = filterOffice ? item.office?.name === filterOffice : true;
+    const matchesOffice = filterOffice ? item.office === filterOffice : true;
     const matchesExpense = filterExpense ? item.expenseType === filterExpense : true;
     const matchesCategory = filterCategory ? item.expenseCategory === filterCategory : true;
     return matchesSearch && matchesOffice && matchesExpense && matchesCategory;
@@ -818,7 +818,7 @@ const isBudgetEnough = () => {
                   <tr key={d.id} onClick={() => { setSelectedDisbursement(d); setShowDetailsModal(true); }} className="border-b hover:bg-gray-200 cursor-pointer">
                     <td className="px-6 py-3">{d.dvNo}</td>
                     <td className="px-6 py-3">{d.payee}</td>
-                    <td className="px-6 py-3">{d.office?.name}</td>
+                    <td className="px-6 py-3">{d.office}</td>
                     <td className="px-6 py-3">{d.expenseType}</td>
                     <td className="px-6 py-3">{d.expenseCategory}</td>
                    <td className="px-6 py-3">
@@ -967,7 +967,7 @@ const isBudgetEnough = () => {
             className="w-full bg-transparent mt-1 outline-none font-semibold text-gray-700"
           >
             <option value="">Select Office</option>
-            {offices.map((o) => (
+            {offices.filter(o => budgets.some(b => b.office === o)).map((o) => (
               <option key={o} value={o}>
                 {o}
               </option>
@@ -1149,7 +1149,7 @@ const isBudgetEnough = () => {
                 Office
               </p>
               <h3 className="text-white text-xl font-bold leading-tight">
-                {selectedDisbursement.office?.name}
+                {selectedDisbursement.office}
               </h3>
             </div>
           </div>

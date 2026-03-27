@@ -68,7 +68,7 @@ export default function AddBudgetPage() {
 
     if (
       editingId === null &&
-      budgets.some((b) => b.office?.name === selectedOffice?.name)
+      budgets.some((b) => b.office === selectedOffice?.name)
     ) {
       return toast.error("This office already has a budget allocated.") as any;
     }
@@ -158,7 +158,7 @@ export default function AddBudgetPage() {
   };
 
   const filteredBudgets = budgets.filter((b) =>
-    b.office?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+    b.office?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const totalPages = Math.ceil(filteredBudgets.length / itemsPerPage);
@@ -270,7 +270,7 @@ export default function AddBudgetPage() {
               ) : (
                 currentItems.map((b, i) => (
                   <tr key={b.id} onClick={() => { setSelectedBudget({ item: b, index: startIndex + i }); setShowDetailsModal(true); }} className="border-b hover:bg-gray-200 cursor-pointer">
-                    <td className="px-6 py-3">{b.office?.name}</td>
+                    <td className="px-6 py-3">{b.office}</td>
                     <td className="px-6 py-3">₱{b.ps.toLocaleString()}</td>
                     <td className="px-6 py-3">₱{b.mooe.toLocaleString()}</td>
                     <td className="px-6 py-3">₱{b.co.toLocaleString()}</td>
@@ -376,7 +376,7 @@ export default function AddBudgetPage() {
                 <option value="">Select Office</option>
                 {offices.map((office) => {
                   const alreadyBudgeted = budgets.some(
-                    (b) => b.office?.name === office.name
+                    (b) => b.office === office.name
                   );
                   return (
                     <option
@@ -486,7 +486,7 @@ export default function AddBudgetPage() {
                       Office
                     </p>
                     <h3 className="text-white text-2xl font-bold leading-tight">
-                      {selectedBudget.item.office?.name}
+                      {selectedBudget.item.office}
                     </h3>
                   </div>
                 </div>
