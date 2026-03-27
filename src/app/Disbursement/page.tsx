@@ -560,7 +560,7 @@ const isBudgetEnough = () => {
   if (!formData.office || !formData.expenseCategory || !formData.amount) return true;
 
   const budget = budgets.find(
-    (b) => b.office.toLowerCase() === formData.office.toLowerCase()
+    (b) => b.office?.name?.toLowerCase() === formData.office.toLowerCase()
   );
 
   if (!budget) {
@@ -578,7 +578,7 @@ const isBudgetEnough = () => {
   const disbursedAmount = disbursements
     .filter(
       (d) =>
-        d.office.toLowerCase() === formData.office.toLowerCase() &&
+        d.office?.name?.toLowerCase() === formData.office.toLowerCase() &&
         d.expenseCategory.toLowerCase() === category &&
         d.id !== editingId
     )
