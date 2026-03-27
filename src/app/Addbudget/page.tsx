@@ -96,6 +96,7 @@ export default function AddBudgetPage() {
       });
 
       const data = await res.json();
+      console.log("🔍 AddBudget API Response:", { status: res.status, data, ok: res.ok });
       if (!res.ok) throw new Error(data.error || "Failed to save");
 
       setShowModal(false);

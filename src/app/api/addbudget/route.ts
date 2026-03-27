@@ -77,7 +77,9 @@ export async function POST(req: Request) {
     console.log(`\n📝 [POST /addbudget] Saving budget for office: "${office}" (ps=${ps}, mooe=${mooe}, co=${co})`);
 
     // Use transaction to ensure atomic operations - fixes FK constraint issues
+    console.log("🔄 Starting Prisma transaction...");
     const newBudget = await prisma.$transaction(async (tx) => {
+      console.log("📌 Transaction started, attempting office upsert...");
       // Find or create office within transaction
       const existingOffice = await tx.office.upsert({
         where: { name: office },
@@ -85,15 +87,16 @@ export async function POST(req: Request) {
         create: { name: office },
       });
       
-      console.log(`✅ Office ready: "${office}" (ID: ${existingOffice.id})`);
+      console.log(`✅ Office upserted: "${office}" (ID: ${existingOffice.id})`);
 
       // Verify office ID is valid
       if (!existingOffice?.id || typeof existingOffice.id !== 'number') {
-        console.error(`❌ Invalid office ID:`, existingOffice);
+        console.error(`❌ Invalid office ID returned:`, existingOffice);
         throw new Error("Invalid office data - cannot save budget");
       }
 
-      console.log(`✓ Using officeId: ${existingOffice.id}`);
+      console.log(`✓ Office ID validated: ${existingOffice.id}`);
+      console.log(`📌 Creating budget in transaction with officeId=${existingOffice.id}...`);
 
       // Create budget with direct officeId assignment within same transaction
       const budget = await tx.budget.create({
@@ -107,6 +110,7 @@ export async function POST(req: Request) {
         include: { office: true },
       });
       
+      console.log(`✅ Budget created in transaction (ID: ${budget.id})`);
       return budget;
     });
 
@@ -131,11 +135,16 @@ export async function POST(req: Request) {
       dateCreated: newBudget.dateCreated.toLocaleDateString(),
     });
   } catch (error: any) {
-    console.error("POST /addbudget error:", error);
+    console.error("\n❌ POST /addbudget FAILED:", {
+      code: error.code,
+      message: error.message,
+      meta: error.meta,
+      stack: error.stack,
+    });
     
     // Provide more detailed error info for FK violations
     if (error.code === 'P2003') {
-      console.error("❌ Foreign key constraint violation details:", {
+      console.error("🔴 Foreign key constraint violation detected:", {
         code: error.code,
         meta: error.meta,
         message: error.message,
@@ -150,8 +159,21 @@ export async function POST(req: Request) {
       );
     }
     
+    // Transaction error
+    if (error.message?.includes('Transaction')) {
+      console.error("🔴 Transaction error:", error.message);
+      return NextResponse.json(
+        { 
+          error: "Transaction failed", 
+          details: error.message,
+          errorCode: "TRANSACTION_ERROR"
+        }, 
+        { status: 500 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: "Failed to add budget", details: String(error), errorCode: error.code }, 
+      { error: "Failed to add budget", details: String(error.message || error), errorCode: error.code || "UNKNOWN" }, 
       { status: 500 }
     );
   }
