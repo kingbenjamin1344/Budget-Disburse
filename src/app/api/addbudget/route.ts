@@ -76,35 +76,38 @@ export async function POST(req: Request) {
 
     console.log(`\n📝 [POST /addbudget] Saving budget for office: "${office}" (ps=${ps}, mooe=${mooe}, co=${co})`);
 
-    // Atomically find or create office (no race conditions)
-    const existingOffice = await prisma.office.upsert({
-      where: { name: office },
-      update: {},
-      create: { name: office },
-    });
-    console.log(`✅ Office ready: "${office}" (ID: ${existingOffice.id})`);
+    // Use transaction to ensure atomic operations - fixes FK constraint issues
+    const newBudget = await prisma.$transaction(async (tx) => {
+      // Find or create office within transaction
+      const existingOffice = await tx.office.upsert({
+        where: { name: office },
+        update: {},
+        create: { name: office },
+      });
+      
+      console.log(`✅ Office ready: "${office}" (ID: ${existingOffice.id})`);
 
-    // Verify office ID is valid
-    if (!existingOffice?.id || typeof existingOffice.id !== 'number') {
-      console.error(`❌ Invalid office ID:`, existingOffice);
-      return NextResponse.json(
-        { error: "Invalid office data - cannot save budget" },
-        { status: 500 }
-      );
-    }
+      // Verify office ID is valid
+      if (!existingOffice?.id || typeof existingOffice.id !== 'number') {
+        console.error(`❌ Invalid office ID:`, existingOffice);
+        throw new Error("Invalid office data - cannot save budget");
+      }
 
-    console.log(`✓ Using officeId: ${existingOffice.id}`);
+      console.log(`✓ Using officeId: ${existingOffice.id}`);
 
-    // Create budget with direct officeId assignment
-    const newBudget = await prisma.budget.create({
-      data: {
-        ps,
-        mooe,
-        co,
-        total,
-        officeId: existingOffice.id
-      },
-      include: { office: true },
+      // Create budget with direct officeId assignment within same transaction
+      const budget = await tx.budget.create({
+        data: {
+          ps,
+          mooe,
+          co,
+          total,
+          officeId: existingOffice.id
+        },
+        include: { office: true },
+      });
+      
+      return budget;
     });
 
     console.log(`✅ Budget created successfully (ID: ${newBudget.id})`);
