@@ -1268,27 +1268,7 @@ const isBudgetEnough = () => {
           Close
         </button>
 
-        <button
-          onClick={() => {
-            setShowDetailsModal(false);
-            handleEdit(selectedDisbursement.id);
-          }}
-          className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white transition-all duration-200 font-semibold text-sm flex items-center gap-2 shadow-lg"
-        >
-          <Edit size={16} />
-          Edit Disbursement
-        </button>
-
-        <button
-          onClick={() => {
-            setShowDetailsModal(false);
-            openDeleteModal(selectedDisbursement.id, selectedDisbursement.payee);
-          }}
-          className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white transition-all duration-200 font-semibold text-sm flex items-center gap-2 shadow-lg"
-        >
-          <Trash2 size={16} />
-          Delete Disbursement
-        </button>
+   
       </div>
     </aside>
   </div>
