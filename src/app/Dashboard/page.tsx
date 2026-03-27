@@ -118,7 +118,7 @@ const fetchRecentLogs = async () => {
           const totalMOOE = data.reduce((sum: number, b: any) => sum + (b.mooe || 0), 0);
           const totalCO = data.reduce((sum: number, b: any) => sum + (b.co || 0), 0);
           const officeTotals = data.map((b: any) => ({
-            office: b.office?.name,
+            office: b.office,
             total: b.total,
           }));
           setStats((prev) => ({
