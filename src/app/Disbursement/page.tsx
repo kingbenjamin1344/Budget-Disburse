@@ -1386,24 +1386,6 @@ const isBudgetEnough = () => {
           cameraActive ? "opacity-100" : "opacity-0"
         }`}
       />
-      
-      {/* Document Crop Guide Overlay - Visible when camera is active */}
-      {cameraActive && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          {/* Darkened areas outside the guide */}
-          <div className="absolute inset-0 bg-black/40" />
-          
-          {/* White border rectangle showing capture area */}
-          <div className="border-4 border-white rounded-xl w-80 h-96 flex items-center justify-center">
-            <div className="text-white text-center text-sm font-semibold drop-shadow-lg">
-              
-            </div>
-          </div>
-          
-          {/* Corner markers for better visibility */}
-          
-        </div>
-      )}
     </div>
 
     {!cameraActive ? (
@@ -1444,8 +1426,11 @@ const isBudgetEnough = () => {
           <div className="bg-blue-50 border border-blue-300 rounded-lg p-4 space-y-2">
             <p className="font-semibold text-blue-900">Image Processing Pipeline:</p>
             <ul className="text-sm text-blue-800 space-y-1">
-    
-              <li className="flex items-center gap-2">⏳ Running OCR scanning...</li>
+              <li className="flex items-center gap-2">✓ Detecting document edges</li>
+              <li className="flex items-center gap-2">✓ Upscaling image 2x</li>
+              <li className="flex items-center gap-2">⏳ Sharpening edges & enhancing contrast</li>
+              <li className="flex items-center gap-2">⏳ Applying threshold for clarity</li>
+              <li className="flex items-center gap-2">⏳ Running OCR recognition...</li>
             </ul>
           </div>
         )}
