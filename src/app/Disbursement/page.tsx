@@ -203,62 +203,102 @@ const startCamera = async () => {
       // Initialize worker if not already done
       await initTesseractWorker();
 
-      // Define enhanced preprocessing options for document OCR
-      // Pipeline: Upscale (2x) → Document Detection & Crop → Grayscale → Sharpen → Contrast → Threshold
+      // Define optimized preprocessing options for document OCR
+      // Pipeline: Upscale (3x) → Document Detection & Crop → Grayscale → Sharpen → Contrast → Threshold
       const preprocessOptions: PreprocessOptions = {
-        scale: 2, // Upscale 2x for better OCR accuracy
+        scale: 3, // Upscale 3x for maximum detail extraction
         detectDocument: true, // Auto-detect and crop document
-        sharpenIntensity: 1.8, // Moderate sharpening for text clarity
-        contrastFactor: 1.6, // Enhance contrast
-        threshold: 145, // Threshold for black/white conversion
+        sharpenIntensity: 2.0, // High sharpening for text edge clarity
+        contrastFactor: 1.8, // Enhanced contrast for better character separation
+        threshold: 140, // Optimized threshold for document text
       };
 
-      // First pass: Standard PSM mode for general document layout with enhanced preprocessing
-      let result1, result2;
+      let result1, result2, result3;
+      
+      // First pass: PSM 6 (Uniform block of text)
       try {
         result1 = await performOCR(imageData, {
           psm: 6,
           preprocessOptions: preprocessOptions,
         });
       } catch (err) {
-        console.warn("First OCR pass failed, trying with different parameters:", err);
+        console.warn("First OCR pass failed:", err);
         result1 = { text: "", confidence: 0, raw: "" };
       }
       
-      // Second pass: Uniform block mode with slightly different preprocessing for better text extraction
+      // Second pass: PSM 11 (Sparse text with no specific order)
       try {
         result2 = await performOCR(imageData, {
           psm: 11,
           preprocessOptions: {
             ...preprocessOptions,
-            sharpenIntensity: 1.5, // Slightly less sharpening for PSM 11
+            sharpenIntensity: 1.8, // Slightly less sharpening
           },
         });
       } catch (err) {
         console.warn("Second OCR pass failed:", err);
         result2 = { text: "", confidence: 0, raw: "" };
       }
+
+      // Third pass: PSM 3 (Fully automatic page segmentation)
+      try {
+        result3 = await performOCR(imageData, {
+          psm: 3,
+          preprocessOptions: {
+            ...preprocessOptions,
+            sharpenIntensity: 1.6, // Moderate sharpening for general layout
+            contrastFactor: 1.7,
+          },
+        });
+      } catch (err) {
+        console.warn("Third OCR pass failed:", err);
+        result3 = { text: "", confidence: 0, raw: "" };
+      }
+
+      // Intelligent text merging from three passes
+      const texts = [result1.text, result2.text, result3.text].filter(t => t && t.trim());
+      const confidences = [result1.confidence, result2.confidence, result3.confidence].filter(c => c > 0);
       
-      // Combine text from both passes for more complete extraction
-      const combinedText = (result1.text || "") + "\n" + (result2.text || "");
-      const avgConfidence = result1.confidence && result2.confidence 
-        ? (result1.confidence + result2.confidence) / 2 
-        : (result1.confidence || result2.confidence || 0);
-      
-      // Check if we actually extracted any text
-      if (!combinedText.trim()) {
+      let combinedText: string;
+      if (texts.length === 0) {
         throw new Error("No text could be extracted from the image. Please try with a clearer image of a document with visible text.");
+      } else if (texts.length === 1) {
+        combinedText = texts[0];
+      } else {
+        // Combine multiple passes intelligently
+        const uniqueLines = new Set<string>();
+        texts.forEach(text => {
+          text.split('\n').forEach(line => {
+            const trimmed = line.trim();
+            if (trimmed) uniqueLines.add(trimmed);
+          });
+        });
+        combinedText = Array.from(uniqueLines).join('\n');
+      }
+
+      // Weighted confidence calculation
+      let avgConfidence = 0;
+      if (confidences.length > 0) {
+        avgConfidence = confidences.reduce((a, b) => a + b, 0) / confidences.length;
       }
       
       setOcrResult(combinedText);
       
-      // Check OCR confidence quality
-      if (avgConfidence < 60) {
-        toast.warning(`⚠️ Low OCR confidence (${avgConfidence.toFixed(0)}%). Please review and manually correct extracted data.`, {
+      // Enhanced confidence feedback
+      if (avgConfidence < 50) {
+        toast.warning(`⚠️ Very low OCR confidence (${avgConfidence.toFixed(0)}%). Please verify and manually correct all fields.`, {
+          autoClose: 5000,
+        });
+      } else if (avgConfidence < 70) {
+        toast.warning(`⚠️ Low OCR confidence (${avgConfidence.toFixed(0)}%). Please review extracted data.`, {
           autoClose: 4000,
         });
-      } else if (avgConfidence >= 80) {
-        toast.success(`✓ High confidence OCR (${avgConfidence.toFixed(0)}%)`, {
+      } else if (avgConfidence >= 85) {
+        toast.success(`✓ Excellent OCR confidence (${avgConfidence.toFixed(0)}%)`, {
+          autoClose: 2000,
+        });
+      } else if (avgConfidence >= 75) {
+        toast.success(`✓ Good OCR confidence (${avgConfidence.toFixed(0)}%)`, {
           autoClose: 2000,
         });
       }
@@ -268,9 +308,9 @@ const startCamera = async () => {
       
       // Show appropriate success message with preprocessing info
       if (isOnlineMode) {
-        toast.info("✓ OCR completed with enhanced preprocessing (Online mode)", { autoClose: 2000 });
+        toast.info(`✓ OCR completed (${texts.length} passes, confidence: ${avgConfidence.toFixed(0)}%)`, { autoClose: 2000 });
       } else {
-        toast.info("✓ OCR completed with enhanced preprocessing (Offline mode)", { autoClose: 2000 });
+        toast.info(`✓ OCR completed offline (${texts.length} passes)`, { autoClose: 2000 });
       }
     } catch (err) {
       const errMsg = String(err);
@@ -1396,23 +1436,7 @@ const isBudgetEnough = () => {
         }`}
       />
       
-      {/* Document Crop Guide Overlay - Visible when camera is active */}
-      {cameraActive && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          {/* Darkened areas outside the guide */}
-          <div className="absolute inset-0 bg-black/40" />
-          
-          {/* White border rectangle showing capture area */}
-          <div className="border-4 border-white rounded-xl w-80 h-96 flex items-center justify-center">
-            <div className="text-white text-center text-sm font-semibold drop-shadow-lg">
-              
-            </div>
-          </div>
-          
-          {/* Corner markers for better visibility */}
-          
-        </div>
-      )}
+
     </div>
 
     {!cameraActive ? (
