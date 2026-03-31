@@ -2,27 +2,8 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "react-toastify";
-import { Search, Plus, Edit, Trash2, X, ScanEye, Camera, Upload, Loader, Wifi, WifiOff, Building2, Calendar, Clock, DollarSign, FileText, User, Tag, FolderOpen, Receipt, CreditCard } from "lucide-react";
+import { Search, Plus, Edit, Trash2, X, Camera, Upload, Loader, Wifi, WifiOff, Building2, Calendar, Clock, DollarSign, FileText, User, Tag, FolderOpen, Receipt, CreditCard } from "lucide-react";
 import { performOCR, initTesseractWorker, terminateTesseractWorker, getOCRStatus, isNetworkOnline, preprocessImage, type OCRResult } from "@/lib/offlineTesseract";
-
-// =================== Floating Scan Button ===================
-interface FloatingScanButtonProps {
-  onClick?: () => void;
-}
-
-const FloatingScanButton: React.FC<FloatingScanButtonProps> = ({
-  onClick,
-}) => {
-  return (
-    <button
-      onClick={onClick}
-      className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-40 bg-white border-2 border-blue-500 rounded-full p-4 shadow-2xl cursor-pointer hover:scale-110 hover:shadow-3xl transition-all duration-200 flex items-center justify-center"
-      title="Open OCR Scanner"
-    >
-      <ScanEye className="w-8 h-8 text-blue-600" />
-    </button>
-  );
-};
 
 // =================== Main Page ===================
 export default function DisbursementPage() {
@@ -888,14 +869,6 @@ const isBudgetEnough = () => {
         </div>
       </div>
 
-      {/* =================== Floating Scan Button =================== */}
-      <FloatingScanButton
-        onClick={() => {
-          setShowScanModal(true);
-          setScanMode("camera");
-        }}
-      />
-
 {/* =================== Add/Edit Disbursement Modal =================== */}
 {showModal && (
   <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
@@ -1374,7 +1347,7 @@ const isBudgetEnough = () => {
                      {/* Camera Mode */}
 {scanMode === "camera" && (
   <div className="space-y-3">
-    {/* Video Preview with Document Crop Guide */}
+    {/* Video Preview - Full frame capture */}
     <div className="relative w-full bg-black rounded-lg overflow-hidden">
       <video
         ref={videoRef}
@@ -1386,24 +1359,6 @@ const isBudgetEnough = () => {
           cameraActive ? "opacity-100" : "opacity-0"
         }`}
       />
-      
-      {/* Document Crop Guide Overlay - Visible when camera is active */}
-      {cameraActive && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          {/* Darkened areas outside the guide */}
-          <div className="absolute inset-0 bg-black/40" />
-          
-          {/* White border rectangle showing capture area */}
-          <div className="border-4 border-white rounded-xl w-80 h-96 flex items-center justify-center">
-            <div className="text-white text-center text-sm font-semibold drop-shadow-lg">
-              
-            </div>
-          </div>
-          
-          {/* Corner markers for better visibility */}
-          
-        </div>
-      )}
     </div>
 
     {!cameraActive ? (
@@ -1444,11 +1399,8 @@ const isBudgetEnough = () => {
           <div className="bg-blue-50 border border-blue-300 rounded-lg p-4 space-y-2">
             <p className="font-semibold text-blue-900">Image Processing Pipeline:</p>
             <ul className="text-sm text-blue-800 space-y-1">
-              <li className="flex items-center gap-2">✓ Detecting document edges</li>
-              <li className="flex items-center gap-2">✓ Upscaling image 2x</li>
-              <li className="flex items-center gap-2">⏳ Sharpening edges & enhancing contrast</li>
-              <li className="flex items-center gap-2">⏳ Applying threshold for clarity</li>
-              <li className="flex items-center gap-2">⏳ Running OCR recognition...</li>
+
+              <li className="flex items-center gap-2"> Running OCR scanning...</li>
             </ul>
           </div>
         )}
