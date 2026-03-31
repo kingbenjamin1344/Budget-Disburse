@@ -112,24 +112,23 @@ function sharpenImage(canvas: HTMLCanvasElement, amount: number = 1.5): HTMLCanv
 
   for (let i = 0; i < height; i++) {
     for (let j = 0; j < width; j++) {
-      let pixelIndex = (i * width + j) * 4;
+      const pixelIndex = (i * width + j) * 4;
 
       // Apply kernel to each channel
       for (let channel = 0; channel < 3; channel++) {
         let sum = 0;
-        let kernelIndex = 0;
 
         for (let ki = -1; ki <= 1; ki++) {
           for (let kj = -1; kj <= 1; kj++) {
-            let y = Math.min(Math.max(i + ki, 0), height - 1);
-            let x = Math.min(Math.max(j + kj, 0), width - 1);
-            let idx = (y * width + x) * 4 + channel;
+            const y = Math.min(Math.max(i + ki, 0), height - 1);
+            const x = Math.min(Math.max(j + kj, 0), width - 1);
+            const idx = (y * width + x) * 4 + channel;
             sum += data[idx] * kernel[ki + 1][kj + 1];
           }
         }
 
         // Apply sharpening with adjustable amount
-        let sharpened = data[pixelIndex + channel] + (sum - data[pixelIndex + channel]) * amount;
+        const sharpened = data[pixelIndex + channel] + (sum - data[pixelIndex + channel]) * amount;
         output[pixelIndex + channel] = Math.min(255, Math.max(0, sharpened));
       }
 
