@@ -66,6 +66,7 @@ export default function DisbursementPage() {
   const [cameraActive, setCameraActive] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrResult, setOcrResult] = useState("");
+  const [scannedImageData, setScannedImageData] = useState<string>("");
   const [isOnlineMode, setIsOnlineMode] = useState(true);
   const [ocrAvailable, setOcrAvailable] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -178,6 +179,7 @@ const startCamera = async () => {
       context?.drawImage(videoRef.current, 0, 0);
       
       const imageData = canvasRef.current.toDataURL("image/jpeg");
+      setScannedImageData(imageData);
       await handlePerformOCR(imageData);
       stopCamera();
     }
@@ -187,6 +189,7 @@ const startCamera = async () => {
     const reader = new FileReader();
     reader.onload = async (e) => {
       const imageData = e.target?.result as string;
+      setScannedImageData(imageData);
       await handlePerformOCR(imageData);
     };
     reader.readAsDataURL(file);
@@ -656,6 +659,7 @@ const isBudgetEnough = () => {
         editingId ? prev.map((d) => (d.id === editingId ? updated : d)) : [updated, ...prev]
       );
       setShowModal(false);
+      setScannedImageData("");
       toast.success(editingId ? "Disbursement updated successfully" : "Disbursement created successfully");
     } catch (err) {
       console.error(err);
@@ -907,11 +911,11 @@ const isBudgetEnough = () => {
 
     {/* Modal */}
     <div
-      className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden z-10 pointer-events-auto"
+      className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden z-10 pointer-events-auto flex flex-col max-h-[90vh]"
       onClick={(e) => e.stopPropagation()}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-[#1E3358]">
+      <div className="flex items-center justify-between px-4 py-3 bg-[#1E3358] flex-shrink-0">
         <div className="flex items-center gap-2">
           <div className="bg-white p-2 rounded-full">
             {editingId ? <Edit size={18} className="text-blue-600" /> : <Plus size={18} className="text-blue-600" />}
@@ -921,15 +925,30 @@ const isBudgetEnough = () => {
           </h2>
         </div>
         <button
-          onClick={() => setShowModal(false)}
+          onClick={() => {
+            setShowModal(false);
+            setScannedImageData("");
+          }}
           className="text-white hover:text-gray-200"
         >
           <X size={20} />
         </button>
       </div>
 
-      {/* Body */}
-      <div className="p-5 space-y-4">
+      {/* Scanned Document Preview */}
+      {scannedImageData && (
+        <div className="px-3 py-3 bg-gray-50 border-b flex-shrink-0">
+          <p className="text-xs font-medium text-gray-600 mb-2">📸 Scanned Document</p>
+          <img 
+            src={scannedImageData} 
+            alt="Scanned Document" 
+            className="w-full max-h-48 object-contain rounded-lg border border-gray-300"
+          />
+        </div>
+      )}
+
+      {/* Body - Scrollable */}
+      <div className="p-5 space-y-4 overflow-y-auto flex-grow">
         {/* DV No + Date Row */}
         <div className="grid grid-cols-2 gap-3">
           {/* DV No */}
@@ -1042,32 +1061,55 @@ const isBudgetEnough = () => {
       </div>
 
       {/* Footer */}
-      <div className="flex justify-end gap-3 px-4 py-3 bg-gray-50 border-t">
+      <div className="flex justify-between gap-3 px-4 py-3 bg-gray-50 border-t flex-shrink-0">
         <button
-          onClick={() => setShowModal(false)}
-          className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+          onClick={() => {
+            setScannedImageData("");
+            setFormData({
+              dvNo: "",
+              payee: "",
+              office: "",
+              expenseType: "",
+              expenseCategory: "",
+              amount: "",
+              date: "",
+            });
+          }}
+          className="px-4 py-2 rounded-lg bg-yellow-500 text-white hover:bg-yellow-600 transition"
+          title="Clear scanned image and reset form"
         >
-          Cancel
+          🔄 Reset
         </button>
-<button
-  onClick={() => {
-    // Required fields check first
-    if (!formData.dvNo || !formData.payee || !formData.office || !formData.expenseType || !formData.amount) {
-      toast.error("Please fill all required fields");
-      return;
-    }
+        
+        <div className="flex gap-3">
+          <button
+            onClick={() => {
+              setShowModal(false);
+              setScannedImageData("");
+            }}
+            className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => {
+              // Required fields check first
+              if (!formData.dvNo || !formData.payee || !formData.office || !formData.expenseType || !formData.amount) {
+                toast.error("Please fill all required fields");
+                return;
+              }
 
-    // 🔥 Budget validation BEFORE saving
-    if (!isBudgetEnough()) return;
+              // 🔥 Budget validation BEFORE saving
+              if (!isBudgetEnough()) return;
 
-    // ✅ Save directly if valid
-    handleSave();
-  }}
-  className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
->
-  {editingId ? "Save Changes" : "Save"}
-</button>
-
+              // ✅ Save directly if valid
+              handleSave();
+            }}
+            className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+          >
+            {editingId ? "Save Changes" : "Save"}
+          </button>
+        </div>
       </div>
     </div>
   </div>
