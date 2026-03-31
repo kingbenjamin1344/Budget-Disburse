@@ -88,8 +88,197 @@ function applyThreshold(canvas: HTMLCanvasElement, threshold: number = 150): HTM
 }
 
 /**
+ * Sharpen image using unsharp mask filter
+ * Enhances edges and details for better OCR recognition
+ */
+function sharpenImage(canvas: HTMLCanvasElement, amount: number = 1.5): HTMLCanvasElement {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return canvas;
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+  const width = canvas.width;
+  const height = canvas.height;
+
+  // Create a copy for the sharpening kernel
+  const output = new Uint8ClampedArray(data.length);
+
+  // Sharpening kernel (unsharp mask)
+  const kernel = [
+    [0, -1, 0],
+    [-1, 5, -1],
+    [0, -1, 0]
+  ];
+
+  for (let i = 0; i < height; i++) {
+    for (let j = 0; j < width; j++) {
+      let pixelIndex = (i * width + j) * 4;
+
+      // Apply kernel to each channel
+      for (let channel = 0; channel < 3; channel++) {
+        let sum = 0;
+        let kernelIndex = 0;
+
+        for (let ki = -1; ki <= 1; ki++) {
+          for (let kj = -1; kj <= 1; kj++) {
+            let y = Math.min(Math.max(i + ki, 0), height - 1);
+            let x = Math.min(Math.max(j + kj, 0), width - 1);
+            let idx = (y * width + x) * 4 + channel;
+            sum += data[idx] * kernel[ki + 1][kj + 1];
+          }
+        }
+
+        // Apply sharpening with adjustable amount
+        let sharpened = data[pixelIndex + channel] + (sum - data[pixelIndex + channel]) * amount;
+        output[pixelIndex + channel] = Math.min(255, Math.max(0, sharpened));
+      }
+
+      // Preserve alpha channel
+      output[pixelIndex + 3] = data[pixelIndex + 3];
+    }
+  }
+
+  // Create new image data and put it back
+  const newImageData = new ImageData(output, width, height);
+  ctx.putImageData(newImageData, 0, 0);
+  return canvas;
+}
+
+/**
+ * Resize/upscale image using bicubic interpolation
+ * Improves OCR accuracy on small or low-resolution images
+ */
+function resizeImage(canvas: HTMLCanvasElement, scale: number = 2): HTMLCanvasElement {
+  const newWidth = canvas.width * scale;
+  const newHeight = canvas.height * scale;
+
+  const newCanvas = document.createElement("canvas");
+  newCanvas.width = newWidth;
+  newCanvas.height = newHeight;
+
+  const newCtx = newCanvas.getContext("2d");
+  if (!newCtx) return canvas;
+
+  // Use high-quality scaling with imageSmoothingEnabled
+  newCtx.imageSmoothingEnabled = true;
+  newCtx.imageSmoothingQuality = "high";
+  newCtx.drawImage(canvas, 0, 0, newWidth, newHeight);
+
+  return newCanvas;
+}
+
+/**
+ * Detect document edges using Canny-like edge detection
+ * Returns the bounds of the detected document
+ */
+function detectDocumentEdges(canvas: HTMLCanvasElement): { x: number; y: number; width: number; height: number } | null {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+  const width = canvas.width;
+  const height = canvas.height;
+
+  // Create gradient data for edge detection
+  const edges = new Uint8Array(width * height);
+
+  // Sobel edge detection
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const idx = (y * width + x) * 4;
+
+      // Get surrounding pixel values (grayscale)
+      const getGray = (dy: number, dx: number) => {
+        const pidx = ((y + dy) * width + (x + dx)) * 4;
+        return data[pidx] * 0.299 + data[pidx + 1] * 0.587 + data[pidx + 2] * 0.114;
+      };
+
+      // Sobel X kernel
+      const sobelX = -getGray(-1, -1) - 2 * getGray(0, -1) - getGray(1, -1) +
+                     getGray(-1, 1) + 2 * getGray(0, 1) + getGray(1, 1);
+
+      // Sobel Y kernel
+      const sobelY = -getGray(-1, -1) - 2 * getGray(-1, 0) - getGray(-1, 1) +
+                     getGray(1, -1) + 2 * getGray(1, 0) + getGray(1, 1);
+
+      edges[y * width + x] = Math.sqrt(sobelX * sobelX + sobelY * sobelY);
+    }
+  }
+
+  // Find bounding box of detected edges
+  let minX = width, minY = height, maxX = 0, maxY = 0;
+  let edgeCount = 0;
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (edges[y * width + x] > 50) {
+        // Edge threshold
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+        edgeCount++;
+      }
+    }
+  }
+
+  // Only return bounds if significant edges detected
+  if (edgeCount < 100) {
+    return null; // Not enough edges detected
+  }
+
+  // Add padding (5% of detected area)
+  const padding = Math.max(
+    Math.abs(maxX - minX) * 0.05,
+    Math.abs(maxY - minY) * 0.05
+  );
+
+  return {
+    x: Math.max(0, minX - padding),
+    y: Math.max(0, minY - padding),
+    width: Math.min(width, maxX + padding) - Math.max(0, minX - padding),
+    height: Math.min(height, maxY + padding) - Math.max(0, minY - padding)
+  };
+}
+
+/**
+ * Crop document from image using detected edges
+ */
+function cropToDocument(canvas: HTMLCanvasElement): HTMLCanvasElement {
+  const bounds = detectDocumentEdges(canvas);
+
+  if (!bounds) {
+    console.log("[OCR] Document edges not clearly detected, using full image");
+    return canvas;
+  }
+
+  const croppedCanvas = document.createElement("canvas");
+  croppedCanvas.width = bounds.width;
+  croppedCanvas.height = bounds.height;
+
+  const ctx = croppedCanvas.getContext("2d");
+  if (!ctx) return canvas;
+
+  // Draw the cropped region
+  const sourceCtx = canvas.getContext("2d");
+  if (!sourceCtx) return canvas;
+
+  const imageData = sourceCtx.getImageData(
+    bounds.x,
+    bounds.y,
+    bounds.width,
+    bounds.height
+  );
+  ctx.putImageData(imageData, 0, 0);
+
+  console.log(`[OCR] Document detected and cropped: ${bounds.width}x${bounds.height}`);
+  return croppedCanvas;
+}
+
+/**
  * Preprocess image for better OCR accuracy
- * Applies grayscale, contrast enhancement, and threshold
+ * Pipeline: Crop Document → Upscale → Grayscale → Sharpen → Contrast → Threshold
  */
 export function preprocessImage(imageDataUrl: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -126,7 +315,7 @@ export function preprocessImage(imageDataUrl: string): Promise<string> {
             return;
           }
 
-          const canvas = document.createElement("canvas");
+          let canvas = document.createElement("canvas");
           canvas.width = img.width;
           canvas.height = img.height;
           const ctx = canvas.getContext("2d");
@@ -136,12 +325,34 @@ export function preprocessImage(imageDataUrl: string): Promise<string> {
           }
           ctx.drawImage(img, 0, 0);
 
-          // Apply preprocessing pipeline
-          toGrayscale(canvas);
-          increaseContrast(canvas, 1.5);
-          applyThreshold(canvas, 150);
+          console.log(`[OCR] Starting preprocessing pipeline - Original: ${canvas.width}x${canvas.height}`);
 
-          resolve(canvas.toDataURL("image/jpeg"));
+          // ===== PREPROCESSING PIPELINE =====
+          // Step 1: Auto-detect and crop document
+          canvas = cropToDocument(canvas);
+
+          // Step 2: Upscale image (2x for better OCR accuracy)
+          canvas = resizeImage(canvas, 2);
+          console.log(`[OCR] Upscaled to: ${canvas.width}x${canvas.height}`);
+
+          // Step 3: Convert to grayscale
+          toGrayscale(canvas);
+          console.log("[OCR] Applied grayscale");
+
+          // Step 4: Sharpen image edges
+          sharpenImage(canvas, 1.5);
+          console.log("[OCR] Applied sharpening");
+
+          // Step 5: Increase contrast
+          increaseContrast(canvas, 1.8);
+          console.log("[OCR] Enhanced contrast");
+
+          // Step 6: Apply binary threshold
+          applyThreshold(canvas, 150);
+          console.log("[OCR] Applied threshold");
+
+          console.log("[OCR] Preprocessing pipeline complete");
+          resolve(canvas.toDataURL("image/jpeg", 0.95));
         } catch (err) {
           reject(new Error(`Image processing failed: ${String(err)}`));
         }
