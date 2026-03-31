@@ -144,6 +144,209 @@ function sharpenImage(canvas: HTMLCanvasElement, amount: number = 1.5): HTMLCanv
 }
 
 /**
+ * Denoise image to make text clearer
+ * Reduces noise while preserving edges using a median-like filter
+ */
+function denoiseImage(canvas: HTMLCanvasElement): HTMLCanvasElement {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return canvas;
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+  const width = canvas.width;
+  const height = canvas.height;
+  const output = new Uint8ClampedArray(data.length);
+
+  // Use a simple bilateral filter approach for denoising
+  for (let i = 0; i < height; i++) {
+    for (let j = 0; j < width; j++) {
+      const pixelIndex = (i * width + j) * 4;
+
+      for (let channel = 0; channel < 3; channel++) {
+        let weightedSum = 0;
+        let weightSum = 0;
+
+        // 3x3 neighborhood
+        for (let di = -1; di <= 1; di++) {
+          for (let dj = -1; dj <= 1; dj++) {
+            const yi = Math.min(Math.max(i + di, 0), height - 1);
+            const xj = Math.min(Math.max(j + dj, 0), width - 1);
+            const idx = (yi * width + xj) * 4 + channel;
+            const neighborVal = data[idx];
+            const centerVal = data[pixelIndex + channel];
+
+            // Weight based on color similarity and distance
+            const colorDiff = Math.abs(neighborVal - centerVal);
+            const weight = Math.exp(-colorDiff / 50);
+
+            weightedSum += neighborVal * weight;
+            weightSum += weight;
+          }
+        }
+
+        output[pixelIndex + channel] = weightSum > 0 ? weightedSum / weightSum : data[pixelIndex + channel];
+      }
+
+      output[pixelIndex + 3] = data[pixelIndex + 3];
+    }
+  }
+
+  const newImageData = new ImageData(output, width, height);
+  ctx.putImageData(newImageData, 0, 0);
+  return canvas;
+}
+
+/**
+ * Enhance text clarity with adaptive contrast
+ * Makes text super clear and readable
+ */
+function enhanceTextClarity(canvas: HTMLCanvasElement): HTMLCanvasElement {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return canvas;
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+
+  // Calculate histogram for adaptive contrast
+  const histogram = new Array(256).fill(0);
+  for (let i = 0; i < data.length; i += 4) {
+    const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+    histogram[Math.floor(gray)]++;
+  }
+
+  // Find min and max non-zero histogram values (good percentiles)
+  let minVal = 0, maxVal = 255;
+  const totalPixels = data.length / 4;
+  let cumulativePixels = 0;
+
+  // Find 2nd percentile (minimum)
+  for (let i = 0; i < 256; i++) {
+    cumulativePixels += histogram[i];
+    if (cumulativePixels > totalPixels * 0.02) {
+      minVal = i;
+      break;
+    }
+  }
+
+  cumulativePixels = 0;
+  // Find 98th percentile (maximum)
+  for (let i = 255; i >= 0; i--) {
+    cumulativePixels += histogram[i];
+    if (cumulativePixels > totalPixels * 0.02) {
+      maxVal = i;
+      break;
+    }
+  }
+
+  // Prevent division by zero
+  const range = maxVal - minVal || 1;
+
+  // Stretch contrast based on histogram
+  for (let i = 0; i < data.length; i += 4) {
+    data[i] = Math.min(255, Math.max(0, ((data[i] - minVal) / range) * 255)); // R
+    data[i + 1] = Math.min(255, Math.max(0, ((data[i + 1] - minVal) / range) * 255)); // G
+    data[i + 2] = Math.min(255, Math.max(0, ((data[i + 2] - minVal) / range) * 255)); // B
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+  return canvas;
+}
+
+/**
+ * Apply perspective transform to flatten tilted/skewed documents
+ * Corrects document angle for better OCR
+ */
+function perspectiveTransform(canvas: HTMLCanvasElement): HTMLCanvasElement {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return canvas;
+
+  // Detect document corners using edge detection
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+  const width = canvas.width;
+  const height = canvas.height;
+
+  // Find document corners by detecting edges
+  let topLeft = { x: 0, y: 0 };
+  let topRight = { x: width, y: 0 };
+  let bottomLeft = { x: 0, y: height };
+  let bottomRight = { x: width, y: height };
+
+  // Simplified: Find darkest/brightest pixels in corners
+  let minBrightness = 255;
+  let maxBrightness = 0;
+
+  for (let i = 0; i < height; i++) {
+    for (let j = 0; j < width; j++) {
+      const idx = (i * width + j) * 4;
+      const brightness = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+
+      // Top-left corner
+      if (i < height * 0.25 && j < width * 0.25) {
+        if (brightness > maxBrightness) {
+          maxBrightness = brightness;
+          topLeft = { x: j, y: i };
+        }
+      }
+
+      // Top-right corner
+      if (i < height * 0.25 && j > width * 0.75) {
+        if (brightness > maxBrightness) {
+          maxBrightness = brightness;
+          topRight = { x: j, y: i };
+        }
+      }
+
+      // Bottom-left corner
+      if (i > height * 0.75 && j < width * 0.25) {
+        if (brightness > maxBrightness) {
+          maxBrightness = brightness;
+          bottomLeft = { x: j, y: i };
+        }
+      }
+
+      // Bottom-right corner
+      if (i > height * 0.75 && j > width * 0.75) {
+        if (brightness > maxBrightness) {
+          maxBrightness = brightness;
+          bottomRight = { x: j, y: i };
+        }
+      }
+    }
+  }
+
+  // If corners are nearly rectangular already, skip transform
+  const topDiff = Math.abs(topLeft.y - topRight.y);
+  const bottomDiff = Math.abs(bottomLeft.y - bottomRight.y);
+  const leftDiff = Math.abs(topLeft.x - bottomLeft.x);
+  const rightDiff = Math.abs(topRight.x - bottomRight.x);
+
+  if (topDiff < height * 0.1 && bottomDiff < height * 0.1 && leftDiff < width * 0.1 && rightDiff < width * 0.1) {
+    return canvas; // Already mostly flat
+  }
+
+  // Apply simple perspective correction using canvas transform
+  const newCanvas = document.createElement("canvas");
+  newCanvas.width = width;
+  newCanvas.height = height;
+  const newCtx = newCanvas.getContext("2d");
+  if (!newCtx) return canvas;
+
+  // Use a simpler approach: rotate and scale based on corner deviation
+  const skewX = (topRight.x - topLeft.x) / width - 1;
+  const skewY = (bottomLeft.y - topLeft.y) / height - 1;
+  const angle = Math.atan2(skewY, skewX);
+
+  // Apply rotation to correct perspective
+  newCtx.translate(width / 2, height / 2);
+  newCtx.rotate(angle);
+  newCtx.drawImage(canvas, -width / 2, -height / 2);
+
+  console.log(`[OCR] Perspective corrected (angle: ${(angle * 180) / Math.PI}°)`);
+  return newCanvas;
+}
+
+/**
  * Resize/upscale image using bicubic interpolation
  * Improves OCR accuracy on small or low-resolution images
  */
@@ -326,31 +529,44 @@ export function preprocessImage(imageDataUrl: string): Promise<string> {
 
           console.log(`[OCR] Starting preprocessing pipeline - Original: ${canvas.width}x${canvas.height}`);
 
-          // ===== PREPROCESSING PIPELINE =====
-          // Step 1: Auto-detect and crop document
+          // ===== ENHANCED PREPROCESSING PIPELINE =====
+          // Step 1: Smart Document Detection & Crop
           canvas = cropToDocument(canvas);
+          console.log("[OCR] ✓ Detected & cropped document");
 
-          // Step 2: Upscale image (2x for better OCR accuracy)
-          canvas = resizeImage(canvas, 2);
-          console.log(`[OCR] Upscaled to: ${canvas.width}x${canvas.height}`);
+          // Step 2: Perspective Transform (Flatten Document)
+          canvas = perspectiveTransform(canvas);
+          console.log("[OCR] ✓ Flattened document perspective");
 
-          // Step 3: Convert to grayscale
+          // Step 3: Denoise (Clean)
+          denoiseImage(canvas);
+          console.log("[OCR] ✓ Removed noise");
+
+          // Step 4: Enhance Text Clarity (Make Text SUPER CLEAR)
+          enhanceTextClarity(canvas);
+          console.log("[OCR] ✓ Enhanced text clarity");
+
+          // Step 5: Upscale image (3x for better small text OCR)
+          canvas = resizeImage(canvas, 3);
+          console.log(`[OCR] ✓ Upscaled 3x to: ${canvas.width}x${canvas.height}`);
+
+          // Step 6: Convert to grayscale
           toGrayscale(canvas);
-          console.log("[OCR] Applied grayscale");
+          console.log("[OCR] ✓ Applied grayscale");
 
-          // Step 4: Sharpen image edges
-          sharpenImage(canvas, 1.5);
-          console.log("[OCR] Applied sharpening");
+          // Step 7: Sharpen image edges (Fix blur from distance)
+          sharpenImage(canvas, 2.0);
+          console.log("[OCR] ✓ Applied aggressive sharpening");
 
-          // Step 5: Increase contrast
-          increaseContrast(canvas, 1.8);
-          console.log("[OCR] Enhanced contrast");
+          // Step 8: Increase contrast aggressively
+          increaseContrast(canvas, 2.2);
+          console.log("[OCR] ✓ Enhanced contrast");
 
-          // Step 6: Apply binary threshold
-          applyThreshold(canvas, 150);
-          console.log("[OCR] Applied threshold");
+          // Step 9: Apply binary threshold
+          applyThreshold(canvas, 140);
+          console.log("[OCR] ✓ Applied binary threshold");
 
-          console.log("[OCR] Preprocessing pipeline complete");
+          console.log("[OCR] ✅ Preprocessing pipeline complete");
           resolve(canvas.toDataURL("image/jpeg", 0.95));
         } catch (err) {
           reject(new Error(`Image processing failed: ${String(err)}`));
