@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "react-toastify";
 import { Search, Plus, Edit, Trash2, X, ScanEye, Camera, Upload, Loader, Wifi, WifiOff, Building2, Calendar, Clock, DollarSign, FileText, User, Tag, FolderOpen, Receipt, CreditCard } from "lucide-react";
-import { performOCR, initTesseractWorker, terminateTesseractWorker, getOCRStatus, isNetworkOnline, preprocessImage, detectDocumentInFrame, type OCRResult, type DocumentDetectionResult } from "@/lib/offlineTesseract";
+import { performOCR, initTesseractWorker, terminateTesseractWorker, getOCRStatus, isNetworkOnline, preprocessImage, type OCRResult } from "@/lib/offlineTesseract";
 
 // =================== Floating Scan Button ===================
 interface FloatingScanButtonProps {
@@ -68,17 +68,9 @@ export default function DisbursementPage() {
   const [ocrResult, setOcrResult] = useState("");
   const [isOnlineMode, setIsOnlineMode] = useState(true);
   const [ocrAvailable, setOcrAvailable] = useState(true);
-  
-  // ====== Smart Document Detection States ======
-  const [documentDetection, setDocumentDetection] = useState<DocumentDetectionResult | null>(null);
-  const [detectionMonitoring, setDetectionMonitoring] = useState(false);
-  const [autoCaptureCooldown, setAutoCaptureCooldown] = useState(false);
-  
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const detectionCanvasRef = useRef<HTMLCanvasElement>(null);
-  const detectionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
 
 
@@ -161,9 +153,6 @@ const startCamera = async () => {
       videoRef.current.srcObject = stream;
       await videoRef.current.play();
       setCameraActive(true);
-      
-      // Start smart document detection
-      setTimeout(() => startDocumentDetection(), 500);
     }
   } catch (err) {
     toast.error("Camera error: " + String(err));
@@ -179,56 +168,6 @@ const startCamera = async () => {
       tracks.forEach((track) => track.stop());
       setCameraActive(false);
     }
-    // Stop document detection monitoring
-    if (detectionIntervalRef.current) {
-      clearInterval(detectionIntervalRef.current);
-      detectionIntervalRef.current = null;
-    }
-    setDetectionMonitoring(false);
-  };
-
-  // ====== Smart Document Detection ======
-  const startDocumentDetection = () => {
-    if (!videoRef.current || !detectionCanvasRef.current || detectionMonitoring) return;
-
-    setDetectionMonitoring(true);
-
-    detectionIntervalRef.current = setInterval(async () => {
-      if (!videoRef.current?.srcObject || !detectionCanvasRef.current) return;
-
-      try {
-        // Draw current video frame to detection canvas
-        const ctx = detectionCanvasRef.current.getContext("2d");
-        if (!ctx) return;
-
-        detectionCanvasRef.current.width = videoRef.current.videoWidth;
-        detectionCanvasRef.current.height = videoRef.current.videoHeight;
-        ctx.drawImage(videoRef.current, 0, 0);
-
-        // Analyze frame for document
-        const result = detectDocumentInFrame(detectionCanvasRef.current);
-        setDocumentDetection(result);
-
-        // Auto-capture on excellent quality with cooldown
-        if (
-          result.detected &&
-          result.quality === "excellent" &&
-          result.confidence > 85 &&
-          !autoCaptureCooldown
-        ) {
-          console.log("[SmartScan] Auto-capturing - document detected with excellent quality");
-          setAutoCaptureCooldown(true);
-          
-          // Brief delay then capture
-          setTimeout(() => {
-            capturePhoto();
-            setTimeout(() => setAutoCaptureCooldown(false), 2000);
-          }, 300);
-        }
-      } catch (err) {
-        console.error("[SmartScan] Detection error:", err);
-      }
-    }, 300); // Analyze every 300ms (3-4 FPS for efficiency)
   };
 
   const capturePhoto = async () => {
@@ -1438,106 +1377,21 @@ const isBudgetEnough = () => {
         }`}
       />
       
-      {/* Smart Document Detection Overlay */}
+      {/* Document Crop Guide Overlay - Visible when camera is active */}
       {cameraActive && (
-        <div className="absolute inset-0 flex flex-col items-center justify-between pointer-events-none">
-          {/* Top Status Bar */}
-          <div className="w-full py-3 px-3 bg-gradient-to-b from-black/60 to-transparent">
-            <div className="flex items-center justify-between text-white">
-              <div className="flex items-center gap-2">
-                {documentDetection?.detected ? (
-                  <>
-                    <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                    <span className="text-sm font-semibold">📄 Document Detected</span>
-                  </>
-                ) : (
-                  <>
-                    <div className="w-3 h-3 bg-yellow-400 rounded-full animate-pulse"></div>
-                    <span className="text-sm font-semibold">Scanning...</span>
-                  </>
-                )}
-              </div>
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          {/* Darkened areas outside the guide */}
+          <div className="absolute inset-0 bg-black/40" />
+          
+          {/* White border rectangle showing capture area */}
+          <div className="border-4 border-white rounded-xl w-80 h-96 flex items-center justify-center">
+            <div className="text-white text-center text-sm font-semibold drop-shadow-lg">
               
-              {/* Confidence Badge */}
-              {documentDetection && (
-                <div className={`px-3 py-1 rounded-full text-xs font-bold ${
-                  documentDetection.confidence > 85 ? "bg-green-500" :
-                  documentDetection.confidence > 70 ? "bg-blue-500" :
-                  documentDetection.confidence > 50 ? "bg-yellow-500" :
-                  "bg-red-500"
-                }`}>
-                  {documentDetection.confidence}%
-                </div>
-              )}
             </div>
           </div>
-
-          {/* Center Guidance Box */}
-          <div className="relative flex-1 flex items-center justify-center">
-            {/* Darkened corners */}
-            <div className="absolute inset-0 bg-black/30" />
-            
-            {/* Detection Rectangle - Shows detected document bounds */}
-            {documentDetection?.edges && videoRef.current ? (
-              <div
-                className={`absolute border-3 transition-all duration-300 ${
-                  documentDetection.quality === "excellent" ? "border-green-400 shadow-lg shadow-green-400/50" :
-                  documentDetection.quality === "good" ? "border-blue-400 shadow-lg shadow-blue-400/50" :
-                  documentDetection.quality === "fair" ? "border-yellow-400 shadow-lg shadow-yellow-400/50" :
-                  "border-red-400 shadow-lg shadow-red-400/50"
-                }`}
-                style={{
-                  left: `${(documentDetection.edges.left / (videoRef.current?.videoWidth || 1)) * 100}%`,
-                  top: `${(documentDetection.edges.top / (videoRef.current?.videoHeight || 1)) * 100}%`,
-                  width: `${((documentDetection.edges.right - documentDetection.edges.left) / (videoRef.current?.videoWidth || 1)) * 100}%`,
-                  height: `${((documentDetection.edges.bottom - documentDetection.edges.top) / (videoRef.current?.videoHeight || 1)) * 100}%`,
-                }}
-              />
-            ) : (
-              // Default guidance frame when no document detected
-              <div className="border-4 border-dashed border-gray-400 w-3/4 h-2/3 flex items-center justify-center">
-                <div className="text-white text-center text-xs font-semibold drop-shadow-lg">
-                  <p>Position document in frame</p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Bottom Quality Indicators */}
-          {documentDetection && (
-            <div className="w-full py-3 px-3 bg-gradient-to-t from-black/60 to-transparent">
-              <div className="grid grid-cols-3 gap-2 text-white text-xs">
-                <div className="text-center">
-                  <div className="text-lg font-bold">{documentDetection.sharpness}</div>
-                  <div className="text-gray-300">Sharpness</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold">{documentDetection.brightness}</div>
-                  <div className="text-gray-300">Brightness</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold">{documentDetection.contrast}</div>
-                  <div className="text-gray-300">Contrast</div>
-                </div>
-              </div>
-              
-              {/* Quality Status Message */}
-              <div className="mt-2 text-center">
-                <div className={`text-sm font-semibold ${
-                  documentDetection.quality === "excellent" ? "text-green-300" :
-                  documentDetection.quality === "good" ? "text-blue-300" :
-                  documentDetection.quality === "fair" ? "text-yellow-300" :
-                  "text-red-300"
-                }`}>
-                  Quality: <span className="uppercase">{documentDetection.quality}</span>
-                  {documentDetection.quality === "excellent" && " ✨ (Auto-capturing...)"}
-                  {documentDetection.quality === "good" && " ✓"}
-                  {documentDetection.quality === "fair" && " ~ (Keep steady)"}
-                  {documentDetection.quality === "poor" && " ✗ (Better lighting needed)"}
-                </div>
-              </div>
-            </div>
-          )}
+          
+          {/* Corner markers for better visibility */}
+          
         </div>
       )}
     </div>
@@ -1707,8 +1561,6 @@ const isBudgetEnough = () => {
 
       {/* Hidden canvas for photo capture */}
       <canvas ref={canvasRef} className="hidden" />
-      {/* Hidden canvas for document detection analysis */}
-      <canvas ref={detectionCanvasRef} className="hidden" />
     </div>
   );
 }
