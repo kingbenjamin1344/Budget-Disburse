@@ -1374,7 +1374,7 @@ const isBudgetEnough = () => {
                      {/* Camera Mode */}
 {scanMode === "camera" && (
   <div className="space-y-3">
-    {/* Video Preview */}
+    {/* Video Preview with Document Crop Guide */}
     <div className="relative w-full bg-black rounded-lg overflow-hidden">
       <video
         ref={videoRef}
@@ -1386,6 +1386,24 @@ const isBudgetEnough = () => {
           cameraActive ? "opacity-100" : "opacity-0"
         }`}
       />
+      
+      {/* Document Crop Guide Overlay - Visible when camera is active */}
+      {cameraActive && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          {/* Darkened areas outside the guide */}
+          <div className="absolute inset-0 bg-black/40" />
+          
+          {/* White border rectangle showing capture area */}
+          <div className="border-4 border-white rounded-xl w-80 h-96 flex items-center justify-center">
+            <div className="text-white text-center text-sm font-semibold drop-shadow-lg">
+              
+            </div>
+          </div>
+          
+          {/* Corner markers for better visibility */}
+          
+        </div>
+      )}
     </div>
 
     {!cameraActive ? (
