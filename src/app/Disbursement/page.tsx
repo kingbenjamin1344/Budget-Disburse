@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "react-toastify";
 import { Search, Plus, Edit, Trash2, X, ScanEye, Camera, Upload, Loader, Wifi, WifiOff, Building2, Calendar, Clock, DollarSign, FileText, User, Tag, FolderOpen, Receipt, CreditCard } from "lucide-react";
-import { performOCR, initTesseractWorker, terminateTesseractWorker, getOCRStatus, isNetworkOnline, preprocessImage, type OCRResult } from "@/lib/offlineTesseract";
+import { performOCR, initTesseractWorker, terminateTesseractWorker, getOCRStatus, isNetworkOnline, preprocessImage, type OCRResult, type PreprocessOptions, type OCROptions } from "@/lib/offlineTesseract";
 
 // =================== Floating Scan Button ===================
 interface FloatingScanButtonProps {
@@ -200,31 +200,42 @@ const startCamera = async () => {
         throw new Error("Invalid image data - image may be too small or corrupted");
       }
 
-      console.log("[CLIENT] Starting OCR process - Image size:", imageData.length);
-      toast.info("🔄 Processing image: document detection, upscaling, and enhancement...", { autoClose: 3000 });
-
       // Initialize worker if not already done
       await initTesseractWorker();
 
-      // First pass: Standard PSM mode for general document layout
-      // The image is automatically preprocessed (crop, upscale, sharpen, threshold)
+      // Define enhanced preprocessing options for document OCR
+      // Pipeline: Upscale (2x) → Document Detection & Crop → Grayscale → Sharpen → Contrast → Threshold
+      const preprocessOptions: PreprocessOptions = {
+        scale: 2, // Upscale 2x for better OCR accuracy
+        detectDocument: true, // Auto-detect and crop document
+        sharpenIntensity: 1.8, // Moderate sharpening for text clarity
+        contrastFactor: 1.6, // Enhance contrast
+        threshold: 145, // Threshold for black/white conversion
+      };
+
+      // First pass: Standard PSM mode for general document layout with enhanced preprocessing
       let result1, result2;
       try {
-        console.log("[CLIENT] Starting OCR Pass 1 (PSM 6)...");
-        result1 = await performOCR(imageData, { psm: 6 });
-        console.log("[CLIENT] Pass 1 complete - Confidence:", result1.confidence, "Text length:", result1.text.length);
+        result1 = await performOCR(imageData, {
+          psm: 6,
+          preprocessOptions: preprocessOptions,
+        });
       } catch (err) {
-        console.warn("[CLIENT] First OCR pass failed, trying with different parameters:", err);
+        console.warn("First OCR pass failed, trying with different parameters:", err);
         result1 = { text: "", confidence: 0, raw: "" };
       }
       
-      // Second pass: Uniform block mode for better text extraction
+      // Second pass: Uniform block mode with slightly different preprocessing for better text extraction
       try {
-        console.log("[CLIENT] Starting OCR Pass 2 (PSM 11)...");
-        result2 = await performOCR(imageData, { psm: 11 });
-        console.log("[CLIENT] Pass 2 complete - Confidence:", result2.confidence, "Text length:", result2.text.length);
+        result2 = await performOCR(imageData, {
+          psm: 11,
+          preprocessOptions: {
+            ...preprocessOptions,
+            sharpenIntensity: 1.5, // Slightly less sharpening for PSM 11
+          },
+        });
       } catch (err) {
-        console.warn("[CLIENT] Second OCR pass failed:", err);
+        console.warn("Second OCR pass failed:", err);
         result2 = { text: "", confidence: 0, raw: "" };
       }
       
@@ -233,8 +244,6 @@ const startCamera = async () => {
       const avgConfidence = result1.confidence && result2.confidence 
         ? (result1.confidence + result2.confidence) / 2 
         : (result1.confidence || result2.confidence || 0);
-      
-      console.log("[CLIENT] Combined results - Average confidence:", avgConfidence.toFixed(2), "Text length:", combinedText.length);
       
       // Check if we actually extracted any text
       if (!combinedText.trim()) {
@@ -245,24 +254,24 @@ const startCamera = async () => {
       
       // Check OCR confidence quality
       if (avgConfidence < 60) {
-        toast.warning(`⚠️ Low OCR confidence (${avgConfidence.toFixed(0)}%). Image was processed with:\n• Auto document detection\n• 2x upscaling\n• Edge sharpening\nPlease review and manually correct extracted data.`, {
-          autoClose: 5000,
+        toast.warning(`⚠️ Low OCR confidence (${avgConfidence.toFixed(0)}%). Please review and manually correct extracted data.`, {
+          autoClose: 4000,
         });
       } else if (avgConfidence >= 80) {
-        toast.success(`✓ High confidence OCR (${avgConfidence.toFixed(0)}%)!\nImage preprocessing: Document detected → Upscaled 2x → Sharpened → Enhanced`, {
-          autoClose: 3000,
-        });
-      } else {
-        toast.info(`✓ OCR confidence: ${avgConfidence.toFixed(0)}%\nApplied: document crop, 2x upscale, sharpening, contrast enhancement`, {
-          autoClose: 3000,
+        toast.success(`✓ High confidence OCR (${avgConfidence.toFixed(0)}%)`, {
+          autoClose: 2000,
         });
       }
       
       // Parse disbursement data from combined OCR text
       parseAndFillForm(combinedText);
       
-      console.log("[CLIENT] OCR process completed successfully");
-      
+      // Show appropriate success message with preprocessing info
+      if (isOnlineMode) {
+        toast.info("✓ OCR completed with enhanced preprocessing (Online mode)", { autoClose: 2000 });
+      } else {
+        toast.info("✓ OCR completed with enhanced preprocessing (Offline mode)", { autoClose: 2000 });
+      }
     } catch (err) {
       const errMsg = String(err);
       let userMessage = "OCR failed. Please try again with a clearer image.";
@@ -281,7 +290,7 @@ const startCamera = async () => {
       }
       
       toast.error(userMessage, { autoClose: 4000 });
-      console.error("[CLIENT] OCR Error:", err);
+      console.error("OCR Error:", err);
     } finally {
       setOcrLoading(false);
     }
@@ -1414,44 +1423,28 @@ const isBudgetEnough = () => {
         <Camera className="w-5 h-5" /> Start Camera
       </button>
     ) : (
-      <div className="space-y-3">
-        <div className="flex gap-2">
-          <button
-            onClick={capturePhoto}
-            disabled={ocrLoading}
-            className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-semibold disabled:bg-gray-400 flex items-center justify-center gap-2"
-          >
-            {ocrLoading ? (
-              <>
-                <Loader className="w-5 h-5 animate-spin" /> Processing...
-              </>
-            ) : (
-              <>
-                <Camera className="w-5 h-5" /> Capture Photo
-              </>
-            )}
-          </button>
-          <button
-            onClick={stopCamera}
-            className="flex-1 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 font-semibold"
-          >
-            Cancel
-          </button>
-        </div>
-
-        {/* Processing Steps Display */}
-        {ocrLoading && (
-          <div className="bg-blue-50 border border-blue-300 rounded-lg p-4 space-y-2">
-            <p className="font-semibold text-blue-900">Image Processing Pipeline:</p>
-            <ul className="text-sm text-blue-800 space-y-1">
-              <li className="flex items-center gap-2">✓ Detecting document edges</li>
-              <li className="flex items-center gap-2">✓ Upscaling image 2x</li>
-              <li className="flex items-center gap-2">⏳ Sharpening edges & enhancing contrast</li>
-              <li className="flex items-center gap-2">⏳ Applying threshold for clarity</li>
-              <li className="flex items-center gap-2">⏳ Running OCR recognition...</li>
-            </ul>
-          </div>
-        )}
+      <div className="flex gap-2">
+        <button
+          onClick={capturePhoto}
+          disabled={ocrLoading}
+          className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-semibold disabled:bg-gray-400 flex items-center justify-center gap-2"
+        >
+          {ocrLoading ? (
+            <>
+              <Loader className="w-5 h-5 animate-spin" /> Processing...
+            </>
+          ) : (
+            <>
+              <Camera className="w-5 h-5" /> Capture Photo
+            </>
+          )}
+        </button>
+        <button
+          onClick={stopCamera}
+          className="flex-1 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 font-semibold"
+        >
+          Cancel
+        </button>
       </div>
     )}
   </div>
@@ -1481,18 +1474,8 @@ const isBudgetEnough = () => {
                     />
                   </label>
                   {ocrLoading && (
-                    <div className="bg-blue-50 border border-blue-300 rounded-lg p-4 space-y-2">
-                      <div className="flex items-center justify-center gap-2 text-blue-600 font-semibold py-2">
-                        <Loader className="w-5 h-5 animate-spin" /> Processing image...
-                      </div>
-                      <p className="font-semibold text-sm text-blue-900 text-center">Image Processing Pipeline:</p>
-                      <ul className="text-xs text-blue-800 space-y-1">
-                        <li className="flex items-center gap-2">✓ Detecting document edges</li>
-                        <li className="flex items-center gap-2">✓ Upscaling image 2x</li>
-                        <li className="flex items-center gap-2">⏳ Sharpening edges & enhancing contrast</li>
-                        <li className="flex items-center gap-2">⏳ Applying threshold for clarity</li>
-                        <li className="flex items-center gap-2">⏳ Running OCR recognition...</li>
-                      </ul>
+                    <div className="flex items-center justify-center gap-2 text-blue-600 font-semibold py-4">
+                      <Loader className="w-5 h-5 animate-spin" /> Processing image...
                     </div>
                   )}
                 </div>

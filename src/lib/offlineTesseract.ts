@@ -20,7 +20,7 @@ const CHAR_WHITELIST =
 
 /**
  * Image Preprocessing Functions
- * Improves OCR accuracy by enhancing image quality
+ * Improves OCR accuracy by enhancing image quality with advanced document detection
  */
 
 /**
@@ -39,6 +39,77 @@ function toGrayscale(canvas: HTMLCanvasElement): HTMLCanvasElement {
     data[i + 1] = gray; // G
     data[i + 2] = gray; // B
     // data[i + 3] is alpha, leave unchanged
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+  return canvas;
+}
+
+/**
+ * Upscale image to improve OCR accuracy (2x-3x resolution)
+ */
+function upscaleImage(canvas: HTMLCanvasElement, scale: number = 2): HTMLCanvasElement {
+  const scaledCanvas = document.createElement("canvas");
+  scaledCanvas.width = canvas.width * scale;
+  scaledCanvas.height = canvas.height * scale;
+  
+  const ctx = scaledCanvas.getContext("2d");
+  if (!ctx) return canvas;
+  
+  // Use high-quality image rendering
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, scaledCanvas.width, scaledCanvas.height);
+  
+  // Copy data back to original canvas
+  canvas.width = scaledCanvas.width;
+  canvas.height = scaledCanvas.height;
+  const origCtx = canvas.getContext("2d");
+  if (origCtx) {
+    origCtx.drawImage(scaledCanvas, 0, 0);
+  }
+  
+  return canvas;
+}
+
+/**
+ * Sharpen image using unsharp mask technique
+ */
+function sharpenImage(canvas: HTMLCanvasElement, intensity: number = 1.5): HTMLCanvasElement {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return canvas;
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+  const width = canvas.width;
+  const height = canvas.height;
+
+  // Create a copy for blur calculation
+  const blurred = new Uint8ClampedArray(data);
+
+  // Simple blur kernel for unsharp mask
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      for (let c = 0; c < 3; c++) {
+        const idx = (y * width + x) * 4 + c;
+        const sum =
+          blurred[((y - 1) * width + (x - 1)) * 4 + c] +
+          blurred[((y - 1) * width + x) * 4 + c] +
+          blurred[((y - 1) * width + (x + 1)) * 4 + c] +
+          blurred[(y * width + (x - 1)) * 4 + c] +
+          blurred[(y * width + x) * 4 + c] * 4 +
+          blurred[(y * width + (x + 1)) * 4 + c] +
+          blurred[((y + 1) * width + (x - 1)) * 4 + c] +
+          blurred[((y + 1) * width + x) * 4 + c] +
+          blurred[((y + 1) * width + (x + 1)) * 4 + c];
+
+        const blurredValue = sum / 12;
+        // Unsharp mask: original + (original - blurred) * intensity
+        const sharpened =
+          blurred[idx] + (blurred[idx] - blurredValue) * intensity;
+        data[idx] = Math.min(255, Math.max(0, sharpened));
+      }
+    }
   }
 
   ctx.putImageData(imageData, 0, 0);
@@ -66,6 +137,118 @@ function increaseContrast(canvas: HTMLCanvasElement, factor: number = 1.5): HTML
 }
 
 /**
+ * Apply Sobel edge detection (for document boundary detection)
+ */
+function sobelEdgeDetection(canvas: HTMLCanvasElement): Uint8ClampedArray {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Cannot get canvas context");
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+  const width = canvas.width;
+  const height = canvas.height;
+
+  // Convert to grayscale for edge detection
+  const gray = new Uint8ClampedArray(width * height);
+  for (let i = 0; i < data.length; i += 4) {
+    gray[i / 4] = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+  }
+
+  // Sobel operators
+  const edges = new Uint8ClampedArray(width * height);
+  const sobelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+  const sobelY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      let gx = 0, gy = 0;
+      let idx = 0;
+      for (let ky = -1; ky <= 1; ky++) {
+        for (let kx = -1; kx <= 1; kx++) {
+          const pixelIdx = ((y + ky) * width + (x + kx));
+          gx += gray[pixelIdx] * sobelX[idx];
+          gy += gray[pixelIdx] * sobelY[idx];
+          idx++;
+        }
+      }
+      edges[y * width + x] = Math.min(255, Math.sqrt(gx * gx + gy * gy));
+    }
+  }
+
+  return edges;
+}
+
+/**
+ * Auto-detect document boundaries and return crop coordinates
+ */
+function detectDocumentBounds(canvas: HTMLCanvasElement): { x: number; y: number; w: number; h: number } | null {
+  try {
+    const edges = sobelEdgeDetection(canvas);
+    const width = canvas.width;
+    const height = canvas.height;
+
+    // Find the bounding box of strong edges
+    let minX = width, maxX = 0, minY = height, maxY = 0;
+    let edgeCount = 0;
+
+    const threshold = 100; // Edge strength threshold
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (edges[y * width + x] > threshold) {
+          minX = Math.min(minX, x);
+          maxX = Math.max(maxX, x);
+          minY = Math.min(minY, y);
+          maxY = Math.max(maxY, y);
+          edgeCount++;
+        }
+      }
+    }
+
+    // Verify we found enough edges
+    if (edgeCount < width * height * 0.01) {
+      console.log("[OCR] Could not detect document with sufficient edges");
+      return null;
+    }
+
+    // Add padding and return bounds (avoid extreme corners)
+    const padding = 20;
+    return {
+      x: Math.max(0, minX - padding),
+      y: Math.max(0, minY - padding),
+      w: Math.min(width, maxX - minX + padding * 2),
+      h: Math.min(height, maxY - minY + padding * 2),
+    };
+  } catch (err) {
+    console.warn("[OCR] Document detection failed:", err);
+    return null;
+  }
+}
+
+/**
+ * Crop canvas to detected document bounds
+ */
+function cropToDocument(canvas: HTMLCanvasElement): HTMLCanvasElement {
+  const bounds = detectDocumentBounds(canvas);
+  if (!bounds || bounds.w < 100 || bounds.h < 100) {
+    return canvas; // Document too small, return original
+  }
+
+  const croppedCanvas = document.createElement("canvas");
+  croppedCanvas.width = bounds.w;
+  croppedCanvas.height = bounds.h;
+
+  const srcCtx = canvas.getContext("2d");
+  const dstCtx = croppedCanvas.getContext("2d");
+  
+  if (!srcCtx || !dstCtx) return canvas;
+
+  const imageData = srcCtx.getImageData(bounds.x, bounds.y, bounds.w, bounds.h);
+  dstCtx.putImageData(imageData, 0, 0);
+
+  return croppedCanvas;
+}
+
+/**
  * Apply binary threshold to image (convert to pure black and white)
  */
 function applyThreshold(canvas: HTMLCanvasElement, threshold: number = 150): HTMLCanvasElement {
@@ -88,198 +271,22 @@ function applyThreshold(canvas: HTMLCanvasElement, threshold: number = 150): HTM
 }
 
 /**
- * Sharpen image using unsharp mask filter
- * Enhances edges and details for better OCR recognition
- */
-function sharpenImage(canvas: HTMLCanvasElement, amount: number = 1.5): HTMLCanvasElement {
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return canvas;
-
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const data = imageData.data;
-  const width = canvas.width;
-  const height = canvas.height;
-
-  // Create a copy for the sharpening kernel
-  const output = new Uint8ClampedArray(data.length);
-
-  // Sharpening kernel (unsharp mask)
-  const kernel = [
-    [0, -1, 0],
-    [-1, 5, -1],
-    [0, -1, 0]
-  ];
-
-  for (let i = 0; i < height; i++) {
-    for (let j = 0; j < width; j++) {
-      const pixelIndex = (i * width + j) * 4;
-
-      // Apply kernel to each channel
-      for (let channel = 0; channel < 3; channel++) {
-        let sum = 0;
-
-        for (let ki = -1; ki <= 1; ki++) {
-          for (let kj = -1; kj <= 1; kj++) {
-            const y = Math.min(Math.max(i + ki, 0), height - 1);
-            const x = Math.min(Math.max(j + kj, 0), width - 1);
-            const idx = (y * width + x) * 4 + channel;
-            sum += data[idx] * kernel[ki + 1][kj + 1];
-          }
-        }
-
-        // Apply sharpening with adjustable amount
-        const sharpened = data[pixelIndex + channel] + (sum - data[pixelIndex + channel]) * amount;
-        output[pixelIndex + channel] = Math.min(255, Math.max(0, sharpened));
-      }
-
-      // Preserve alpha channel
-      output[pixelIndex + 3] = data[pixelIndex + 3];
-    }
-  }
-
-  // Create new image data and put it back
-  const newImageData = new ImageData(output, width, height);
-  ctx.putImageData(newImageData, 0, 0);
-  return canvas;
-}
-
-/**
- * Resize/upscale image using bicubic interpolation
- * Improves OCR accuracy on small or low-resolution images
- */
-function resizeImage(canvas: HTMLCanvasElement, scale: number = 2): HTMLCanvasElement {
-  const newWidth = canvas.width * scale;
-  const newHeight = canvas.height * scale;
-
-  const newCanvas = document.createElement("canvas");
-  newCanvas.width = newWidth;
-  newCanvas.height = newHeight;
-
-  const newCtx = newCanvas.getContext("2d");
-  if (!newCtx) return canvas;
-
-  // Use high-quality scaling with imageSmoothingEnabled
-  newCtx.imageSmoothingEnabled = true;
-  newCtx.imageSmoothingQuality = "high";
-  newCtx.drawImage(canvas, 0, 0, newWidth, newHeight);
-
-  return newCanvas;
-}
-
-/**
- * Detect document edges using Canny-like edge detection
- * Returns the bounds of the detected document
- */
-function detectDocumentEdges(canvas: HTMLCanvasElement): { x: number; y: number; width: number; height: number } | null {
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return null;
-
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const data = imageData.data;
-  const width = canvas.width;
-  const height = canvas.height;
-
-  // Create gradient data for edge detection
-  const edges = new Uint8Array(width * height);
-
-  // Sobel edge detection
-  for (let y = 1; y < height - 1; y++) {
-    for (let x = 1; x < width - 1; x++) {
-      const idx = (y * width + x) * 4;
-
-      // Get surrounding pixel values (grayscale)
-      const getGray = (dy: number, dx: number) => {
-        const pidx = ((y + dy) * width + (x + dx)) * 4;
-        return data[pidx] * 0.299 + data[pidx + 1] * 0.587 + data[pidx + 2] * 0.114;
-      };
-
-      // Sobel X kernel
-      const sobelX = -getGray(-1, -1) - 2 * getGray(0, -1) - getGray(1, -1) +
-                     getGray(-1, 1) + 2 * getGray(0, 1) + getGray(1, 1);
-
-      // Sobel Y kernel
-      const sobelY = -getGray(-1, -1) - 2 * getGray(-1, 0) - getGray(-1, 1) +
-                     getGray(1, -1) + 2 * getGray(1, 0) + getGray(1, 1);
-
-      edges[y * width + x] = Math.sqrt(sobelX * sobelX + sobelY * sobelY);
-    }
-  }
-
-  // Find bounding box of detected edges
-  let minX = width, minY = height, maxX = 0, maxY = 0;
-  let edgeCount = 0;
-
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      if (edges[y * width + x] > 50) {
-        // Edge threshold
-        minX = Math.min(minX, x);
-        minY = Math.min(minY, y);
-        maxX = Math.max(maxX, x);
-        maxY = Math.max(maxY, y);
-        edgeCount++;
-      }
-    }
-  }
-
-  // Only return bounds if significant edges detected
-  if (edgeCount < 100) {
-    return null; // Not enough edges detected
-  }
-
-  // Add padding (5% of detected area)
-  const padding = Math.max(
-    Math.abs(maxX - minX) * 0.05,
-    Math.abs(maxY - minY) * 0.05
-  );
-
-  return {
-    x: Math.max(0, minX - padding),
-    y: Math.max(0, minY - padding),
-    width: Math.min(width, maxX + padding) - Math.max(0, minX - padding),
-    height: Math.min(height, maxY + padding) - Math.max(0, minY - padding)
-  };
-}
-
-/**
- * Crop document from image using detected edges
- */
-function cropToDocument(canvas: HTMLCanvasElement): HTMLCanvasElement {
-  const bounds = detectDocumentEdges(canvas);
-
-  if (!bounds) {
-    console.log("[OCR] Document edges not clearly detected, using full image");
-    return canvas;
-  }
-
-  const croppedCanvas = document.createElement("canvas");
-  croppedCanvas.width = bounds.width;
-  croppedCanvas.height = bounds.height;
-
-  const ctx = croppedCanvas.getContext("2d");
-  if (!ctx) return canvas;
-
-  // Draw the cropped region
-  const sourceCtx = canvas.getContext("2d");
-  if (!sourceCtx) return canvas;
-
-  const imageData = sourceCtx.getImageData(
-    bounds.x,
-    bounds.y,
-    bounds.width,
-    bounds.height
-  );
-  ctx.putImageData(imageData, 0, 0);
-
-  console.log(`[OCR] Document detected and cropped: ${bounds.width}x${bounds.height}`);
-  return croppedCanvas;
-}
-
-/**
  * Preprocess image for better OCR accuracy
- * Pipeline: Crop Document → Upscale → Grayscale → Sharpen → Contrast → Threshold
+ * Pipeline: Upscale → Document Detection & Crop → Grayscale → Sharpen → Contrast → Threshold
+ * 
+ * @param imageDataUrl - Base64 encoded image data URL
+ * @param options - Preprocessing options
+ * @returns Promise resolving to preprocessed image data URL
  */
-export function preprocessImage(imageDataUrl: string): Promise<string> {
+export interface PreprocessOptions {
+  scale?: number; // Upscaling factor (2 or 3, default 2)
+  detectDocument?: boolean; // Auto-detect and crop document (default true)
+  sharpenIntensity?: number; // Sharpening intensity (0-3, default 1.5)
+  contrastFactor?: number; // Contrast multiplier (default 1.5)
+  threshold?: number; // Threshold value (0-255, default 150)
+}
+
+export function preprocessImage(imageDataUrl: string, options?: PreprocessOptions): Promise<string> {
   return new Promise((resolve, reject) => {
     try {
       // Validate image data URL format
@@ -304,7 +311,7 @@ export function preprocessImage(imageDataUrl: string): Promise<string> {
       const timeout = setTimeout(() => {
         img.src = ""; // Clear the src to avoid any further processing
         reject(new Error("Image loading timeout - image took too long to load"));
-      }, 10000); // 10 second timeout
+      }, 15000); // 15 second timeout for complex preprocessing
 
       img.onload = () => {
         clearTimeout(timeout);
@@ -314,7 +321,7 @@ export function preprocessImage(imageDataUrl: string): Promise<string> {
             return;
           }
 
-          let canvas = document.createElement("canvas");
+          const canvas = document.createElement("canvas");
           canvas.width = img.width;
           canvas.height = img.height;
           const ctx = canvas.getContext("2d");
@@ -324,31 +331,52 @@ export function preprocessImage(imageDataUrl: string): Promise<string> {
           }
           ctx.drawImage(img, 0, 0);
 
-          console.log(`[OCR] Starting preprocessing pipeline - Original: ${canvas.width}x${canvas.height}`);
+          // Merge options with defaults
+          const opts: Required<PreprocessOptions> = {
+            scale: options?.scale ?? 2,
+            detectDocument: options?.detectDocument ?? true,
+            sharpenIntensity: options?.sharpenIntensity ?? 1.5,
+            contrastFactor: options?.contrastFactor ?? 1.5,
+            threshold: options?.threshold ?? 150,
+          };
 
-          // ===== PREPROCESSING PIPELINE =====
-          // Step 1: Auto-detect and crop document
-          canvas = cropToDocument(canvas);
+          console.log("[OCR] Starting preprocessing pipeline with options:", opts);
 
-          // Step 2: Upscale image (2x for better OCR accuracy)
-          canvas = resizeImage(canvas, 2);
-          console.log(`[OCR] Upscaled to: ${canvas.width}x${canvas.height}`);
+          // Step 1: Auto-detect and crop document (if enabled)
+          if (opts.detectDocument) {
+            try {
+              const croppedCanvas = cropToDocument(canvas);
+              canvas.width = croppedCanvas.width;
+              canvas.height = croppedCanvas.height;
+              const newCtx = canvas.getContext("2d");
+              if (newCtx) {
+                newCtx.drawImage(croppedCanvas, 0, 0);
+              }
+              console.log("[OCR] Document detection and cropping completed");
+            } catch (err) {
+              console.warn("[OCR] Document detection failed, proceeding with original image:", err);
+            }
+          }
+
+          // Step 2: Upscale image (improves OCR accuracy)
+          upscaleImage(canvas, opts.scale);
+          console.log(`[OCR] Image upscaled by ${opts.scale}x to ${canvas.width}x${canvas.height}`);
 
           // Step 3: Convert to grayscale
           toGrayscale(canvas);
-          console.log("[OCR] Applied grayscale");
+          console.log("[OCR] Converted to grayscale");
 
-          // Step 4: Sharpen image edges
-          sharpenImage(canvas, 1.5);
-          console.log("[OCR] Applied sharpening");
+          // Step 4: Sharpen image
+          sharpenImage(canvas, opts.sharpenIntensity);
+          console.log(`[OCR] Image sharpened with intensity ${opts.sharpenIntensity}`);
 
           // Step 5: Increase contrast
-          increaseContrast(canvas, 1.8);
-          console.log("[OCR] Enhanced contrast");
+          increaseContrast(canvas, opts.contrastFactor);
+          console.log(`[OCR] Contrast increased by factor ${opts.contrastFactor}`);
 
-          // Step 6: Apply binary threshold
-          applyThreshold(canvas, 150);
-          console.log("[OCR] Applied threshold");
+          // Step 6: Apply threshold (convert to black and white)
+          applyThreshold(canvas, opts.threshold);
+          console.log(`[OCR] Threshold applied at value ${opts.threshold}`);
 
           console.log("[OCR] Preprocessing pipeline complete");
           resolve(canvas.toDataURL("image/jpeg", 0.95));
@@ -503,13 +531,16 @@ export interface OCRResult {
   raw: string;
 }
 
+export interface OCROptions {
+  lang?: string;
+  psm?: number; // Page segmentation mode
+  preprocessed?: boolean; // if true, skip preprocessing
+  preprocessOptions?: PreprocessOptions; // Preprocessing pipeline options
+}
+
 export async function performOCR(
   image: HTMLCanvasElement | HTMLImageElement | File | string,
-  options?: {
-    lang?: string;
-    psm?: number; // Page segmentation mode
-    preprocessed?: boolean; // if true, skip preprocessing
-  }
+  options?: OCROptions
 ): Promise<OCRResult> {
   try {
     // Initialize if needed
@@ -539,8 +570,9 @@ export async function performOCR(
           throw new Error("Image data is empty or corrupted");
         }
         
-        imageToProcess = await preprocessImage(image);
-        console.log("[OCR] Image preprocessing successful");
+        // Use enhanced preprocessing with document detection, upscaling, sharpening, etc.
+        imageToProcess = await preprocessImage(image, options?.preprocessOptions);
+        console.log("[OCR] Image preprocessing successful with enhanced pipeline");
       } catch (err) {
         console.warn("[OCR] Image preprocessing failed, using original:", err);
         imageToProcess = image;
