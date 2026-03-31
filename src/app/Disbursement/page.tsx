@@ -245,15 +245,15 @@ const startCamera = async () => {
       
       // Check OCR confidence quality
       if (avgConfidence < 60) {
-        toast.warning(`⚠️ Low OCR confidence (${avgConfidence.toFixed(0)}%). Image was processed with:\n• Auto document detection\n• 2x upscaling\n• Edge sharpening\nPlease review and manually correct extracted data.`, {
+        toast.warning(`⚠️ Low OCR confidence (${avgConfidence.toFixed(0)}%). Image was processed with:\n• 2x upscaling\n• Grayscale conversion\n• Binary threshold\nPlease review and manually correct extracted data.`, {
           autoClose: 5000,
         });
       } else if (avgConfidence >= 80) {
-        toast.success(`✓ High confidence OCR (${avgConfidence.toFixed(0)}%)!\nImage preprocessing: Document detected → Upscaled 2x → Sharpened → Enhanced`, {
+        toast.success(`✓ High confidence OCR (${avgConfidence.toFixed(0)}%)!\nImage preprocessing: Upscaled 2x → Grayscale → Threshold`, {
           autoClose: 3000,
         });
       } else {
-        toast.info(`✓ OCR confidence: ${avgConfidence.toFixed(0)}%\nApplied: document crop, 2x upscale, sharpening, contrast enhancement`, {
+        toast.info(`✓ OCR confidence: ${avgConfidence.toFixed(0)}%\nApplied: 2x upscale → grayscale → binary threshold`, {
           autoClose: 3000,
         });
       }
@@ -1424,12 +1424,11 @@ const isBudgetEnough = () => {
         {/* Processing Steps Display */}
         {ocrLoading && (
           <div className="bg-blue-50 border border-blue-300 rounded-lg p-4 space-y-2">
-            <p className="font-semibold text-blue-900">Image Processing Pipeline:</p>
+            <p className="font-semibold text-blue-900">Image Processing:</p>
             <ul className="text-sm text-blue-800 space-y-1">
-              <li className="flex items-center gap-2">✓ Detecting document edges</li>
               <li className="flex items-center gap-2">✓ Upscaling image 2x</li>
-              <li className="flex items-center gap-2">⏳ Sharpening edges & enhancing contrast</li>
-              <li className="flex items-center gap-2">⏳ Applying threshold for clarity</li>
+              <li className="flex items-center gap-2">✓ Converting to grayscale</li>
+              <li className="flex items-center gap-2">⏳ Applying binary threshold</li>
               <li className="flex items-center gap-2">⏳ Running OCR recognition...</li>
             </ul>
           </div>
@@ -1467,12 +1466,11 @@ const isBudgetEnough = () => {
                       <div className="flex items-center justify-center gap-2 text-blue-600 font-semibold py-2">
                         <Loader className="w-5 h-5 animate-spin" /> Processing image...
                       </div>
-                      <p className="font-semibold text-sm text-blue-900 text-center">Image Processing Pipeline:</p>
+                      <p className="font-semibold text-sm text-blue-900 text-center">Image Processing:</p>
                       <ul className="text-xs text-blue-800 space-y-1">
-                        <li className="flex items-center gap-2">✓ Detecting document edges</li>
                         <li className="flex items-center gap-2">✓ Upscaling image 2x</li>
-                        <li className="flex items-center gap-2">⏳ Sharpening edges & enhancing contrast</li>
-                        <li className="flex items-center gap-2">⏳ Applying threshold for clarity</li>
+                        <li className="flex items-center gap-2">✓ Converting to grayscale</li>
+                        <li className="flex items-center gap-2">⏳ Applying binary threshold</li>
                         <li className="flex items-center gap-2">⏳ Running OCR recognition...</li>
                       </ul>
                     </div>

@@ -326,27 +326,16 @@ export function preprocessImage(imageDataUrl: string): Promise<string> {
 
           console.log(`[OCR] Starting preprocessing pipeline - Original: ${canvas.width}x${canvas.height}`);
 
-          // ===== PREPROCESSING PIPELINE =====
-          // Step 1: Auto-detect and crop document
-          canvas = cropToDocument(canvas);
-
-          // Step 2: Upscale image (2x for better OCR accuracy)
+          // ===== SIMPLIFIED PREPROCESSING PIPELINE =====
+          // Step 1: Upscale image (2x for better OCR accuracy)
           canvas = resizeImage(canvas, 2);
           console.log(`[OCR] Upscaled to: ${canvas.width}x${canvas.height}`);
 
-          // Step 3: Convert to grayscale
+          // Step 2: Convert to grayscale
           toGrayscale(canvas);
           console.log("[OCR] Applied grayscale");
 
-          // Step 4: Sharpen image edges
-          sharpenImage(canvas, 1.5);
-          console.log("[OCR] Applied sharpening");
-
-          // Step 5: Increase contrast
-          increaseContrast(canvas, 1.8);
-          console.log("[OCR] Enhanced contrast");
-
-          // Step 6: Apply binary threshold
+          // Step 3: Apply binary threshold
           applyThreshold(canvas, 150);
           console.log("[OCR] Applied threshold");
 
