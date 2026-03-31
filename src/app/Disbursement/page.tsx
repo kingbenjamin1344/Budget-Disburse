@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "react-toastify";
 import { Search, Plus, Edit, Trash2, X, ScanEye, Camera, Upload, Loader, Wifi, WifiOff, Building2, Calendar, Clock, DollarSign, FileText, User, Tag, FolderOpen, Receipt, CreditCard } from "lucide-react";
-import { performOCR, initTesseractWorker, terminateTesseractWorker, getOCRStatus, isNetworkOnline, preprocessImage, type OCRResult } from "@/lib/offlineTesseract";
+import { performOCR, initTesseractWorker, terminateTesseractWorker, getOCRStatus, isNetworkOnline, preprocessImage, detectDocumentInFrame, type OCRResult, type DocumentDetectionResult } from "@/lib/offlineTesseract";
 
 // =================== Floating Scan Button ===================
 interface FloatingScanButtonProps {
@@ -66,12 +66,19 @@ export default function DisbursementPage() {
   const [cameraActive, setCameraActive] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrResult, setOcrResult] = useState("");
-  const [scannedImageData, setScannedImageData] = useState<string>("");
   const [isOnlineMode, setIsOnlineMode] = useState(true);
   const [ocrAvailable, setOcrAvailable] = useState(true);
+  
+  // ====== Smart Document Detection States ======
+  const [documentDetection, setDocumentDetection] = useState<DocumentDetectionResult | null>(null);
+  const [detectionMonitoring, setDetectionMonitoring] = useState(false);
+  const [autoCaptureCooldown, setAutoCaptureCooldown] = useState(false);
+  
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const detectionCanvasRef = useRef<HTMLCanvasElement>(null);
+  const detectionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
 
 
@@ -154,6 +161,9 @@ const startCamera = async () => {
       videoRef.current.srcObject = stream;
       await videoRef.current.play();
       setCameraActive(true);
+      
+      // Start smart document detection
+      setTimeout(() => startDocumentDetection(), 500);
     }
   } catch (err) {
     toast.error("Camera error: " + String(err));
@@ -169,6 +179,56 @@ const startCamera = async () => {
       tracks.forEach((track) => track.stop());
       setCameraActive(false);
     }
+    // Stop document detection monitoring
+    if (detectionIntervalRef.current) {
+      clearInterval(detectionIntervalRef.current);
+      detectionIntervalRef.current = null;
+    }
+    setDetectionMonitoring(false);
+  };
+
+  // ====== Smart Document Detection ======
+  const startDocumentDetection = () => {
+    if (!videoRef.current || !detectionCanvasRef.current || detectionMonitoring) return;
+
+    setDetectionMonitoring(true);
+
+    detectionIntervalRef.current = setInterval(async () => {
+      if (!videoRef.current?.srcObject || !detectionCanvasRef.current) return;
+
+      try {
+        // Draw current video frame to detection canvas
+        const ctx = detectionCanvasRef.current.getContext("2d");
+        if (!ctx) return;
+
+        detectionCanvasRef.current.width = videoRef.current.videoWidth;
+        detectionCanvasRef.current.height = videoRef.current.videoHeight;
+        ctx.drawImage(videoRef.current, 0, 0);
+
+        // Analyze frame for document
+        const result = detectDocumentInFrame(detectionCanvasRef.current);
+        setDocumentDetection(result);
+
+        // Auto-capture on excellent quality with cooldown
+        if (
+          result.detected &&
+          result.quality === "excellent" &&
+          result.confidence > 85 &&
+          !autoCaptureCooldown
+        ) {
+          console.log("[SmartScan] Auto-capturing - document detected with excellent quality");
+          setAutoCaptureCooldown(true);
+          
+          // Brief delay then capture
+          setTimeout(() => {
+            capturePhoto();
+            setTimeout(() => setAutoCaptureCooldown(false), 2000);
+          }, 300);
+        }
+      } catch (err) {
+        console.error("[SmartScan] Detection error:", err);
+      }
+    }, 300); // Analyze every 300ms (3-4 FPS for efficiency)
   };
 
   const capturePhoto = async () => {
@@ -179,7 +239,6 @@ const startCamera = async () => {
       context?.drawImage(videoRef.current, 0, 0);
       
       const imageData = canvasRef.current.toDataURL("image/jpeg");
-      setScannedImageData(imageData);
       await handlePerformOCR(imageData);
       stopCamera();
     }
@@ -189,7 +248,6 @@ const startCamera = async () => {
     const reader = new FileReader();
     reader.onload = async (e) => {
       const imageData = e.target?.result as string;
-      setScannedImageData(imageData);
       await handlePerformOCR(imageData);
     };
     reader.readAsDataURL(file);
@@ -203,31 +261,23 @@ const startCamera = async () => {
         throw new Error("Invalid image data - image may be too small or corrupted");
       }
 
-      console.log("[CLIENT] Starting OCR process - Image size:", imageData.length);
-      toast.info("🔄 Processing image: document detection, upscaling, and enhancement...", { autoClose: 3000 });
-
       // Initialize worker if not already done
       await initTesseractWorker();
 
       // First pass: Standard PSM mode for general document layout
-      // The image is automatically preprocessed (crop, upscale, sharpen, threshold)
       let result1, result2;
       try {
-        console.log("[CLIENT] Starting OCR Pass 1 (PSM 6)...");
         result1 = await performOCR(imageData, { psm: 6 });
-        console.log("[CLIENT] Pass 1 complete - Confidence:", result1.confidence, "Text length:", result1.text.length);
       } catch (err) {
-        console.warn("[CLIENT] First OCR pass failed, trying with different parameters:", err);
+        console.warn("First OCR pass failed, trying with different parameters:", err);
         result1 = { text: "", confidence: 0, raw: "" };
       }
       
       // Second pass: Uniform block mode for better text extraction
       try {
-        console.log("[CLIENT] Starting OCR Pass 2 (PSM 11)...");
         result2 = await performOCR(imageData, { psm: 11 });
-        console.log("[CLIENT] Pass 2 complete - Confidence:", result2.confidence, "Text length:", result2.text.length);
       } catch (err) {
-        console.warn("[CLIENT] Second OCR pass failed:", err);
+        console.warn("Second OCR pass failed:", err);
         result2 = { text: "", confidence: 0, raw: "" };
       }
       
@@ -236,8 +286,6 @@ const startCamera = async () => {
       const avgConfidence = result1.confidence && result2.confidence 
         ? (result1.confidence + result2.confidence) / 2 
         : (result1.confidence || result2.confidence || 0);
-      
-      console.log("[CLIENT] Combined results - Average confidence:", avgConfidence.toFixed(2), "Text length:", combinedText.length);
       
       // Check if we actually extracted any text
       if (!combinedText.trim()) {
@@ -248,24 +296,24 @@ const startCamera = async () => {
       
       // Check OCR confidence quality
       if (avgConfidence < 60) {
-        toast.warning(`⚠️ Low OCR confidence (${avgConfidence.toFixed(0)}%). Image was processed with:\n• Auto document detection\n• 2x upscaling\n• Edge sharpening\nPlease review and manually correct extracted data.`, {
-          autoClose: 5000,
+        toast.warning(`⚠️ Low OCR confidence (${avgConfidence.toFixed(0)}%). Please review and manually correct extracted data.`, {
+          autoClose: 4000,
         });
       } else if (avgConfidence >= 80) {
-        toast.success(`✓ High confidence OCR (${avgConfidence.toFixed(0)}%)!\nImage preprocessing: Document detected → Upscaled 2x → Sharpened → Enhanced`, {
-          autoClose: 3000,
-        });
-      } else {
-        toast.info(`✓ OCR confidence: ${avgConfidence.toFixed(0)}%\nApplied: document crop, 2x upscale, sharpening, contrast enhancement`, {
-          autoClose: 3000,
+        toast.success(`✓ High confidence OCR (${avgConfidence.toFixed(0)}%)`, {
+          autoClose: 2000,
         });
       }
       
       // Parse disbursement data from combined OCR text
       parseAndFillForm(combinedText);
       
-      console.log("[CLIENT] OCR process completed successfully");
-      
+      // Show appropriate success message
+      if (isOnlineMode) {
+        toast.info("OCR completed (Online mode)", { autoClose: 2000 });
+      } else {
+        toast.info("OCR completed (Offline mode)", { autoClose: 2000 });
+      }
     } catch (err) {
       const errMsg = String(err);
       let userMessage = "OCR failed. Please try again with a clearer image.";
@@ -284,7 +332,7 @@ const startCamera = async () => {
       }
       
       toast.error(userMessage, { autoClose: 4000 });
-      console.error("[CLIENT] OCR Error:", err);
+      console.error("OCR Error:", err);
     } finally {
       setOcrLoading(false);
     }
@@ -659,7 +707,6 @@ const isBudgetEnough = () => {
         editingId ? prev.map((d) => (d.id === editingId ? updated : d)) : [updated, ...prev]
       );
       setShowModal(false);
-      setScannedImageData("");
       toast.success(editingId ? "Disbursement updated successfully" : "Disbursement created successfully");
     } catch (err) {
       console.error(err);
@@ -911,11 +958,11 @@ const isBudgetEnough = () => {
 
     {/* Modal */}
     <div
-      className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden z-10 pointer-events-auto flex flex-col max-h-[90vh]"
+      className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden z-10 pointer-events-auto"
       onClick={(e) => e.stopPropagation()}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-[#1E3358] flex-shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 bg-[#1E3358]">
         <div className="flex items-center gap-2">
           <div className="bg-white p-2 rounded-full">
             {editingId ? <Edit size={18} className="text-blue-600" /> : <Plus size={18} className="text-blue-600" />}
@@ -925,30 +972,15 @@ const isBudgetEnough = () => {
           </h2>
         </div>
         <button
-          onClick={() => {
-            setShowModal(false);
-            setScannedImageData("");
-          }}
+          onClick={() => setShowModal(false)}
           className="text-white hover:text-gray-200"
         >
           <X size={20} />
         </button>
       </div>
 
-      {/* Scanned Document Preview */}
-      {scannedImageData && (
-        <div className="px-3 py-3 bg-gray-50 border-b flex-shrink-0">
-          <p className="text-xs font-medium text-gray-600 mb-2">📸 Scanned Document</p>
-          <img 
-            src={scannedImageData} 
-            alt="Scanned Document" 
-            className="w-full max-h-48 object-contain rounded-lg border border-gray-300"
-          />
-        </div>
-      )}
-
-      {/* Body - Scrollable */}
-      <div className="p-5 space-y-4 overflow-y-auto flex-grow">
+      {/* Body */}
+      <div className="p-5 space-y-4">
         {/* DV No + Date Row */}
         <div className="grid grid-cols-2 gap-3">
           {/* DV No */}
@@ -1061,55 +1093,32 @@ const isBudgetEnough = () => {
       </div>
 
       {/* Footer */}
-      <div className="flex justify-between gap-3 px-4 py-3 bg-gray-50 border-t flex-shrink-0">
+      <div className="flex justify-end gap-3 px-4 py-3 bg-gray-50 border-t">
         <button
-          onClick={() => {
-            setScannedImageData("");
-            setFormData({
-              dvNo: "",
-              payee: "",
-              office: "",
-              expenseType: "",
-              expenseCategory: "",
-              amount: "",
-              date: "",
-            });
-          }}
-          className="px-4 py-2 rounded-lg bg-yellow-500 text-white hover:bg-yellow-600 transition"
-          title="Clear scanned image and reset form"
+          onClick={() => setShowModal(false)}
+          className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
         >
-          🔄 Reset
+          Cancel
         </button>
-        
-        <div className="flex gap-3">
-          <button
-            onClick={() => {
-              setShowModal(false);
-              setScannedImageData("");
-            }}
-            className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => {
-              // Required fields check first
-              if (!formData.dvNo || !formData.payee || !formData.office || !formData.expenseType || !formData.amount) {
-                toast.error("Please fill all required fields");
-                return;
-              }
+<button
+  onClick={() => {
+    // Required fields check first
+    if (!formData.dvNo || !formData.payee || !formData.office || !formData.expenseType || !formData.amount) {
+      toast.error("Please fill all required fields");
+      return;
+    }
 
-              // 🔥 Budget validation BEFORE saving
-              if (!isBudgetEnough()) return;
+    // 🔥 Budget validation BEFORE saving
+    if (!isBudgetEnough()) return;
 
-              // ✅ Save directly if valid
-              handleSave();
-            }}
-            className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-          >
-            {editingId ? "Save Changes" : "Save"}
-          </button>
-        </div>
+    // ✅ Save directly if valid
+    handleSave();
+  }}
+  className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+>
+  {editingId ? "Save Changes" : "Save"}
+</button>
+
       </div>
     </div>
   </div>
@@ -1416,7 +1425,7 @@ const isBudgetEnough = () => {
                      {/* Camera Mode */}
 {scanMode === "camera" && (
   <div className="space-y-3">
-    {/* Video Preview */}
+    {/* Video Preview with Document Crop Guide */}
     <div className="relative w-full bg-black rounded-lg overflow-hidden">
       <video
         ref={videoRef}
@@ -1429,7 +1438,108 @@ const isBudgetEnough = () => {
         }`}
       />
       
+      {/* Smart Document Detection Overlay */}
+      {cameraActive && (
+        <div className="absolute inset-0 flex flex-col items-center justify-between pointer-events-none">
+          {/* Top Status Bar */}
+          <div className="w-full py-3 px-3 bg-gradient-to-b from-black/60 to-transparent">
+            <div className="flex items-center justify-between text-white">
+              <div className="flex items-center gap-2">
+                {documentDetection?.detected ? (
+                  <>
+                    <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                    <span className="text-sm font-semibold">📄 Document Detected</span>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-3 h-3 bg-yellow-400 rounded-full animate-pulse"></div>
+                    <span className="text-sm font-semibold">Scanning...</span>
+                  </>
+                )}
+              </div>
+              
+              {/* Confidence Badge */}
+              {documentDetection && (
+                <div className={`px-3 py-1 rounded-full text-xs font-bold ${
+                  documentDetection.confidence > 85 ? "bg-green-500" :
+                  documentDetection.confidence > 70 ? "bg-blue-500" :
+                  documentDetection.confidence > 50 ? "bg-yellow-500" :
+                  "bg-red-500"
+                }`}>
+                  {documentDetection.confidence}%
+                </div>
+              )}
+            </div>
+          </div>
 
+          {/* Center Guidance Box */}
+          <div className="relative flex-1 flex items-center justify-center">
+            {/* Darkened corners */}
+            <div className="absolute inset-0 bg-black/30" />
+            
+            {/* Detection Rectangle - Shows detected document bounds */}
+            {documentDetection?.edges && videoRef.current ? (
+              <div
+                className={`absolute border-3 transition-all duration-300 ${
+                  documentDetection.quality === "excellent" ? "border-green-400 shadow-lg shadow-green-400/50" :
+                  documentDetection.quality === "good" ? "border-blue-400 shadow-lg shadow-blue-400/50" :
+                  documentDetection.quality === "fair" ? "border-yellow-400 shadow-lg shadow-yellow-400/50" :
+                  "border-red-400 shadow-lg shadow-red-400/50"
+                }`}
+                style={{
+                  left: `${(documentDetection.edges.left / (videoRef.current?.videoWidth || 1)) * 100}%`,
+                  top: `${(documentDetection.edges.top / (videoRef.current?.videoHeight || 1)) * 100}%`,
+                  width: `${((documentDetection.edges.right - documentDetection.edges.left) / (videoRef.current?.videoWidth || 1)) * 100}%`,
+                  height: `${((documentDetection.edges.bottom - documentDetection.edges.top) / (videoRef.current?.videoHeight || 1)) * 100}%`,
+                }}
+              />
+            ) : (
+              // Default guidance frame when no document detected
+              <div className="border-4 border-dashed border-gray-400 w-3/4 h-2/3 flex items-center justify-center">
+                <div className="text-white text-center text-xs font-semibold drop-shadow-lg">
+                  <p>Position document in frame</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Quality Indicators */}
+          {documentDetection && (
+            <div className="w-full py-3 px-3 bg-gradient-to-t from-black/60 to-transparent">
+              <div className="grid grid-cols-3 gap-2 text-white text-xs">
+                <div className="text-center">
+                  <div className="text-lg font-bold">{documentDetection.sharpness}</div>
+                  <div className="text-gray-300">Sharpness</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold">{documentDetection.brightness}</div>
+                  <div className="text-gray-300">Brightness</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold">{documentDetection.contrast}</div>
+                  <div className="text-gray-300">Contrast</div>
+                </div>
+              </div>
+              
+              {/* Quality Status Message */}
+              <div className="mt-2 text-center">
+                <div className={`text-sm font-semibold ${
+                  documentDetection.quality === "excellent" ? "text-green-300" :
+                  documentDetection.quality === "good" ? "text-blue-300" :
+                  documentDetection.quality === "fair" ? "text-yellow-300" :
+                  "text-red-300"
+                }`}>
+                  Quality: <span className="uppercase">{documentDetection.quality}</span>
+                  {documentDetection.quality === "excellent" && " ✨ (Auto-capturing...)"}
+                  {documentDetection.quality === "good" && " ✓"}
+                  {documentDetection.quality === "fair" && " ~ (Keep steady)"}
+                  {documentDetection.quality === "poor" && " ✗ (Better lighting needed)"}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
 
     {!cameraActive ? (
@@ -1440,44 +1550,28 @@ const isBudgetEnough = () => {
         <Camera className="w-5 h-5" /> Start Camera
       </button>
     ) : (
-      <div className="space-y-3">
-        <div className="flex gap-2">
-          <button
-            onClick={capturePhoto}
-            disabled={ocrLoading}
-            className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-semibold disabled:bg-gray-400 flex items-center justify-center gap-2"
-          >
-            {ocrLoading ? (
-              <>
-                <Loader className="w-5 h-5 animate-spin" /> Processing...
-              </>
-            ) : (
-              <>
-                <Camera className="w-5 h-5" /> Capture Photo
-              </>
-            )}
-          </button>
-          <button
-            onClick={stopCamera}
-            className="flex-1 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 font-semibold"
-          >
-            Cancel
-          </button>
-        </div>
-
-        {/* Processing Steps Display */}
-        {ocrLoading && (
-          <div className="bg-blue-50 border border-blue-300 rounded-lg p-4 space-y-2">
-            <p className="font-semibold text-blue-900">Image Processing Pipeline:</p>
-            <ul className="text-sm text-blue-800 space-y-1">
-              <li className="flex items-center gap-2">✓ Detecting document edges</li>
-              <li className="flex items-center gap-2">✓ Upscaling image 2x</li>
-              <li className="flex items-center gap-2">⏳ Sharpening edges & enhancing contrast</li>
-              <li className="flex items-center gap-2">⏳ Applying threshold for clarity</li>
-              <li className="flex items-center gap-2">⏳ Running OCR recognition...</li>
-            </ul>
-          </div>
-        )}
+      <div className="flex gap-2">
+        <button
+          onClick={capturePhoto}
+          disabled={ocrLoading}
+          className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-semibold disabled:bg-gray-400 flex items-center justify-center gap-2"
+        >
+          {ocrLoading ? (
+            <>
+              <Loader className="w-5 h-5 animate-spin" /> Processing...
+            </>
+          ) : (
+            <>
+              <Camera className="w-5 h-5" /> Capture Photo
+            </>
+          )}
+        </button>
+        <button
+          onClick={stopCamera}
+          className="flex-1 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 font-semibold"
+        >
+          Cancel
+        </button>
       </div>
     )}
   </div>
@@ -1507,15 +1601,8 @@ const isBudgetEnough = () => {
                     />
                   </label>
                   {ocrLoading && (
-                    <div className="bg-blue-50 border border-blue-300 rounded-lg p-4 space-y-2">
-                      <div className="flex items-center justify-center gap-2 text-blue-600 font-semibold py-2">
-                        <Loader className="w-5 h-5 animate-spin" /> Processing image...
-                      </div>
-                      <p className="font-semibold text-sm text-blue-900 text-center">Image Processing Pipeline:</p>
-                      <ul className="text-xs text-blue-800 space-y-1">
-                       
-                        <li className="flex items-center gap-2">Running OCR scanning...</li>
-                      </ul>
+                    <div className="flex items-center justify-center gap-2 text-blue-600 font-semibold py-4">
+                      <Loader className="w-5 h-5 animate-spin" /> Processing image...
                     </div>
                   )}
                 </div>
@@ -1620,6 +1707,8 @@ const isBudgetEnough = () => {
 
       {/* Hidden canvas for photo capture */}
       <canvas ref={canvasRef} className="hidden" />
+      {/* Hidden canvas for document detection analysis */}
+      <canvas ref={detectionCanvasRef} className="hidden" />
     </div>
   );
 }
