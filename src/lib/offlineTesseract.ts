@@ -273,7 +273,6 @@ function perspectiveTransform(canvas: HTMLCanvasElement): HTMLCanvasElement {
   let bottomRight = { x: width, y: height };
 
   // Simplified: Find darkest/brightest pixels in corners
-  let minBrightness = 255;
   let maxBrightness = 0;
 
   for (let i = 0; i < height; i++) {
