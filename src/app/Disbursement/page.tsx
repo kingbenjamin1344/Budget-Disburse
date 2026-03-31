@@ -1471,11 +1471,8 @@ const isBudgetEnough = () => {
                       </div>
                       <p className="font-semibold text-sm text-blue-900 text-center">Image Processing Pipeline:</p>
                       <ul className="text-xs text-blue-800 space-y-1">
-                        <li className="flex items-center gap-2">✓ Detecting document edges</li>
-                        <li className="flex items-center gap-2">✓ Upscaling image 2x</li>
-                        <li className="flex items-center gap-2">⏳ Sharpening edges & enhancing contrast</li>
-                        <li className="flex items-center gap-2">⏳ Applying threshold for clarity</li>
-                        <li className="flex items-center gap-2">⏳ Running OCR recognition...</li>
+                       
+                        <li className="flex items-center gap-2">Running OCR scanning...</li>
                       </ul>
                     </div>
                   )}
