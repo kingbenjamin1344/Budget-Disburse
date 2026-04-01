@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "react-toastify";
 import { Search, Plus, Edit, Trash2, X, ScanEye, Camera, Upload, Loader, Wifi, WifiOff, Building2, Calendar, Clock, DollarSign, FileText, User, Tag, FolderOpen, Receipt, CreditCard } from "lucide-react";
 import { performOCR, initTesseractWorker, terminateTesseractWorker, getOCRStatus, isNetworkOnline, preprocessImage, type OCRResult, type PreprocessOptions, type OCROptions } from "@/lib/offlineTesseract";
+import * as pdfjsLib from "pdfjs-dist";
 
 // =================== Floating Scan Button ===================
 interface FloatingScanButtonProps {
@@ -184,12 +185,47 @@ const startCamera = async () => {
   };
 
   const handleImageUpload = async (file: File) => {
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const imageData = e.target?.result as string;
-      await handlePerformOCR(imageData);
-    };
-    reader.readAsDataURL(file);
+    // Set worker path for PDF.js
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+
+    if (file.type === "application/pdf") {
+      // Handle PDF files
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const pdfData = e.target?.result as ArrayBuffer;
+        try {
+          const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+          const firstPage = await pdf.getPage(1); // Just process first page
+          const viewport = firstPage.getViewport({ scale: 2 });
+          
+          const canvas = document.createElement("canvas");
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          const context = canvas.getContext("2d");
+          
+          await firstPage.render({
+            canvasContext: context!,
+            viewport: viewport,
+          }).promise;
+          
+          const imageData = canvas.toDataURL("image/jpeg");
+          await handlePerformOCR(imageData);
+          toast.info(`Processed PDF page 1 of ${pdf.numPages}`, { autoClose: 3000 });
+        } catch (err) {
+          toast.error("PDF processing failed: " + String(err));
+          console.error("PDF processing error:", err);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      // Handle image files
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const imageData = e.target?.result as string;
+        await handlePerformOCR(imageData);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handlePerformOCR = async (imageData: string) => {
@@ -1488,7 +1524,7 @@ const isBudgetEnough = () => {
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="image/*"
+                      accept=".pdf,image/*"
                       onChange={(e) => {
                         if (e.target.files?.[0]) {
                           handleImageUpload(e.target.files[0]);
