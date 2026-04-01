@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "react-toastify";
 import { Search, Plus, Edit, Trash2, X, ScanEye, Camera, Upload, Loader, Wifi, WifiOff, Building2, Calendar, Clock, DollarSign, FileText, User, Tag, FolderOpen, Receipt, CreditCard } from "lucide-react";
 import { performOCR, initTesseractWorker, terminateTesseractWorker, getOCRStatus, isNetworkOnline, preprocessImage, type OCRResult, type PreprocessOptions, type OCROptions } from "@/lib/offlineTesseract";
-import * as pdfjsLib from "pdfjs-dist";
 
 // =================== Floating Scan Button ===================
 interface FloatingScanButtonProps {
@@ -185,16 +184,18 @@ const startCamera = async () => {
   };
 
   const handleImageUpload = async (file: File) => {
-    // Set worker path for PDF.js
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
-
     if (file.type === "application/pdf") {
       // Handle PDF files
       const reader = new FileReader();
       reader.onload = async (e) => {
         const pdfData = e.target?.result as ArrayBuffer;
         try {
-          const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+          // Dynamically import pdfjs-dist and set up the worker
+          const { getDocument, GlobalWorkerOptions, version } = await import("pdfjs-dist");
+          // Use unpkg CDN as it's more reliable than cdnjs
+          GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.mjs`;
+
+          const pdf = await getDocument({ data: pdfData }).promise;
           const firstPage = await pdf.getPage(1); // Just process first page
           const viewport = firstPage.getViewport({ scale: 2 });
           
