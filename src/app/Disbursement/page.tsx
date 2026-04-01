@@ -1438,13 +1438,13 @@ const isBudgetEnough = () => {
                   <label className="block">
                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition">
                       <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                      <p className="font-semibold text-gray-700">Click to upload image</p>
+                      <p className="font-semibold text-gray-700">Click to upload image or PDF</p>
                       <p className="text-sm text-gray-500">or drag and drop</p>
                     </div>
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="image/*"
+                      accept="image/*,.pdf"
                       onChange={(e) => {
                         if (e.target.files?.[0]) {
                           handleImageUpload(e.target.files[0]);
