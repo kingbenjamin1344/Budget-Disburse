@@ -401,6 +401,7 @@ const startCamera = async () => {
     // Normalize text
     const raw = text || "";
     const ltext = raw.toLowerCase();
+    const lines = raw.split('\n').map(l => l.trim()).filter(l => l);
 
     // ============ Date Extraction (FIRST - before DV extraction to avoid conflicts) ============
     let dateStr = "";
@@ -466,23 +467,76 @@ const startCamera = async () => {
       }
     }
 
-    // ============ Enhanced Amount Detection (Philippine Peso Format) ============
-    // Supports various formats: ₱1,234.50, ₱1234.5, Amount: 1234, $5000.25, etc.
-    const amountMatch = 
-      raw.match(/₱\s*([\d,]+(?:\.\d{1,2})?)/) ||
-      raw.match(/(?:amount|total)[:\s]*(?:₱\s*)?([\d,]+(?:\.\d{1,2})?)/i) ||
-      raw.match(/([\d,]+(?:\.\d{1,2})?)\s*(?:pesos?|php)/i) ||
-      raw.match(/(?:p\.?|\$)\s*([\d,]+(?:\.\d{1,2})?)/i);
+    // ============ IMPROVED Amount Detection (Philippine Peso Format) ============
+    let amount = "";
+    const amountPatterns = [
+      /₱\s*([\d,]+(?:\.\d{1,2})?)/,  // ₱ symbol
+      /(?:amount|total|subtotal)[:\s=]*(?:₱\s*)?([\d,]+(?:\.\d{1,2})?)/i,  // Amount: keyword
+      /([\d,]+(?:\.\d{1,2})?)\s*(?:pesos?|php|php\.)/i,  // ...pesos or ...php
+      /(?:p\.?|\$)\s*([\d,]+(?:\.\d{1,2})?)/i,  // P or $ prefix
+      /\b([\d,]+(?:\.\d{1,2})?)\s*only/i,  // Number followed by "only"
+    ];
     
-    const amount = amountMatch 
-      ? amountMatch[1].replace(/,/g, "")
-      : "";
+    for (const pattern of amountPatterns) {
+      const match = raw.match(pattern);
+      if (match) {
+        amount = match[1].replace(/,/g, "");
+        break;
+      }
+    }
+    
+    // If still not found, look for any standalone large number (likely an amount)
+    if (!amount) {
+      const largeNumberMatch = raw.match(/\b([\d,]+(?:\.\d{1,2})?)\b/);
+      if (largeNumberMatch) {
+        const num = parseFloat(largeNumberMatch[1].replace(/,/g, ""));
+        // Only accept if it's a reasonable amount (100-999,999,999)
+        if (num >= 100 && num <= 999999999) {
+          amount = largeNumberMatch[1].replace(/,/g, "");
+        }
+      }
+    }
 
-    // ============ Payee Extraction ============
-    const payeeMatch = raw.match(/(?:payee|received by|recipient)[:\s]*([A-Za-z0-9 .,&'-]{2,80})/i);
-    const payee = payeeMatch 
-      ? payeeMatch[1].trim().substring(0, 100)
-      : "";
+    // ============ IMPROVED Payee Extraction ============
+    let payee = "";
+    
+    // Strategy 1: Look for explicit payee label and take the next meaningful text
+    const payeeMatch = raw.match(/(?:payee|received\s+by|recipient|bill\s+to)[:\s=]*([A-Za-z0-9 .,&'()\-]{2,100})/i);
+    if (payeeMatch) {
+      payee = payeeMatch[1].trim().split('\n')[0].substring(0, 100);
+    }
+    
+    // Strategy 2: If not found, look for all-caps names that are LIKELY payee names
+    if (!payee) {
+      for (const line of lines) {
+        // Lines that are mostly uppercase and contain 3+ words are likely payee names
+        const upperCount = (line.match(/[A-Z]/g) || []).length;
+        const partialUpper = upperCount / Math.max(line.length, 1) > 0.5;
+        const wordCount = line.split(/\s+/).length;
+        
+        if (partialUpper && wordCount >= 2 && line.length > 5 && line.length < 100) {
+          // Skip lines that look like headers or common OCR artifacts
+          if (!/^(date|amount|dv|no\.?|page|total|department)/i.test(line)) {
+            payee = line.substring(0, 100);
+            break;
+          }
+        }
+      }
+    }
+    
+    // Strategy 3: As last resort, take the longest line that looks like a name
+    if (!payee && lines.length > 2) {
+      const nameLines = lines.filter(l => 
+        l.length > 5 && 
+        l.length < 120 && 
+        /[A-Za-z]/.test(l) &&
+        !/^\d+|date|amount|dv|no\.?|department|office/i.test(l)
+      );
+      if (nameLines.length > 0) {
+        nameLines.sort((a, b) => b.length - a.length);
+        payee = nameLines[0].substring(0, 100);
+      }
+    }
 
     // ============ Office Detection ============
     let office = "";
@@ -495,11 +549,11 @@ const startCamera = async () => {
       }
     }
 
-    // ============ Improved Expense Type & Category Detection ============
+    // ============ IMPROVED Expense Type & Category Detection ============
     let expenseType = "";
     let expenseCategory = "";
     
-    // First: Try exact matching of expense types
+    // Strategy 1: Exact matching of expense types
     if (expenses && expenses.length) {
       const found = expenses.find((e) => {
         if (!e?.type) return false;
@@ -511,25 +565,25 @@ const startCamera = async () => {
       }
     }
 
-    // Second: Try substring/partial matching for expense types (more flexible)
+    // Strategy 2: Fuzzy/substring matching - match if contains key words
     if (!expenseType && expenses && expenses.length) {
-      // For each expense type, check if the text contains significant parts of it
-      const candidates = expenses.filter((e) => {
-        if (!e?.type) return false;
-        const typeWords = e.type.toLowerCase().split(/\s+/);
-        // Match if text contains at least one significant word from the expense type
-        return typeWords.some(word => word.length > 3 && ltext.includes(word));
+      const scored = expenses.map((e) => {
+        if (!e?.type) return { expense: e, score: 0 };
+        const typeWords = e.type.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+        const matchedWords = typeWords.filter(word => ltext.includes(word)).length;
+        const score = matchedWords / typeWords.length;
+        return { expense: e, score };
       });
-      if (candidates.length) {
-        // Prefer longer matches
-        candidates.sort((a, b) => b.type.length - a.type.length);
-        expenseType = candidates[0].type;
-        expenseCategory = candidates[0].category || "";
+      
+      // Find best match with score > 0.5 (at least 50% of words match)
+      scored.sort((a, b) => b.score - a.score);
+      if (scored[0] && scored[0].score > 0.3) {
+        expenseType = scored[0].expense.type;
+        expenseCategory = scored[0].expense.category || "";
       }
     }
 
-    // ============ Dynamic LGU Keyword Detection (Budget Classification) ============
-    // Uses keywords from database/API instead of hardcoding
+    // Strategy 3: Use dynamic keywords from database
     if (!expenseCategory && Object.keys(categoryKeywords).length > 0) {
       // Check each category's keywords
       for (const [category, data] of Object.entries(categoryKeywords)) {
