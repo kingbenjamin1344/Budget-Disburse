@@ -177,8 +177,11 @@ const startCamera = async () => {
       canvasRef.current.height = videoRef.current.videoHeight;
       context?.drawImage(videoRef.current, 0, 0);
       
-      const imageData = canvasRef.current.toDataURL("image/jpeg");
-      await handlePerformOCR(imageData);
+      // Apply image enhancement to match the video preview quality
+      const imageData = canvasRef.current.toDataURL("image/jpeg", 0.95);
+      const enhancedImageData = await preprocessImage(imageData);
+      
+      await handlePerformOCR(enhancedImageData || imageData);
       stopCamera();
     }
   };
@@ -187,7 +190,9 @@ const startCamera = async () => {
     const reader = new FileReader();
     reader.onload = async (e) => {
       const imageData = e.target?.result as string;
-      await handlePerformOCR(imageData);
+      // Apply preprocessing to enhance image quality
+      const enhancedImageData = await preprocessImage(imageData);
+      await handlePerformOCR(enhancedImageData || imageData);
     };
     reader.readAsDataURL(file);
   };
