@@ -68,6 +68,8 @@ export default function DisbursementPage() {
   const [ocrResult, setOcrResult] = useState("");
   const [isOnlineMode, setIsOnlineMode] = useState(true);
   const [ocrAvailable, setOcrAvailable] = useState(true);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [stream, setStream] = useState<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -131,28 +133,191 @@ export default function DisbursementPage() {
   }, []);
 
   // ====== OCR Functions ======
+const preprocessCapturedImage = async (imageData: string): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      // Create canvas for preprocessing
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      // Step 1: Calculate scale factor based on image size
+      // Target minimum width of 1200px for better OCR
+      const targetMinWidth = 1200;
+      let width = img.width;
+      let height = img.height;
+      let scale = 1;
+      
+      if (width < targetMinWidth) {
+        scale = targetMinWidth / width;
+        width = targetMinWidth;
+        height = height * scale;
+      }
+      
+      canvas.width = width;
+      canvas.height = height;
+      
+      if (ctx) {
+        // Draw scaled image
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Step 2: Convert to grayscale for better text detection
+        const imageDataObj = ctx.getImageData(0, 0, width, height);
+        const data = imageDataObj.data;
+        
+        for (let i = 0; i < data.length; i += 4) {
+          // Convert to grayscale
+          const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+          data[i] = gray;     // R
+          data[i + 1] = gray; // G
+          data[i + 2] = gray; // B
+        }
+        ctx.putImageData(imageDataObj, 0, 0);
+        
+        // Step 3: Apply sharpening filter
+        const sharpenedData = ctx.getImageData(0, 0, width, height);
+        const sharpenedPixels = sharpenedData.data;
+        
+        // Simple sharpening (unsharp mask)
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = width;
+        tempCanvas.height = height;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx?.drawImage(canvas, 0, 0);
+        const blurredData = tempCtx?.getImageData(0, 0, width, height);
+        
+        if (blurredData) {
+          for (let i = 0; i < data.length; i += 4) {
+            // Apply sharpening: original + (original - blurred)
+            for (let j = 0; j < 3; j++) {
+              const original = sharpenedPixels[i + j];
+              const blurred = blurredData.data[i + j];
+              const sharpened = Math.min(255, Math.max(0, original + (original - blurred) * 0.8));
+              sharpenedPixels[i + j] = sharpened;
+            }
+          }
+          ctx.putImageData(sharpenedData, 0, 0);
+        }
+        
+        // Step 4: Increase contrast
+        const contrastData = ctx.getImageData(0, 0, width, height);
+        const contrastPixels = contrastData.data;
+        const contrast = 1.3; // Increase contrast by 30%
+        
+        for (let i = 0; i < contrastPixels.length; i += 4) {
+          for (let j = 0; j < 3; j++) {
+            let value = contrastPixels[i + j];
+            value = ((value / 255 - 0.5) * contrast + 0.5) * 255;
+            contrastPixels[i + j] = Math.min(255, Math.max(0, value));
+          }
+        }
+        ctx.putImageData(contrastData, 0, 0);
+        
+        // Return processed image as data URL
+        resolve(canvas.toDataURL('image/jpeg', 0.95));
+      } else {
+        resolve(imageData);
+      }
+    };
+    img.src = imageData;
+  });
+};
+
+const checkImageQuality = (imageData: string): Promise<{ quality: 'good' | 'poor'; message: string }> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      // Check resolution
+      if (img.width < 800 || img.height < 600) {
+        resolve({
+          quality: 'poor',
+          message: 'Image resolution too low. Move closer to the document or use higher resolution camera.'
+        });
+        return;
+      }
+      
+      // Create temporary canvas to analyze
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(img, 0, 0);
+      
+      const imageDataObj = ctx?.getImageData(0, 0, img.width, img.height);
+      if (imageDataObj) {
+        // Check contrast (simple variance check)
+        let total = 0;
+        const data = imageDataObj.data;
+        for (let i = 0; i < data.length; i += 4) {
+          total += (data[i] + data[i+1] + data[i+2]) / 3;
+        }
+        const avg = total / (img.width * img.height);
+        
+        let variance = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          const brightness = (data[i] + data[i+1] + data[i+2]) / 3;
+          variance += Math.pow(brightness - avg, 2);
+        }
+        variance = variance / (img.width * img.height);
+        
+        if (variance < 500) {
+          resolve({
+            quality: 'poor',
+            message: 'Low contrast detected. Ensure even lighting and avoid shadows.'
+          });
+          return;
+        }
+      }
+      
+      resolve({ quality: 'good', message: 'Image quality sufficient for OCR' });
+    };
+    img.src = imageData;
+  });
+};
+
 const startCamera = async () => {
   try {
-    let stream;
+    let mediaStream: MediaStream;
 
-    // Try back camera first (mobile)
+    // Try back camera first with higher resolution constraints
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" } },
+      mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 3840 }, // 4K if available
+          height: { ideal: 2160 },
+          aspectRatio: { ideal: 1.5 }
+        },
         audio: false,
       });
     } catch {
-      // Fallback to ANY camera
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
+      // Fallback to ANY camera with high resolution
+      mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        },
         audio: false,
       });
     }
 
+    setStream(mediaStream);
+    
     if (videoRef.current) {
-      videoRef.current.srcObject = stream;
+      videoRef.current.srcObject = mediaStream;
       await videoRef.current.play();
       setCameraActive(true);
+      
+      // Apply zoom if supported
+      const track = mediaStream.getVideoTracks()[0];
+      const capabilities = track.getCapabilities() as any;
+      
+      if (capabilities.zoom && 'zoom' in track.getSettings()) {
+        const maxZoom = capabilities.zoom.max || 4;
+        await track.applyConstraints({
+          advanced: [{ zoom: Math.min(zoomLevel, maxZoom) } as any]
+        });
+      }
     }
   } catch (err) {
     toast.error("Camera error: " + String(err));
@@ -162,22 +327,37 @@ const startCamera = async () => {
 
 
 
+
   const stopCamera = () => {
     if (videoRef.current?.srcObject) {
       const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
       tracks.forEach((track) => track.stop());
       setCameraActive(false);
+      setStream(null);
     }
   };
 
   const capturePhoto = async () => {
     if (videoRef.current && canvasRef.current) {
       const context = canvasRef.current.getContext("2d");
-      canvasRef.current.width = videoRef.current.videoWidth;
-      canvasRef.current.height = videoRef.current.videoHeight;
-      context?.drawImage(videoRef.current, 0, 0);
       
-      const imageData = canvasRef.current.toDataURL("image/jpeg");
+      // Use higher resolution capture
+      const videoWidth = videoRef.current.videoWidth;
+      const videoHeight = videoRef.current.videoHeight;
+      
+      canvasRef.current.width = videoWidth;
+      canvasRef.current.height = videoHeight;
+      
+      context?.drawImage(videoRef.current, 0, 0, videoWidth, videoHeight);
+      
+      const imageData = canvasRef.current.toDataURL("image/jpeg", 1.0); // Max quality
+      
+      // Check quality before OCR
+      const quality = await checkImageQuality(imageData);
+      if (quality.quality === 'poor') {
+        toast.warning(quality.message, { autoClose: 3000 });
+      }
+      
       await handlePerformOCR(imageData);
       stopCamera();
     }
@@ -195,82 +375,85 @@ const startCamera = async () => {
   const handlePerformOCR = async (imageData: string) => {
     setOcrLoading(true);
     try {
-      // Validate that imageData is not empty or too small
       if (!imageData || imageData.length < 100) {
         throw new Error("Invalid image data - image may be too small or corrupted");
       }
 
+      // Show loading toast with progress indication
+      toast.info("Preprocessing image for better OCR...", { autoClose: 2000 });
+
+      // Step 1: Preprocess the image (scale up, sharpen, enhance contrast)
+      const processedImage = await preprocessCapturedImage(imageData);
+      
+      toast.info("Running OCR (this may take a few seconds)...", { autoClose: 2000 });
+
       // Initialize worker if not already done
       await initTesseractWorker();
 
-      // First pass: Standard PSM mode for general document layout
-      let result1, result2;
-      try {
-        result1 = await performOCR(imageData, { psm: 6 });
-      } catch (err) {
-        console.warn("First OCR pass failed, trying with different parameters:", err);
-        result1 = { text: "", confidence: 0, raw: "" };
+      // Step 2: Multi-pass OCR with different settings
+      const ocrOptions = [
+        { psm: 6, oem: 3 },        // Uniform block, LSTM engine
+        { psm: 4, oem: 3 },        // Assume single column of text
+        { psm: 11, oem: 3 },       // Sparse text
+      ];
+      
+      const results: OCRResult[] = [];
+      
+      for (const options of ocrOptions) {
+        try {
+          const result = await performOCR(processedImage, options);
+          if (result.text && result.text.trim()) {
+            results.push(result);
+          }
+        } catch (err) {
+          console.warn(`OCR with PSM ${options.psm} failed:`, err);
+        }
       }
       
-      // Second pass: Uniform block mode for better text extraction
-      try {
-        result2 = await performOCR(imageData, { psm: 11 });
-      } catch (err) {
-        console.warn("Second OCR pass failed:", err);
-        result2 = { text: "", confidence: 0, raw: "" };
+      if (results.length === 0) {
+        throw new Error("No text could be extracted from the image");
       }
       
-      // Combine text from both passes for more complete extraction
-      const combinedText = (result1.text || "") + "\n" + (result2.text || "");
-      const avgConfidence = result1.confidence && result2.confidence 
-        ? (result1.confidence + result2.confidence) / 2 
-        : (result1.confidence || result2.confidence || 0);
-      
-      // Check if we actually extracted any text
-      if (!combinedText.trim()) {
-        throw new Error("No text could be extracted from the image. Please try with a clearer image of a document with visible text.");
+      // Find best result by confidence or length
+      let bestResult = results[0];
+      for (const result of results) {
+        if (result.confidence > bestResult.confidence) {
+          bestResult = result;
+        }
       }
       
-      setOcrResult(combinedText);
+      const extractedText = bestResult.text;
+      const confidence = bestResult.confidence;
       
-      // Check OCR confidence quality
-      if (avgConfidence < 60) {
-        toast.warning(`⚠️ Low OCR confidence (${avgConfidence.toFixed(0)}%). Please review and manually correct extracted data.`, {
-          autoClose: 4000,
+      setOcrResult(extractedText);
+      
+      // Provide quality feedback
+      if (confidence < 60) {
+        toast.warning(`⚠️ Low OCR confidence (${confidence.toFixed(0)}%). Try taking a clearer photo with better lighting.`, {
+          autoClose: 5000,
         });
-      } else if (avgConfidence >= 80) {
-        toast.success(`✓ High confidence OCR (${avgConfidence.toFixed(0)}%)`, {
+      } else if (confidence >= 80) {
+        toast.success(`✓ High quality extraction (${confidence.toFixed(0)}% confidence)`, {
           autoClose: 2000,
         });
       }
       
-      // Parse disbursement data from combined OCR text
-      parseAndFillForm(combinedText);
+      // Parse extracted data
+      parseAndFillForm(extractedText);
       
-      // Show appropriate success message
-      if (isOnlineMode) {
-        toast.info("OCR completed (Online mode)", { autoClose: 2000 });
-      } else {
-        toast.info("OCR completed (Offline mode)", { autoClose: 2000 });
-      }
+      toast.info("OCR completed successfully", { autoClose: 2000 });
+      
     } catch (err) {
       const errMsg = String(err);
       let userMessage = "OCR failed. Please try again with a clearer image.";
       
-      // Provide more specific error messages
-      if (errMsg.includes("image")) {
-        userMessage = "Could not read the image. Please ensure the image is clear, not blurry, and contains readable text.";
+      if (errMsg.includes("image") || errMsg.includes("blur")) {
+        userMessage = "Image quality too low. Please ensure the document is well-lit, in focus, and fill the frame.";
       } else if (errMsg.includes("text") || errMsg.includes("extract")) {
-        userMessage = "No text was found in the image. Try with a clearer photo of a document or paper.";
-      } else if (!isOnlineMode && errMsg.includes("timeout")) {
-        userMessage = "Offline mode OCR is taking too long. Try with a smaller image or switch to online mode.";
-      } else if (errMsg.includes("network")) {
-        userMessage = "Network error. Please check your connection and try again.";
-      } else if (errMsg.includes("corrupted")) {
-        userMessage = "Image data appears to be corrupted. Please recapture the image and try again.";
+        userMessage = "No readable text found. Try capturing the document from a closer distance with good lighting.";
       }
       
-      toast.error(userMessage, { autoClose: 4000 });
+      toast.error(userMessage, { autoClose: 5000 });
       console.error("OCR Error:", err);
     } finally {
       setOcrLoading(false);
@@ -1377,21 +1560,34 @@ const isBudgetEnough = () => {
         }`}
       />
       
-      {/* Document Crop Guide Overlay - Visible when camera is active */}
+      {/* Enhanced Document Capture Guide */}
       {cameraActive && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           {/* Darkened areas outside the guide */}
           <div className="absolute inset-0 bg-black/40" />
           
-          {/* White border rectangle showing capture area */}
-          <div className="border-4 border-white rounded-xl w-80 h-96 flex items-center justify-center">
-            <div className="text-white text-center text-sm font-semibold drop-shadow-lg">
+          {/* Document frame with rounded corners and glow effect */}
+          <div className="relative">
+            {/* Outer glow effect */}
+            <div className="absolute inset-0 rounded-2xl shadow-[0_0_0_2px_rgba(255,255,255,0.8),0_0_0_4px_rgba(0,120,255,0.5)] animate-pulse" />
+            
+            {/* Main document frame */}
+            <div className="border-4 border-white rounded-2xl w-80 h-96 relative">
+              {/* Corner markers for alignment */}
+              <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-white" />
+              <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-white" />
+              <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-white" />
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-white" />
               
+              {/* Center guide text */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="bg-black/60 backdrop-blur-sm rounded-lg px-3 py-1.5">
+                  <p className="text-white text-sm font-semibold">Align document here</p>
+                  <p className="text-white/70 text-xs text-center">Fill frame for best results</p>
+                </div>
+              </div>
             </div>
           </div>
-          
-          {/* Corner markers for better visibility */}
-          
         </div>
       )}
     </div>
@@ -1404,7 +1600,41 @@ const isBudgetEnough = () => {
         <Camera className="w-5 h-5" /> Start Camera
       </button>
     ) : (
-      <div className="flex gap-2">
+      <div>
+    {/* Zoom Control */}
+    {scanMode === "camera" && cameraActive && (
+      <div className="space-y-3">
+        {/* Zoom Slider */}
+        <div className="flex items-center gap-3 px-2">
+          <span className="text-sm text-gray-600">Zoom:</span>
+          <input
+            type="range"
+            min="1"
+            max="4"
+            step="0.1"
+            value={zoomLevel}
+            onChange={async (e) => {
+              const newZoom = parseFloat(e.target.value);
+              setZoomLevel(newZoom);
+              if (stream) {
+                const track = stream.getVideoTracks()[0];
+                try {
+                  await track.applyConstraints({
+                    advanced: [{ zoom: newZoom } as any]
+                  });
+                } catch (err) {
+                  console.warn("Zoom not supported:", err);
+                }
+              }
+            }}
+            className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+          />
+          <span className="text-sm font-semibold text-blue-600 min-w-[40px]">
+            {zoomLevel.toFixed(1)}x
+          </span>
+        </div>
+        
+        {/* Capture and Cancel Buttons */}
         <button
           onClick={capturePhoto}
           disabled={ocrLoading}
@@ -1426,6 +1656,8 @@ const isBudgetEnough = () => {
         >
           Cancel
         </button>
+      </div>
+    )}
       </div>
     )}
   </div>
