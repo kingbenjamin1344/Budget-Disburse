@@ -3,24 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "react-toastify";
 import { Search, Plus, Edit, Trash2, X, ScanEye, Camera, Upload, Loader, Wifi, WifiOff, Building2, Calendar, Clock, DollarSign, FileText, User, Tag, FolderOpen, Receipt, CreditCard } from "lucide-react";
-import { performOCR, initTesseractWorker, terminateTesseractWorker, getOCRStatus, isNetworkOnline, preprocessImage, type OCRResult, type PreprocessOptions, type OCROptions } from "@/lib/offlineTesseract";
-
-// =================== Interfaces ===================
-interface ExtractedField {
-  text: string;
-  bounds: { x: number; y: number; width: number; height: number };
-  confidence: number;
-}
-
-interface DocumentAnalysis {
-  dvNo: ExtractedField | null;
-  payee: ExtractedField | null;
-  office: ExtractedField | null;
-  expenseType: ExtractedField | null;
-  expenseCategory: ExtractedField | null;
-  date: ExtractedField | null;
-  amount: ExtractedField | null;
-}
+import { performOCR, initTesseractWorker, terminateTesseractWorker, getOCRStatus, isNetworkOnline, preprocessImage, type OCRResult } from "@/lib/offlineTesseract";
 
 // =================== Floating Scan Button ===================
 interface FloatingScanButtonProps {
@@ -88,14 +71,6 @@ export default function DisbursementPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // ====== Document Analysis States ======
-  const [analyzingDocument, setAnalyzingDocument] = useState(false);
-  const [documentAnalysis, setDocumentAnalysis] = useState<DocumentAnalysis | null>(null);
-  const [selectedField, setSelectedField] = useState<string | null>(null);
-  const [showFieldHighlights, setShowFieldHighlights] = useState(true);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
 
 
 
@@ -209,48 +184,12 @@ const startCamera = async () => {
   };
 
   const handleImageUpload = async (file: File) => {
-    if (file.type === "application/pdf") {
-      // Handle PDF files
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const pdfData = e.target?.result as ArrayBuffer;
-        try {
-          // Dynamically import pdfjs-dist and set up the worker
-          const { getDocument, GlobalWorkerOptions, version } = await import("pdfjs-dist");
-          // Use unpkg CDN as it's more reliable than cdnjs
-          GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.mjs`;
-
-          const pdf = await getDocument({ data: pdfData }).promise;
-          const firstPage = await pdf.getPage(1); // Just process first page
-          const viewport = firstPage.getViewport({ scale: 2 });
-          
-          const canvas = document.createElement("canvas");
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
-          
-          await firstPage.render({
-            canvas: canvas,
-            viewport: viewport,
-          }).promise;
-          
-          const imageData = canvas.toDataURL("image/jpeg");
-          await handlePerformOCR(imageData);
-          toast.info(`Processed PDF page 1 of ${pdf.numPages}`, { autoClose: 3000 });
-        } catch (err) {
-          toast.error("PDF processing failed: " + String(err));
-          console.error("PDF processing error:", err);
-        }
-      };
-      reader.readAsArrayBuffer(file);
-    } else {
-      // Handle image files
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const imageData = e.target?.result as string;
-        await handlePerformOCR(imageData);
-      };
-      reader.readAsDataURL(file);
-    }
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const imageData = e.target?.result as string;
+      await handlePerformOCR(imageData);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handlePerformOCR = async (imageData: string) => {
@@ -264,101 +203,43 @@ const startCamera = async () => {
       // Initialize worker if not already done
       await initTesseractWorker();
 
-      // Enhanced preprocessing options for document OCR
-      const preprocessOptions: PreprocessOptions = {
-        scale: 3, // Upscale 3x for maximum detail extraction
-        detectDocument: true, // Auto-detect and crop document
-        sharpenIntensity: 2.0, // High sharpening for text edge clarity
-        contrastFactor: 1.8, // Enhanced contrast for better character separation
-        threshold: 140, // Optimized threshold for document text
-      };
-
-      let result1, result2, result3;
-      
-      // First pass: PSM 6 (Uniform block of text)
+      // First pass: Standard PSM mode for general document layout
+      let result1, result2;
       try {
-        result1 = await performOCR(imageData, {
-          psm: 6,
-          preprocessOptions: preprocessOptions,
-        });
+        result1 = await performOCR(imageData, { psm: 6 });
       } catch (err) {
-        console.warn("First OCR pass failed:", err);
+        console.warn("First OCR pass failed, trying with different parameters:", err);
         result1 = { text: "", confidence: 0, raw: "" };
       }
       
-      // Second pass: PSM 11 (Sparse text with no specific order)
+      // Second pass: Uniform block mode for better text extraction
       try {
-        result2 = await performOCR(imageData, {
-          psm: 11,
-          preprocessOptions: {
-            ...preprocessOptions,
-            sharpenIntensity: 1.8, // Slightly less sharpening
-          },
-        });
+        result2 = await performOCR(imageData, { psm: 11 });
       } catch (err) {
         console.warn("Second OCR pass failed:", err);
         result2 = { text: "", confidence: 0, raw: "" };
       }
-
-      // Third pass: PSM 3 (Fully automatic page segmentation)
-      try {
-        result3 = await performOCR(imageData, {
-          psm: 3,
-          preprocessOptions: {
-            ...preprocessOptions,
-            sharpenIntensity: 1.6, // Moderate sharpening for general layout
-            contrastFactor: 1.7,
-          },
-        });
-      } catch (err) {
-        console.warn("Third OCR pass failed:", err);
-        result3 = { text: "", confidence: 0, raw: "" };
-      }
-
-      // Intelligent text merging from three passes
-      const texts = [result1.text, result2.text, result3.text].filter(t => t && t.trim());
-      const confidences = [result1.confidence, result2.confidence, result3.confidence].filter(c => c > 0);
       
-      let combinedText: string;
-      if (texts.length === 0) {
+      // Combine text from both passes for more complete extraction
+      const combinedText = (result1.text || "") + "\n" + (result2.text || "");
+      const avgConfidence = result1.confidence && result2.confidence 
+        ? (result1.confidence + result2.confidence) / 2 
+        : (result1.confidence || result2.confidence || 0);
+      
+      // Check if we actually extracted any text
+      if (!combinedText.trim()) {
         throw new Error("No text could be extracted from the image. Please try with a clearer image of a document with visible text.");
-      } else if (texts.length === 1) {
-        combinedText = texts[0];
-      } else {
-        // Combine multiple passes intelligently
-        const uniqueLines = new Set<string>();
-        texts.forEach(text => {
-          text.split('\n').forEach(line => {
-            const trimmed = line.trim();
-            if (trimmed) uniqueLines.add(trimmed);
-          });
-        });
-        combinedText = Array.from(uniqueLines).join('\n');
-      }
-
-      // Weighted confidence calculation
-      let avgConfidence = 0;
-      if (confidences.length > 0) {
-        avgConfidence = confidences.reduce((a, b) => a + b, 0) / confidences.length;
       }
       
       setOcrResult(combinedText);
       
-      // Enhanced confidence feedback
-      if (avgConfidence < 50) {
-        toast.warning(`⚠️ Very low OCR confidence (${avgConfidence.toFixed(0)}%). Please verify and manually correct all fields.`, {
-          autoClose: 5000,
-        });
-      } else if (avgConfidence < 70) {
-        toast.warning(`⚠️ Low OCR confidence (${avgConfidence.toFixed(0)}%). Please review extracted data.`, {
+      // Check OCR confidence quality
+      if (avgConfidence < 60) {
+        toast.warning(`⚠️ Low OCR confidence (${avgConfidence.toFixed(0)}%). Please review and manually correct extracted data.`, {
           autoClose: 4000,
         });
-      } else if (avgConfidence >= 85) {
-        toast.success(`✓ Excellent OCR confidence (${avgConfidence.toFixed(0)}%)`, {
-          autoClose: 2000,
-        });
-      } else if (avgConfidence >= 75) {
-        toast.success(`✓ Good OCR confidence (${avgConfidence.toFixed(0)}%)`, {
+      } else if (avgConfidence >= 80) {
+        toast.success(`✓ High confidence OCR (${avgConfidence.toFixed(0)}%)`, {
           autoClose: 2000,
         });
       }
@@ -366,11 +247,11 @@ const startCamera = async () => {
       // Parse disbursement data from combined OCR text
       parseAndFillForm(combinedText);
       
-      // Show appropriate success message with preprocessing info
+      // Show appropriate success message
       if (isOnlineMode) {
-        toast.info(`✓ OCR completed (${texts.length} passes, confidence: ${avgConfidence.toFixed(0)}%)`, { autoClose: 2000 });
+        toast.info("OCR completed (Online mode)", { autoClose: 2000 });
       } else {
-        toast.info(`✓ OCR completed offline (${texts.length} passes)`, { autoClose: 2000 });
+        toast.info("OCR completed (Offline mode)", { autoClose: 2000 });
       }
     } catch (err) {
       const errMsg = String(err);
@@ -422,246 +303,144 @@ const startCamera = async () => {
   };
 
   const parseAndFillForm = (text: string) => {
-    // Normalize text - preserve original for pattern matching
+    // Normalize text
     const raw = text || "";
     const ltext = raw.toLowerCase();
-    const lines = raw.split('\n').map(l => l.trim()).filter(l => l && l.length > 0);
 
-    // ============ Helper Functions ============
-    
-    // Clean text for better matching
-    const cleanText = (str: string) => {
-      return str.replace(/[^\w\s\-\.\,\/]/g, ' ').replace(/\s+/g, ' ').trim();
-    };
-    
-    // Find text after a label (case insensitive)
-    const extractAfterLabel = (labelPattern: RegExp, context: string, maxChars: number = 100): string => {
-      const match = context.match(labelPattern);
-      if (match && match.index !== undefined) {
-        const afterLabel = context.substring(match.index + match[0].length);
-        // Extract up to next line break or max chars
-        const endOfLine = afterLabel.search(/[\n\r]/);
-        const endIndex = endOfLine !== -1 ? endOfLine : Math.min(afterLabel.length, maxChars);
-        let extracted = afterLabel.substring(0, endIndex).trim();
-        // Clean up common OCR artifacts
-        extracted = extracted.replace(/^[:=\s]+/, '').replace(/[|]/g, '');
-        return extracted;
-      }
-      return "";
-    };
-    
-    // ============ DV Number Extraction ============
-    let dvNo = "";
-    
-    // Pattern 1: Explicit DV label with number
-    const dvPatterns = [
-      /dv\s*(?:no|number|#)?\s*\.?\s*[:=\s]*([A-Z0-9\-]{5,20})/i,
-      /disbursement\s*voucher\s*(?:no|number|#)?\s*\.?\s*[:=\s]*([A-Z0-9\-]{5,20})/i,
-      /voucher\s*(?:no|number|#)?\s*\.?\s*[:=\s]*([A-Z0-9\-]{5,20})/i,
-      /(?:dv|voucher)[\s\-]*(?:no|number)[\s\-]*([0-9\-]{8,20})/i,
-      /\b(\d{3}-\d{4}-\d{2}-\d{4})\b/, // Philippine DV format: 000-0000-00-0000
-      /\b(DV|VOUCHER)[\s\-]*([0-9\-]{6,20})\b/i,
+    // ============ Date Extraction (FIRST - before DV extraction to avoid conflicts) ============
+    let dateStr = "";
+    // Order matters: Check MM/DD/YYYY first (most common in Philippine documents)
+    const datePatterns = [
+      /(\d{2}\/\d{2}\/\d{4})/, // 03/20/2026 (MM/DD/YYYY) - Philippine format, TRY FIRST
+      /(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})/, // 20 March 2026
+      /(\d{1,2}[-\s][A-Za-z]{3,9}[-\s]\d{4})/, // 20-March-2026 or 20 Mar 2026
+      /(\d{4}-\d{2}-\d{2})/, // 2026-03-20 (only if valid month/day, not DV number)
     ];
     
-    for (const pattern of dvPatterns) {
-      const match = raw.match(pattern);
-      if (match) {
-        dvNo = (match[1] || match[2] || match[0]).trim().substring(0, 50);
-        // Clean up any extra characters
-        dvNo = dvNo.replace(/[^A-Z0-9\-]/gi, '');
-        if (dvNo.length >= 5) break;
-      }
-    }
-    
-    // If still not found, look for any number pattern that's NOT a date
-    if (!dvNo) {
-      const allNumbers = raw.match(/\b([0-9\-]{8,20})\b/g) || [];
-      for (const num of allNumbers) {
-        // Skip if it looks like a date (YYYY-MM-DD or MM/DD/YYYY)
-        const isDate = /^\d{4}-\d{2}-\d{2}$/.test(num) || /^\d{2}\/\d{2}\/\d{4}$/.test(num);
-        if (!isDate && num.length >= 8 && num.includes('-')) {
-          dvNo = num;
-          break;
-        }
-      }
-    }
-    
-    // ============ Date Extraction (with careful filtering) ============
-    let dateStr = "";
-    
-    // First, try to find date with explicit label
-    const dateLabelMatch = raw.match(/(?:date|dated)[:\s]*([A-Za-z0-9\s\/\-]{6,20})/i);
-    if (dateLabelMatch) {
-      dateStr = dateLabelMatch[1].trim();
-    }
-    
-    // If not found, try common date patterns (but be careful not to match DV numbers)
-    if (!dateStr) {
-      const datePatterns = [
-        /(\d{1,2}\/\d{1,2}\/\d{4})/, // MM/DD/YYYY or DD/MM/YYYY
-        /(\d{4}-\d{2}-\d{2})(?![-\d])/, // YYYY-MM-DD (with negative lookahead to avoid longer numbers)
-        /(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4})/i,
-        /(\d{1,2}-\d{1,2}-\d{4})/, // DD-MM-YYYY
-      ];
-      
-      for (const pattern of datePatterns) {
-        const match = raw.match(pattern);
-        if (match) {
-          const extracted = match[1];
-          // Validate it's a reasonable date
-          const dateTest = new Date(extracted);
-          if (!isNaN(dateTest.getTime()) && dateTest.getFullYear() >= 2000) {
-            dateStr = extracted;
-            break;
+    for (const p of datePatterns) {
+      const m = raw.match(p);
+      if (m) {
+        const extracted = m[1];
+        
+        // For YYYY-MM-DD format, validate that it's a real date (month 01-12, day 01-31)
+        // This prevents matching DV numbers like "2025-18-0812" which have invalid months
+        if (p.source === '(\\d{4}-\\d{2}-\\d{2})') {
+          const parts = extracted.split('-');
+          const month = parseInt(parts[1], 10);
+          const day = parseInt(parts[2], 10);
+          // Skip if month > 12 or day > 31 (invalid date)
+          if (month > 12 || day > 31) {
+            continue;
           }
         }
+        
+        dateStr = extracted;
+        break;
       }
     }
-    
     const normalizedDate = normalizeDate(dateStr);
 
-    // ============ Payee Extraction ============
-    let payee = "";
+    // ============ Enhanced DV Number Extraction ============
+    // Try multiple patterns for Philippine DV format
+    // Explicitly check for "DV" label first, then fall back to number patterns
+    // Avoid matching date patterns (YYYY-MM-DD)
+    let dvNo = "";
     
-    // Strategy 1: Look for explicit payee labels
-    const payeePatterns = [
-      /payee\s*[:=\s]+([A-Za-z0-9\s\.\,\&\'\-]{3,100})/i,
-      /received\s*by\s*[:=\s]+([A-Za-z0-9\s\.\,\&\'\-]{3,100})/i,
-      /recipient\s*[:=\s]+([A-Za-z0-9\s\.\,\&\'\-]{3,100})/i,
-      /check\s*(?:payable\s*to|issued\s*to)\s*[:=\s]+([A-Za-z0-9\s\.\,\&\'\-]{3,100})/i,
-      /in\s*favor\s*of\s*[:=\s]+([A-Za-z0-9\s\.\,\&\'\-]{3,100})/i,
-    ];
-    
-    for (const pattern of payeePatterns) {
-      const match = raw.match(pattern);
-      if (match) {
-        payee = match[1].trim();
-        // Clean up and limit length
-        payee = payee.replace(/[|]/g, '').split('\n')[0].substring(0, 100);
-        if (payee.length > 5) break;
-      }
-    }
-    
-    // Strategy 2: Look for all-caps names that are likely payee names
-    if (!payee) {
-      for (const line of lines) {
-        // Check if line is mostly uppercase and contains words that look like a name
-        const words = line.split(/\s+/);
-        const upperCount = (line.match(/[A-Z]/g) || []).length;
-        const upperRatio = upperCount / Math.max(line.length, 1);
-        
-        // Name-like characteristics: 2-5 words, mostly uppercase, contains letters
-        if (upperRatio > 0.5 && words.length >= 2 && words.length <= 5 && line.length > 5 && line.length < 100) {
-          // Skip common headers
-          if (!/^(date|amount|dv|no|page|total|department|office|category)/i.test(line)) {
-            payee = line.substring(0, 100);
-            break;
+    // First: Look for explicit "DV No." pattern
+    const dvExplicitMatch = raw.match(/dv[\s:]*no\.?[\s:]*([A-Z0-9-]+)/i);
+    if (dvExplicitMatch) {
+      dvNo = dvExplicitMatch[1].trim().substring(0, 50);
+    } else {
+      // Second: Look for DV with specific format (000-0000-00-0000)
+      const dvFormatMatch = raw.match(/\b(\d{3}-\d{4}-\d{2}-\d{4})\b/);
+      if (dvFormatMatch) {
+        dvNo = dvFormatMatch[1].trim().substring(0, 50);
+      } else {
+        // Third: Look for generic DV number pattern
+        const dvNumberMatch = raw.match(/dv\s*(no\.?|number)?[:\s]*([0-9]{3,5}-[0-9]{3,5})/i);
+        if (dvNumberMatch) {
+          dvNo = dvNumberMatch[2].trim().substring(0, 50);
+        } else {
+          // Fourth: Look for generic number-dash-number pattern BUT exclude date patterns
+          // Only match if it's not the same as the extracted date
+          const genericMatch = raw.match(/\b([0-9]{4,5})-([0-9]{3,5})\b/);
+          if (genericMatch && genericMatch[0] !== dateStr) {
+            dvNo = genericMatch[0].trim().substring(0, 50);
           }
         }
       }
     }
+
+    // ============ Enhanced Amount Detection (Philippine Peso Format) ============
+    // Supports various formats: ₱1,234.50, ₱1234.5, Amount: 1234, $5000.25, etc.
+    const amountMatch = 
+      raw.match(/₱\s*([\d,]+(?:\.\d{1,2})?)/) ||
+      raw.match(/(?:amount|total)[:\s]*(?:₱\s*)?([\d,]+(?:\.\d{1,2})?)/i) ||
+      raw.match(/([\d,]+(?:\.\d{1,2})?)\s*(?:pesos?|php)/i) ||
+      raw.match(/(?:p\.?|\$)\s*([\d,]+(?:\.\d{1,2})?)/i);
     
-    // Strategy 3: Look for name after "to" or "for"
-    if (!payee) {
-      const toMatch = raw.match(/(?:to|for)\s+([A-Z][a-z]+\s+[A-Z][a-z]+\s*(?:[A-Z][a-z]+)?)/)
-      if (toMatch) {
-        payee = toMatch[1].trim().substring(0, 100);
-      }
-    }
-    
+    const amount = amountMatch 
+      ? amountMatch[1].replace(/,/g, "")
+      : "";
+
+    // ============ Payee Extraction ============
+    const payeeMatch = raw.match(/(?:payee|received by|recipient)[:\s]*([A-Za-z0-9 .,&'-]{2,80})/i);
+    const payee = payeeMatch 
+      ? payeeMatch[1].trim().substring(0, 100)
+      : "";
+
     // ============ Office Detection ============
     let office = "";
     if (offices && offices.length) {
-      // Find longest matching office name with word boundary
-      const officeMatches: { name: string; index: number }[] = [];
-      for (const o of offices) {
-        const regex = new RegExp(`\\b${o.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}\\b`, 'i');
-        const match = regex.exec(raw);
-        if (match) {
-          officeMatches.push({ name: o, index: match.index });
-        }
-      }
-      
-      // Sort by occurrence (earlier in text is more likely correct)
-      officeMatches.sort((a, b) => a.index - b.index);
-      if (officeMatches.length) {
-        office = officeMatches[0].name;
-      }
-      
-      // Also check for "office:" label
-      if (!office) {
-        const officeLabelMatch = raw.match(/office\s*[:=\s]+([A-Za-z\s]+)(?:\n|$)/i);
-        if (officeLabelMatch) {
-          const extractedOffice = officeLabelMatch[1].trim();
-          const matchedOffice = offices.find(o => 
-            o.toLowerCase().includes(extractedOffice.toLowerCase()) || 
-            extractedOffice.toLowerCase().includes(o.toLowerCase())
-          );
-          if (matchedOffice) office = matchedOffice;
-        }
+      // Find longest matching office name in text
+      const candidates = offices.filter((o) => o && ltext.includes(o.toLowerCase()));
+      if (candidates.length) {
+        candidates.sort((a, b) => b.length - a.length);
+        office = candidates[0];
       }
     }
-    
-    // ============ Expense Type & Category Detection ============
+
+    // ============ Improved Expense Type & Category Detection ============
     let expenseType = "";
     let expenseCategory = "";
     
-    // First, check for explicit category label (PS, MOOE, CO)
-    const categoryMatch = raw.match(/\b(PS|MOOE|CO)\b/i);
-    if (categoryMatch) {
-      expenseCategory = categoryMatch[1].toUpperCase();
-    }
-    
-    // Check for explicit expense type label
-    const expenseLabelMatch = raw.match(/(?:expense|type|nature)[\s:]*([A-Za-z\s]+)(?:\n|$)/i);
-    if (expenseLabelMatch) {
-      const extractedType = expenseLabelMatch[1].trim();
-      if (expenses && expenses.length) {
-        const found = expenses.find(e => 
-          e.type.toLowerCase().includes(extractedType.toLowerCase()) ||
-          extractedType.toLowerCase().includes(e.type.toLowerCase())
-        );
-        if (found) {
-          expenseType = found.type;
-          if (!expenseCategory) expenseCategory = found.category;
-        }
-      }
-    }
-    
-    // If not found via labels, try matching against known expense types
-    if (!expenseType && expenses && expenses.length) {
-      // Score each expense type based on keyword matching
-      const scored = expenses.map(e => {
-        const typeLower = e.type.toLowerCase();
-        const words = typeLower.split(/\s+/);
-        let score = 0;
-        
-        for (const word of words) {
-          if (word.length > 2 && ltext.includes(word)) {
-            score += 1;
-          }
-        }
-        
-        // Bonus for exact phrase match
-        if (ltext.includes(typeLower)) {
-          score += 5;
-        }
-        
-        return { expense: e, score };
+    // First: Try exact matching of expense types
+    if (expenses && expenses.length) {
+      const found = expenses.find((e) => {
+        if (!e?.type) return false;
+        return ltext.includes(e.type.toLowerCase());
       });
-      
-      scored.sort((a, b) => b.score - a.score);
-      if (scored[0] && scored[0].score > 0) {
-        expenseType = scored[0].expense.type;
-        if (!expenseCategory) expenseCategory = scored[0].expense.category;
+      if (found) {
+        expenseType = found.type;
+        expenseCategory = found.category || "";
       }
     }
-    
-    // Use dynamic keywords for category detection if still not found
+
+    // Second: Try substring/partial matching for expense types (more flexible)
+    if (!expenseType && expenses && expenses.length) {
+      // For each expense type, check if the text contains significant parts of it
+      const candidates = expenses.filter((e) => {
+        if (!e?.type) return false;
+        const typeWords = e.type.toLowerCase().split(/\s+/);
+        // Match if text contains at least one significant word from the expense type
+        return typeWords.some(word => word.length > 3 && ltext.includes(word));
+      });
+      if (candidates.length) {
+        // Prefer longer matches
+        candidates.sort((a, b) => b.type.length - a.type.length);
+        expenseType = candidates[0].type;
+        expenseCategory = candidates[0].category || "";
+      }
+    }
+
+    // ============ Dynamic LGU Keyword Detection (Budget Classification) ============
+    // Uses keywords from database/API instead of hardcoding
     if (!expenseCategory && Object.keys(categoryKeywords).length > 0) {
+      // Check each category's keywords
       for (const [category, data] of Object.entries(categoryKeywords)) {
         const categoryData = data as any;
         if (categoryData.keywords && Array.isArray(categoryData.keywords)) {
+          // Check if any keyword matches (case-insensitive)
           const keywordFound = categoryData.keywords.some((keyword: string) =>
             ltext.includes(keyword.toLowerCase())
           );
@@ -672,43 +451,16 @@ const startCamera = async () => {
         }
       }
     }
-    
-    // ============ Amount Extraction ============
-    let amount = "";
-    
-    const amountPatterns = [
-      /(?:amount|total|subtotal|sum)[:\s=]*[₱$]?\s*([\d,]+(?:\.\d{1,2})?)/i,
-      /[₱$]\s*([\d,]+(?:\.\d{1,2})?)(?:\s*(?:pesos|only))?/i,
-      /([\d,]+(?:\.\d{1,2})?)\s*(?:pesos?|php|only)/i,
-      /\b(?:total|net)[:\s=]*([\d,]+(?:\.\d{1,2})?)\b/i,
-    ];
-    
-    for (const pattern of amountPatterns) {
-      const match = raw.match(pattern);
-      if (match) {
-        amount = match[1].replace(/,/g, "");
-        // Validate it's a reasonable amount
-        const numAmount = parseFloat(amount);
-        if (numAmount >= 100 && numAmount <= 999999999) {
-          break;
-        }
+
+    // Fallback: detect explicit category tokens (PS, MOOE, CO) if still not found
+    if (!expenseCategory) {
+      const catMatch = raw.match(/\b(MOOE|PS|CO)\b/i);
+      if (catMatch) {
+        expenseCategory = catMatch[1].toUpperCase();
       }
     }
-    
-    // If still not found, look for large numbers near the end of document
-    if (!amount) {
-      const allNumbers = raw.match(/\b([\d,]+(?:\.\d{1,2})?)\b/g) || [];
-      for (const num of allNumbers) {
-        const cleanNum = num.replace(/,/g, "");
-        const parsed = parseFloat(cleanNum);
-        if (parsed >= 100 && parsed <= 999999999) {
-          amount = cleanNum;
-          break;
-        }
-      }
-    }
-    
-    // ============ Update Form Data ============
+
+    // Update form data with extracted values (preserve previous values if extraction empty)
     setFormData((prev) => ({
       ...prev,
       dvNo: dvNo || prev.dvNo,
@@ -719,18 +471,6 @@ const startCamera = async () => {
       expenseCategory: expenseCategory || prev.expenseCategory,
       date: normalizedDate || (prev as any).date || "",
     }));
-    
-    // Return extracted values for debugging/info
-    return {
-      dvNo,
-      payee,
-      office,
-      expenseType,
-      expenseCategory,
-      amount,
-      date: normalizedDate,
-      extractedFields: { dvNo, payee, office, expenseType, expenseCategory, amount, date: normalizedDate }
-    };
   };
 
   const closeScanModal = () => {
@@ -1637,7 +1377,23 @@ const isBudgetEnough = () => {
         }`}
       />
       
-
+      {/* Document Crop Guide Overlay - Visible when camera is active */}
+      {cameraActive && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          {/* Darkened areas outside the guide */}
+          <div className="absolute inset-0 bg-black/40" />
+          
+          {/* White border rectangle showing capture area */}
+          <div className="border-4 border-white rounded-xl w-80 h-96 flex items-center justify-center">
+            <div className="text-white text-center text-sm font-semibold drop-shadow-lg">
+              
+            </div>
+          </div>
+          
+          {/* Corner markers for better visibility */}
+          
+        </div>
+      )}
     </div>
 
     {!cameraActive ? (
@@ -1689,7 +1445,7 @@ const isBudgetEnough = () => {
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept=".pdf,image/*"
+                      accept="image/*"
                       onChange={(e) => {
                         if (e.target.files?.[0]) {
                           handleImageUpload(e.target.files[0]);
@@ -1805,29 +1561,6 @@ const isBudgetEnough = () => {
 
       {/* Hidden canvas for photo capture */}
       <canvas ref={canvasRef} className="hidden" />
-      <canvas ref={previewCanvasRef} className="hidden" />
-
-      {/* Animation styles */}
-      <style>{`
-        @keyframes highlightPulse {
-          0% {
-            stroke-opacity: 1;
-            stroke-width: 2;
-          }
-          50% {
-            stroke-opacity: 0.6;
-            stroke-width: 3;
-          }
-          100% {
-            stroke-opacity: 1;
-            stroke-width: 2;
-          }
-        }
-
-        .highlight-box {
-          animation: highlightPulse 1s ease-in-out infinite;
-        }
-      `}</style>
     </div>
   );
 }
