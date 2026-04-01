@@ -5,6 +5,23 @@ import { toast } from "react-toastify";
 import { Search, Plus, Edit, Trash2, X, ScanEye, Camera, Upload, Loader, Wifi, WifiOff, Building2, Calendar, Clock, DollarSign, FileText, User, Tag, FolderOpen, Receipt, CreditCard } from "lucide-react";
 import { performOCR, initTesseractWorker, terminateTesseractWorker, getOCRStatus, isNetworkOnline, preprocessImage, type OCRResult, type PreprocessOptions, type OCROptions } from "@/lib/offlineTesseract";
 
+// =================== Interfaces ===================
+interface ExtractedField {
+  text: string;
+  bounds: { x: number; y: number; width: number; height: number };
+  confidence: number;
+}
+
+interface DocumentAnalysis {
+  dvNo: ExtractedField | null;
+  payee: ExtractedField | null;
+  office: ExtractedField | null;
+  expenseType: ExtractedField | null;
+  expenseCategory: ExtractedField | null;
+  date: ExtractedField | null;
+  amount: ExtractedField | null;
+}
+
 // =================== Floating Scan Button ===================
 interface FloatingScanButtonProps {
   onClick?: () => void;
@@ -71,6 +88,14 @@ export default function DisbursementPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ====== Document Analysis States ======
+  const [analyzingDocument, setAnalyzingDocument] = useState(false);
+  const [documentAnalysis, setDocumentAnalysis] = useState<DocumentAnalysis | null>(null);
+  const [selectedField, setSelectedField] = useState<string | null>(null);
+  const [showFieldHighlights, setShowFieldHighlights] = useState(true);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
 
 
 
@@ -1780,6 +1805,29 @@ const isBudgetEnough = () => {
 
       {/* Hidden canvas for photo capture */}
       <canvas ref={canvasRef} className="hidden" />
+      <canvas ref={previewCanvasRef} className="hidden" />
+
+      {/* Animation styles */}
+      <style>{`
+        @keyframes highlightPulse {
+          0% {
+            stroke-opacity: 1;
+            stroke-width: 2;
+          }
+          50% {
+            stroke-opacity: 0.6;
+            stroke-width: 3;
+          }
+          100% {
+            stroke-opacity: 1;
+            stroke-width: 2;
+          }
+        }
+
+        .highlight-box {
+          animation: highlightPulse 1s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 }
