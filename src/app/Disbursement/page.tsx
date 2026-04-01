@@ -239,8 +239,7 @@ const startCamera = async () => {
       // Initialize worker if not already done
       await initTesseractWorker();
 
-      // Define optimized preprocessing options for document OCR
-      // Pipeline: Upscale (3x) → Document Detection & Crop → Grayscale → Sharpen → Contrast → Threshold
+      // Enhanced preprocessing options for document OCR
       const preprocessOptions: PreprocessOptions = {
         scale: 3, // Upscale 3x for maximum detail extraction
         detectDocument: true, // Auto-detect and crop document
@@ -398,125 +397,138 @@ const startCamera = async () => {
   };
 
   const parseAndFillForm = (text: string) => {
-    // Normalize text
+    // Normalize text - preserve original for pattern matching
     const raw = text || "";
     const ltext = raw.toLowerCase();
-    const lines = raw.split('\n').map(l => l.trim()).filter(l => l);
+    const lines = raw.split('\n').map(l => l.trim()).filter(l => l && l.length > 0);
 
-    // ============ Date Extraction (FIRST - before DV extraction to avoid conflicts) ============
-    let dateStr = "";
-    // Order matters: Check MM/DD/YYYY first (most common in Philippine documents)
-    const datePatterns = [
-      /(\d{2}\/\d{2}\/\d{4})/, // 03/20/2026 (MM/DD/YYYY) - Philippine format, TRY FIRST
-      /(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})/, // 20 March 2026
-      /(\d{1,2}[-\s][A-Za-z]{3,9}[-\s]\d{4})/, // 20-March-2026 or 20 Mar 2026
-      /(\d{4}-\d{2}-\d{2})/, // 2026-03-20 (only if valid month/day, not DV number)
-    ];
+    // ============ Helper Functions ============
     
-    for (const p of datePatterns) {
-      const m = raw.match(p);
-      if (m) {
-        const extracted = m[1];
-        
-        // For YYYY-MM-DD format, validate that it's a real date (month 01-12, day 01-31)
-        // This prevents matching DV numbers like "2025-18-0812" which have invalid months
-        if (p.source === '(\\d{4}-\\d{2}-\\d{2})') {
-          const parts = extracted.split('-');
-          const month = parseInt(parts[1], 10);
-          const day = parseInt(parts[2], 10);
-          // Skip if month > 12 or day > 31 (invalid date)
-          if (month > 12 || day > 31) {
-            continue;
-          }
-        }
-        
-        dateStr = extracted;
-        break;
+    // Clean text for better matching
+    const cleanText = (str: string) => {
+      return str.replace(/[^\w\s\-\.\,\/]/g, ' ').replace(/\s+/g, ' ').trim();
+    };
+    
+    // Find text after a label (case insensitive)
+    const extractAfterLabel = (labelPattern: RegExp, context: string, maxChars: number = 100): string => {
+      const match = context.match(labelPattern);
+      if (match && match.index !== undefined) {
+        const afterLabel = context.substring(match.index + match[0].length);
+        // Extract up to next line break or max chars
+        const endOfLine = afterLabel.search(/[\n\r]/);
+        const endIndex = endOfLine !== -1 ? endOfLine : Math.min(afterLabel.length, maxChars);
+        let extracted = afterLabel.substring(0, endIndex).trim();
+        // Clean up common OCR artifacts
+        extracted = extracted.replace(/^[:=\s]+/, '').replace(/[|]/g, '');
+        return extracted;
       }
-    }
-    const normalizedDate = normalizeDate(dateStr);
-
-    // ============ Enhanced DV Number Extraction ============
-    // Try multiple patterns for Philippine DV format
-    // Explicitly check for "DV" label first, then fall back to number patterns
-    // Avoid matching date patterns (YYYY-MM-DD)
+      return "";
+    };
+    
+    // ============ DV Number Extraction ============
     let dvNo = "";
     
-    // First: Look for explicit "DV No." pattern
-    const dvExplicitMatch = raw.match(/dv[\s:]*no\.?[\s:]*([A-Z0-9-]+)/i);
-    if (dvExplicitMatch) {
-      dvNo = dvExplicitMatch[1].trim().substring(0, 50);
-    } else {
-      // Second: Look for DV with specific format (000-0000-00-0000)
-      const dvFormatMatch = raw.match(/\b(\d{3}-\d{4}-\d{2}-\d{4})\b/);
-      if (dvFormatMatch) {
-        dvNo = dvFormatMatch[1].trim().substring(0, 50);
-      } else {
-        // Third: Look for generic DV number pattern
-        const dvNumberMatch = raw.match(/dv\s*(no\.?|number)?[:\s]*([0-9]{3,5}-[0-9]{3,5})/i);
-        if (dvNumberMatch) {
-          dvNo = dvNumberMatch[2].trim().substring(0, 50);
-        } else {
-          // Fourth: Look for generic number-dash-number pattern BUT exclude date patterns
-          // Only match if it's not the same as the extracted date
-          const genericMatch = raw.match(/\b([0-9]{4,5})-([0-9]{3,5})\b/);
-          if (genericMatch && genericMatch[0] !== dateStr) {
-            dvNo = genericMatch[0].trim().substring(0, 50);
+    // Pattern 1: Explicit DV label with number
+    const dvPatterns = [
+      /dv\s*(?:no|number|#)?\s*\.?\s*[:=\s]*([A-Z0-9\-]{5,20})/i,
+      /disbursement\s*voucher\s*(?:no|number|#)?\s*\.?\s*[:=\s]*([A-Z0-9\-]{5,20})/i,
+      /voucher\s*(?:no|number|#)?\s*\.?\s*[:=\s]*([A-Z0-9\-]{5,20})/i,
+      /(?:dv|voucher)[\s\-]*(?:no|number)[\s\-]*([0-9\-]{8,20})/i,
+      /\b(\d{3}-\d{4}-\d{2}-\d{4})\b/, // Philippine DV format: 000-0000-00-0000
+      /\b(DV|VOUCHER)[\s\-]*([0-9\-]{6,20})\b/i,
+    ];
+    
+    for (const pattern of dvPatterns) {
+      const match = raw.match(pattern);
+      if (match) {
+        dvNo = (match[1] || match[2] || match[0]).trim().substring(0, 50);
+        // Clean up any extra characters
+        dvNo = dvNo.replace(/[^A-Z0-9\-]/gi, '');
+        if (dvNo.length >= 5) break;
+      }
+    }
+    
+    // If still not found, look for any number pattern that's NOT a date
+    if (!dvNo) {
+      const allNumbers = raw.match(/\b([0-9\-]{8,20})\b/g) || [];
+      for (const num of allNumbers) {
+        // Skip if it looks like a date (YYYY-MM-DD or MM/DD/YYYY)
+        const isDate = /^\d{4}-\d{2}-\d{2}$/.test(num) || /^\d{2}\/\d{2}\/\d{4}$/.test(num);
+        if (!isDate && num.length >= 8 && num.includes('-')) {
+          dvNo = num;
+          break;
+        }
+      }
+    }
+    
+    // ============ Date Extraction (with careful filtering) ============
+    let dateStr = "";
+    
+    // First, try to find date with explicit label
+    const dateLabelMatch = raw.match(/(?:date|dated)[:\s]*([A-Za-z0-9\s\/\-]{6,20})/i);
+    if (dateLabelMatch) {
+      dateStr = dateLabelMatch[1].trim();
+    }
+    
+    // If not found, try common date patterns (but be careful not to match DV numbers)
+    if (!dateStr) {
+      const datePatterns = [
+        /(\d{1,2}\/\d{1,2}\/\d{4})/, // MM/DD/YYYY or DD/MM/YYYY
+        /(\d{4}-\d{2}-\d{2})(?![-\d])/, // YYYY-MM-DD (with negative lookahead to avoid longer numbers)
+        /(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4})/i,
+        /(\d{1,2}-\d{1,2}-\d{4})/, // DD-MM-YYYY
+      ];
+      
+      for (const pattern of datePatterns) {
+        const match = raw.match(pattern);
+        if (match) {
+          const extracted = match[1];
+          // Validate it's a reasonable date
+          const dateTest = new Date(extracted);
+          if (!isNaN(dateTest.getTime()) && dateTest.getFullYear() >= 2000) {
+            dateStr = extracted;
+            break;
           }
         }
       }
     }
-
-    // ============ IMPROVED Amount Detection (Philippine Peso Format) ============
-    let amount = "";
-    const amountPatterns = [
-      /₱\s*([\d,]+(?:\.\d{1,2})?)/,  // ₱ symbol
-      /(?:amount|total|subtotal)[:\s=]*(?:₱\s*)?([\d,]+(?:\.\d{1,2})?)/i,  // Amount: keyword
-      /([\d,]+(?:\.\d{1,2})?)\s*(?:pesos?|php|php\.)/i,  // ...pesos or ...php
-      /(?:p\.?|\$)\s*([\d,]+(?:\.\d{1,2})?)/i,  // P or $ prefix
-      /\b([\d,]+(?:\.\d{1,2})?)\s*only/i,  // Number followed by "only"
-    ];
     
-    for (const pattern of amountPatterns) {
-      const match = raw.match(pattern);
-      if (match) {
-        amount = match[1].replace(/,/g, "");
-        break;
-      }
-    }
-    
-    // If still not found, look for any standalone large number (likely an amount)
-    if (!amount) {
-      const largeNumberMatch = raw.match(/\b([\d,]+(?:\.\d{1,2})?)\b/);
-      if (largeNumberMatch) {
-        const num = parseFloat(largeNumberMatch[1].replace(/,/g, ""));
-        // Only accept if it's a reasonable amount (100-999,999,999)
-        if (num >= 100 && num <= 999999999) {
-          amount = largeNumberMatch[1].replace(/,/g, "");
-        }
-      }
-    }
+    const normalizedDate = normalizeDate(dateStr);
 
-    // ============ IMPROVED Payee Extraction ============
+    // ============ Payee Extraction ============
     let payee = "";
     
-    // Strategy 1: Look for explicit payee label and take the next meaningful text
-    const payeeMatch = raw.match(/(?:payee|received\s+by|recipient|bill\s+to)[:\s=]*([A-Za-z0-9 .,&'()\-]{2,100})/i);
-    if (payeeMatch) {
-      payee = payeeMatch[1].trim().split('\n')[0].substring(0, 100);
+    // Strategy 1: Look for explicit payee labels
+    const payeePatterns = [
+      /payee\s*[:=\s]+([A-Za-z0-9\s\.\,\&\'\-]{3,100})/i,
+      /received\s*by\s*[:=\s]+([A-Za-z0-9\s\.\,\&\'\-]{3,100})/i,
+      /recipient\s*[:=\s]+([A-Za-z0-9\s\.\,\&\'\-]{3,100})/i,
+      /check\s*(?:payable\s*to|issued\s*to)\s*[:=\s]+([A-Za-z0-9\s\.\,\&\'\-]{3,100})/i,
+      /in\s*favor\s*of\s*[:=\s]+([A-Za-z0-9\s\.\,\&\'\-]{3,100})/i,
+    ];
+    
+    for (const pattern of payeePatterns) {
+      const match = raw.match(pattern);
+      if (match) {
+        payee = match[1].trim();
+        // Clean up and limit length
+        payee = payee.replace(/[|]/g, '').split('\n')[0].substring(0, 100);
+        if (payee.length > 5) break;
+      }
     }
     
-    // Strategy 2: If not found, look for all-caps names that are LIKELY payee names
+    // Strategy 2: Look for all-caps names that are likely payee names
     if (!payee) {
       for (const line of lines) {
-        // Lines that are mostly uppercase and contain 3+ words are likely payee names
+        // Check if line is mostly uppercase and contains words that look like a name
+        const words = line.split(/\s+/);
         const upperCount = (line.match(/[A-Z]/g) || []).length;
-        const partialUpper = upperCount / Math.max(line.length, 1) > 0.5;
-        const wordCount = line.split(/\s+/).length;
+        const upperRatio = upperCount / Math.max(line.length, 1);
         
-        if (partialUpper && wordCount >= 2 && line.length > 5 && line.length < 100) {
-          // Skip lines that look like headers or common OCR artifacts
-          if (!/^(date|amount|dv|no\.?|page|total|department)/i.test(line)) {
+        // Name-like characteristics: 2-5 words, mostly uppercase, contains letters
+        if (upperRatio > 0.5 && words.length >= 2 && words.length <= 5 && line.length > 5 && line.length < 100) {
+          // Skip common headers
+          if (!/^(date|amount|dv|no|page|total|department|office|category)/i.test(line)) {
             payee = line.substring(0, 100);
             break;
           }
@@ -524,72 +536,107 @@ const startCamera = async () => {
       }
     }
     
-    // Strategy 3: As last resort, take the longest line that looks like a name
-    if (!payee && lines.length > 2) {
-      const nameLines = lines.filter(l => 
-        l.length > 5 && 
-        l.length < 120 && 
-        /[A-Za-z]/.test(l) &&
-        !/^\d+|date|amount|dv|no\.?|department|office/i.test(l)
-      );
-      if (nameLines.length > 0) {
-        nameLines.sort((a, b) => b.length - a.length);
-        payee = nameLines[0].substring(0, 100);
+    // Strategy 3: Look for name after "to" or "for"
+    if (!payee) {
+      const toMatch = raw.match(/(?:to|for)\s+([A-Z][a-z]+\s+[A-Z][a-z]+\s*(?:[A-Z][a-z]+)?)/)
+      if (toMatch) {
+        payee = toMatch[1].trim().substring(0, 100);
       }
     }
-
+    
     // ============ Office Detection ============
     let office = "";
     if (offices && offices.length) {
-      // Find longest matching office name in text
-      const candidates = offices.filter((o) => o && ltext.includes(o.toLowerCase()));
-      if (candidates.length) {
-        candidates.sort((a, b) => b.length - a.length);
-        office = candidates[0];
+      // Find longest matching office name with word boundary
+      const officeMatches: { name: string; index: number }[] = [];
+      for (const o of offices) {
+        const regex = new RegExp(`\\b${o.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}\\b`, 'i');
+        const match = regex.exec(raw);
+        if (match) {
+          officeMatches.push({ name: o, index: match.index });
+        }
+      }
+      
+      // Sort by occurrence (earlier in text is more likely correct)
+      officeMatches.sort((a, b) => a.index - b.index);
+      if (officeMatches.length) {
+        office = officeMatches[0].name;
+      }
+      
+      // Also check for "office:" label
+      if (!office) {
+        const officeLabelMatch = raw.match(/office\s*[:=\s]+([A-Za-z\s]+)(?:\n|$)/i);
+        if (officeLabelMatch) {
+          const extractedOffice = officeLabelMatch[1].trim();
+          const matchedOffice = offices.find(o => 
+            o.toLowerCase().includes(extractedOffice.toLowerCase()) || 
+            extractedOffice.toLowerCase().includes(o.toLowerCase())
+          );
+          if (matchedOffice) office = matchedOffice;
+        }
       }
     }
-
-    // ============ IMPROVED Expense Type & Category Detection ============
+    
+    // ============ Expense Type & Category Detection ============
     let expenseType = "";
     let expenseCategory = "";
     
-    // Strategy 1: Exact matching of expense types
-    if (expenses && expenses.length) {
-      const found = expenses.find((e) => {
-        if (!e?.type) return false;
-        return ltext.includes(e.type.toLowerCase());
-      });
-      if (found) {
-        expenseType = found.type;
-        expenseCategory = found.category || "";
+    // First, check for explicit category label (PS, MOOE, CO)
+    const categoryMatch = raw.match(/\b(PS|MOOE|CO)\b/i);
+    if (categoryMatch) {
+      expenseCategory = categoryMatch[1].toUpperCase();
+    }
+    
+    // Check for explicit expense type label
+    const expenseLabelMatch = raw.match(/(?:expense|type|nature)[\s:]*([A-Za-z\s]+)(?:\n|$)/i);
+    if (expenseLabelMatch) {
+      const extractedType = expenseLabelMatch[1].trim();
+      if (expenses && expenses.length) {
+        const found = expenses.find(e => 
+          e.type.toLowerCase().includes(extractedType.toLowerCase()) ||
+          extractedType.toLowerCase().includes(e.type.toLowerCase())
+        );
+        if (found) {
+          expenseType = found.type;
+          if (!expenseCategory) expenseCategory = found.category;
+        }
       }
     }
-
-    // Strategy 2: Fuzzy/substring matching - match if contains key words
+    
+    // If not found via labels, try matching against known expense types
     if (!expenseType && expenses && expenses.length) {
-      const scored = expenses.map((e) => {
-        if (!e?.type) return { expense: e, score: 0 };
-        const typeWords = e.type.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-        const matchedWords = typeWords.filter(word => ltext.includes(word)).length;
-        const score = matchedWords / typeWords.length;
+      // Score each expense type based on keyword matching
+      const scored = expenses.map(e => {
+        const typeLower = e.type.toLowerCase();
+        const words = typeLower.split(/\s+/);
+        let score = 0;
+        
+        for (const word of words) {
+          if (word.length > 2 && ltext.includes(word)) {
+            score += 1;
+          }
+        }
+        
+        // Bonus for exact phrase match
+        if (ltext.includes(typeLower)) {
+          score += 5;
+        }
+        
         return { expense: e, score };
       });
       
-      // Find best match with score > 0.5 (at least 50% of words match)
       scored.sort((a, b) => b.score - a.score);
-      if (scored[0] && scored[0].score > 0.3) {
+      if (scored[0] && scored[0].score > 0) {
         expenseType = scored[0].expense.type;
-        expenseCategory = scored[0].expense.category || "";
+        if (!expenseCategory) expenseCategory = scored[0].expense.category;
       }
     }
-
-    // Strategy 3: Use dynamic keywords from database
+    
+    // Use dynamic keywords for category detection if still not found
     if (!expenseCategory && Object.keys(categoryKeywords).length > 0) {
-      // Check each category's keywords
       for (const [category, data] of Object.entries(categoryKeywords)) {
         const categoryData = data as any;
         if (categoryData.keywords && Array.isArray(categoryData.keywords)) {
-          // Check if any keyword matches (case-insensitive)
           const keywordFound = categoryData.keywords.some((keyword: string) =>
             ltext.includes(keyword.toLowerCase())
           );
@@ -600,16 +647,43 @@ const startCamera = async () => {
         }
       }
     }
-
-    // Fallback: detect explicit category tokens (PS, MOOE, CO) if still not found
-    if (!expenseCategory) {
-      const catMatch = raw.match(/\b(MOOE|PS|CO)\b/i);
-      if (catMatch) {
-        expenseCategory = catMatch[1].toUpperCase();
+    
+    // ============ Amount Extraction ============
+    let amount = "";
+    
+    const amountPatterns = [
+      /(?:amount|total|subtotal|sum)[:\s=]*[₱$]?\s*([\d,]+(?:\.\d{1,2})?)/i,
+      /[₱$]\s*([\d,]+(?:\.\d{1,2})?)(?:\s*(?:pesos|only))?/i,
+      /([\d,]+(?:\.\d{1,2})?)\s*(?:pesos?|php|only)/i,
+      /\b(?:total|net)[:\s=]*([\d,]+(?:\.\d{1,2})?)\b/i,
+    ];
+    
+    for (const pattern of amountPatterns) {
+      const match = raw.match(pattern);
+      if (match) {
+        amount = match[1].replace(/,/g, "");
+        // Validate it's a reasonable amount
+        const numAmount = parseFloat(amount);
+        if (numAmount >= 100 && numAmount <= 999999999) {
+          break;
+        }
       }
     }
-
-    // Update form data with extracted values (preserve previous values if extraction empty)
+    
+    // If still not found, look for large numbers near the end of document
+    if (!amount) {
+      const allNumbers = raw.match(/\b([\d,]+(?:\.\d{1,2})?)\b/g) || [];
+      for (const num of allNumbers) {
+        const cleanNum = num.replace(/,/g, "");
+        const parsed = parseFloat(cleanNum);
+        if (parsed >= 100 && parsed <= 999999999) {
+          amount = cleanNum;
+          break;
+        }
+      }
+    }
+    
+    // ============ Update Form Data ============
     setFormData((prev) => ({
       ...prev,
       dvNo: dvNo || prev.dvNo,
@@ -620,6 +694,18 @@ const startCamera = async () => {
       expenseCategory: expenseCategory || prev.expenseCategory,
       date: normalizedDate || (prev as any).date || "",
     }));
+    
+    // Return extracted values for debugging/info
+    return {
+      dvNo,
+      payee,
+      office,
+      expenseType,
+      expenseCategory,
+      amount,
+      date: normalizedDate,
+      extractedFields: { dvNo, payee, office, expenseType, expenseCategory, amount, date: normalizedDate }
+    };
   };
 
   const closeScanModal = () => {
