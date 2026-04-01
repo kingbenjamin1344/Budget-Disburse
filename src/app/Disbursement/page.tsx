@@ -177,11 +177,8 @@ const startCamera = async () => {
       canvasRef.current.height = videoRef.current.videoHeight;
       context?.drawImage(videoRef.current, 0, 0);
       
-      // Apply image enhancement to match the video preview quality
-      const imageData = canvasRef.current.toDataURL("image/jpeg", 0.95);
-      const enhancedImageData = await preprocessImage(imageData);
-      
-      await handlePerformOCR(enhancedImageData || imageData);
+      const imageData = canvasRef.current.toDataURL("image/jpeg");
+      await handlePerformOCR(imageData);
       stopCamera();
     }
   };
@@ -190,9 +187,7 @@ const startCamera = async () => {
     const reader = new FileReader();
     reader.onload = async (e) => {
       const imageData = e.target?.result as string;
-      // Apply preprocessing to enhance image quality
-      const enhancedImageData = await preprocessImage(imageData);
-      await handlePerformOCR(enhancedImageData || imageData);
+      await handlePerformOCR(imageData);
     };
     reader.readAsDataURL(file);
   };
@@ -1443,13 +1438,13 @@ const isBudgetEnough = () => {
                   <label className="block">
                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition">
                       <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                      <p className="font-semibold text-gray-700">Click to upload image or PDF</p>
+                      <p className="font-semibold text-gray-700">Click to upload image</p>
                       <p className="text-sm text-gray-500">or drag and drop</p>
                     </div>
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="image/*,.pdf"
+                      accept="image/*"
                       onChange={(e) => {
                         if (e.target.files?.[0]) {
                           handleImageUpload(e.target.files[0]);
