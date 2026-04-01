@@ -201,10 +201,9 @@ const startCamera = async () => {
           const canvas = document.createElement("canvas");
           canvas.width = viewport.width;
           canvas.height = viewport.height;
-          const context = canvas.getContext("2d");
           
           await firstPage.render({
-            canvasContext: context!,
+            canvas: canvas,
             viewport: viewport,
           }).promise;
           
