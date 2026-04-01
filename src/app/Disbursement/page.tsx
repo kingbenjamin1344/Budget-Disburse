@@ -346,26 +346,26 @@ const startCamera = async () => {
     // Avoid matching date patterns (YYYY-MM-DD)
     let dvNo = "";
     
-    // First: Look for explicit "DV No." pattern
-    const dvExplicitMatch = raw.match(/dv[\s:]*no\.?[\s:]*([A-Z0-9-]+)/i);
+    // First: Look for explicit "DV Number" or "DV No" pattern (strictly)
+    const dvExplicitMatch = raw.match(/(?:dv[\s\-]?(?:no|number)?[\s:]+)?([0-9]{3,5}[-\/][0-9]{4,6}(?:[-\/][0-9]{2,4})?(?:[-\/][0-9]{2,6})?)/i);
     if (dvExplicitMatch) {
       dvNo = dvExplicitMatch[1].trim().substring(0, 50);
     } else {
-      // Second: Look for DV with specific format (000-0000-00-0000)
-      const dvFormatMatch = raw.match(/\b(\d{3}-\d{4}-\d{2}-\d{4})\b/);
-      if (dvFormatMatch) {
-        dvNo = dvFormatMatch[1].trim().substring(0, 50);
+      // Second: Look for explicit "DV No." or "DV:" prefix followed by any alphanumeric
+      const dvLabelMatch = raw.match(/dv[\s:\-]*no\.?[\s:\-]*([A-Z0-9\-\.\s]+?)(?:\n|$|[A-Z])/i);
+      if (dvLabelMatch) {
+        dvNo = dvLabelMatch[1].trim().substring(0, 50);
       } else {
-        // Third: Look for generic DV number pattern
-        const dvNumberMatch = raw.match(/dv\s*(no\.?|number)?[:\s]*([0-9]{3,5}-[0-9]{3,5})/i);
-        if (dvNumberMatch) {
-          dvNo = dvNumberMatch[2].trim().substring(0, 50);
+        // Third: Look for specific Philippine format (000-0000-00-0000)
+        const dvFormatMatch = raw.match(/\b(\d{3}-\d{4}-\d{2}-\d{4})\b/);
+        if (dvFormatMatch && dvFormatMatch[0] !== dateStr) {
+          dvNo = dvFormatMatch[1].trim().substring(0, 50);
         } else {
-          // Fourth: Look for generic number-dash-number pattern BUT exclude date patterns
-          // Only match if it's not the same as the extracted date
-          const genericMatch = raw.match(/\b([0-9]{4,5})-([0-9]{3,5})\b/);
-          if (genericMatch && genericMatch[0] !== dateStr) {
-            dvNo = genericMatch[0].trim().substring(0, 50);
+          // Fourth: Look for simpler number-dash-number pattern
+          // But validate it's not a date (avoid YYYY-MM-DD)
+          const simpleMatch = raw.match(/\b(\d{4,5}[-]\d{3,6})\b/);
+          if (simpleMatch && !simpleMatch[0].match(/^\d{4}-\d{2}-\d{2}$/)) {
+            dvNo = simpleMatch[0].trim().substring(0, 50);
           }
         }
       }
@@ -383,11 +383,28 @@ const startCamera = async () => {
       ? amountMatch[1].replace(/,/g, "")
       : "";
 
-    // ============ Payee Extraction ============
-    const payeeMatch = raw.match(/(?:payee|received by|recipient)[:\s]*([A-Za-z0-9 .,&'-]{2,80})/i);
-    const payee = payeeMatch 
-      ? payeeMatch[1].trim().substring(0, 100)
-      : "";
+    // ============ Enhanced Payee Extraction ============
+    // Try multiple patterns to capture payee information
+    let payee = "";
+    
+    // First: Look for explicit payee labels
+    const payeeExplicitMatch = raw.match(/(?:payee|received by|recipient|in favor of|payment to|pay to|issued to)[:\s]*([A-Za-z0-9 .,&';\-()]{3,100}?)(?:\n|$|(?:address|department|office))/i);
+    if (payeeExplicitMatch) {
+      payee = payeeExplicitMatch[1].trim().substring(0, 100);
+    } else {
+      // Second: Look for payee after common keywords with more flexibility
+      const payeeFlexibleMatch = raw.match(/(?:payee|recipient)[:\s]*(.*?)(?:\n\n|date|amount|purpose)/i);
+      if (payeeFlexibleMatch) {
+        payee = payeeFlexibleMatch[1].trim().split('\n')[0].substring(0, 100);
+      } else {
+        // Third: Try to capture name-like patterns (all caps or title case names)
+        // Look for a line that looks like a person/organization name
+        const namePatternMatch = raw.match(/^([A-Z][A-Za-z\s.,&';\-()]{3,80})$/m);
+        if (namePatternMatch) {
+          payee = namePatternMatch[1].trim().substring(0, 100);
+        }
+      }
+    }
 
     // ============ Office Detection ============
     let office = "";
