@@ -192,6 +192,50 @@ const startCamera = async () => {
     reader.readAsDataURL(file);
   };
 
+  const handlePDFUpload = async (file: File) => {
+    try {
+      setOcrLoading(true);
+      const arrayBuffer = await file.arrayBuffer();
+      
+      // Dynamic import of PDF.js to keep bundle clean
+      const pdfjsLib = await import("pdfjs-dist");
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+      
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let fullText = "";
+      
+      // Extract text from all pages
+      for (let i = 1; i <= Math.min(pdf.numPages, 5); i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map((item: any) => item.str).join(" ");
+        fullText += pageText + "\n";
+      }
+      
+      if (!fullText.trim()) {
+        throw new Error("No text could be extracted from the PDF. Please try another file.");
+      }
+      
+      setOcrResult(fullText);
+      parseAndFillForm(fullText);
+      toast.success("PDF processed successfully");
+    } catch (err) {
+      const errMsg = String(err);
+      let userMessage = "Failed to process PDF.";
+      
+      if (errMsg.includes("extract")) {
+        userMessage = "Could not extract text from PDF. Try with a different file.";
+      } else if (errMsg.includes("module")) {
+        userMessage = "PDF library is loading. Please try again in a moment.";
+      }
+      
+      toast.error(userMessage);
+      console.error("PDF Error:", err);
+    } finally {
+      setOcrLoading(false);
+    }
+  };
+
   const handlePerformOCR = async (imageData: string) => {
     setOcrLoading(true);
     try {
@@ -1438,16 +1482,21 @@ const isBudgetEnough = () => {
                   <label className="block">
                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition">
                       <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                      <p className="font-semibold text-gray-700">Click to upload image</p>
-                      <p className="text-sm text-gray-500">or drag and drop</p>
+                      <p className="font-semibold text-gray-700">Click to upload image or PDF</p>
+                      <p className="text-sm text-gray-500">Images (JPG, PNG) or PDFs</p>
                     </div>
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="image/*"
+                      accept="image/*,.pdf"
                       onChange={(e) => {
-                        if (e.target.files?.[0]) {
-                          handleImageUpload(e.target.files[0]);
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          if (file.type === "application/pdf") {
+                            handlePDFUpload(file);
+                          } else {
+                            handleImageUpload(file);
+                          }
                         }
                       }}
                       className="hidden"
@@ -1455,7 +1504,7 @@ const isBudgetEnough = () => {
                   </label>
                   {ocrLoading && (
                     <div className="flex items-center justify-center gap-2 text-blue-600 font-semibold py-4">
-                      <Loader className="w-5 h-5 animate-spin" /> Processing image...
+                      <Loader className="w-5 h-5 animate-spin" /> Processing...
                     </div>
                   )}
                 </div>
