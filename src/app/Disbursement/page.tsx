@@ -197,18 +197,27 @@ const startCamera = async () => {
       setOcrLoading(true);
       const arrayBuffer = await file.arrayBuffer();
       
-      // Dynamic import of PDF.js to keep bundle clean
-      const pdfjsLib = await import("pdfjs-dist");
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+      // Dynamic import of PDF.js
+      const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
       
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      // Set worker from node_modules (local, no CDN delay)
+      GlobalWorkerOptions.workerSrc = new URL(
+        "pdfjs-dist/build/pdf.worker.min.mjs",
+        import.meta.url
+      ).href;
+      
+      const pdf = await getDocument({ data: arrayBuffer }).promise;
       let fullText = "";
       
-      // Extract text from all pages
-      for (let i = 1; i <= Math.min(pdf.numPages, 5); i++) {
+      // Extract text from all pages (max 5 to keep it fast)
+      const maxPages = Math.min(pdf.numPages, 5);
+      for (let i = 1; i <= maxPages; i++) {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
-        const pageText = textContent.items.map((item: any) => item.str).join(" ");
+        const pageText = textContent.items
+          .map((item: any) => (item.str || "").trim())
+          .filter((str: string) => str.length > 0)
+          .join(" ");
         fullText += pageText + "\n";
       }
       
@@ -218,15 +227,17 @@ const startCamera = async () => {
       
       setOcrResult(fullText);
       parseAndFillForm(fullText);
-      toast.success("PDF processed successfully");
+      toast.success(`PDF processed (${maxPages} page${maxPages > 1 ? "s" : ""})`);
     } catch (err) {
       const errMsg = String(err);
       let userMessage = "Failed to process PDF.";
       
-      if (errMsg.includes("extract")) {
-        userMessage = "Could not extract text from PDF. Try with a different file.";
-      } else if (errMsg.includes("module")) {
-        userMessage = "PDF library is loading. Please try again in a moment.";
+      if (errMsg.includes("fetch") || errMsg.includes("worker")) {
+        userMessage = "PDF worker loading failed. Check your connection and try again.";
+      } else if (errMsg.includes("extract") || errMsg.includes("text")) {
+        userMessage = "Could not extract text from PDF. Try with a clearer or different PDF.";
+      } else if (errMsg.includes("type")) {
+        userMessage = "Invalid PDF format. Please ensure the file is a valid PDF.";
       }
       
       toast.error(userMessage);
