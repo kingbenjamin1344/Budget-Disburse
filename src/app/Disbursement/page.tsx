@@ -430,7 +430,7 @@ const startCamera = async () => {
     // Supports various formats: ₱1,234.50, ₱1234.5, Amount: 1234, $5000.25, etc.
     // First priority: Currency symbols followed by amount
     let amount = "";
-    let amountMatch = 
+    const amountMatch = 
       raw.match(/₱\s*([\d,]+(?:\.\d{1,2})?)/) ||
       raw.match(/(?:p\.?|\$)\s*([\d,]+(?:\.\d{1,2})?)/i) ||
       raw.match(/(?:amount|total)[:\s]*(?:₱\s*)?([\d,]+(?:\.\d{1,2})?)/i);
