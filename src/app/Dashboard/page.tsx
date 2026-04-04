@@ -187,75 +187,93 @@ const fetchRecentLogs = async () => {
     {/* Divider line */}
 <hr className="border-gray-300 mt-4 mb-6" />
       {/* === TOP CARDS - MODERN UI === */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
         {/* Offices */}
-        <div className="group relative overflow-hidden rounded-2xl bg-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
           <div className="relative p-6 z-10">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-blue-100 rounded-xl group-hover:bg-white/20 transition-colors duration-300">
-                <Building2 className="w-6 h-6 text-blue-600 group-hover:text-white" />
+              <div className="p-3 bg-white/20 rounded-xl group-hover:bg-blue-400/30 transition-colors duration-300">
+                <Building2 className="w-6 h-6 text-white" />
               </div>
-              <span className="text-3xl font-bold text-gray-800 group-hover:text-white transition-colors duration-300">
+              <span className="text-3xl font-bold text-white">
                 {stats.offices}
               </span>
             </div>
-            <p className="text-sm font-medium text-gray-600 group-hover:text-white/90 transition-colors duration-300">
+            <p className="text-sm font-medium text-white/90">
               Number of Offices
             </p>
           </div>
         </div>
 
         {/* Expense Types */}
-        <div className="group relative overflow-hidden rounded-2xl bg-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-          <div className="absolute inset-0 bg-gradient-to-br from-green-500 to-green-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-green-500 to-green-600 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
           <div className="relative p-6 z-10">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-green-100 rounded-xl group-hover:bg-white/20 transition-colors duration-300">
-                <BarChart3 className="w-6 h-6 text-green-600 group-hover:text-white" />
+              <div className="p-3 bg-white/20 rounded-xl group-hover:bg-green-400/30 transition-colors duration-300">
+                <BarChart3 className="w-6 h-6 text-white" />
               </div>
-              <span className="text-3xl font-bold text-gray-800 group-hover:text-white transition-colors duration-300">
+              <span className="text-3xl font-bold text-white">
                 {stats.expenseTypes}
               </span>
             </div>
-            <p className="text-sm font-medium text-gray-600 group-hover:text-white/90 transition-colors duration-300">
+            <p className="text-sm font-medium text-white/90">
               Number of Expense Types
             </p>
           </div>
         </div>
 
         {/* Total Budget */}
-        <div className="group relative overflow-hidden rounded-2xl bg-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-          <div className="absolute inset-0 bg-gradient-to-br from-orange-500 to-orange-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
           <div className="relative p-6 z-10">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-orange-100 rounded-xl group-hover:bg-white/20 transition-colors duration-300">
-                <Wallet className="w-6 h-6 text-orange-600 group-hover:text-white" />
+              <div className="p-3 bg-white/20 rounded-xl group-hover:bg-orange-400/30 transition-colors duration-300">
+                <Wallet className="w-6 h-6 text-white" />
               </div>
-              <span className="text-2xl font-bold text-gray-800 group-hover:text-white transition-colors duration-300">
+              <span className="text-2xl font-bold text-white">
                 {currency(totalBudgetSum)}
               </span>
             </div>
-            <p className="text-sm font-medium text-gray-600 group-hover:text-white/90 transition-colors duration-300">
+            <p className="text-sm font-medium text-white/90">
               Overall Total Budget
             </p>
           </div>
         </div>
 
         {/* Actual Expenditure */}
-        <div className="group relative overflow-hidden rounded-2xl bg-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
           <div className="relative p-6 z-10">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-purple-100 rounded-xl group-hover:bg-white/20 transition-colors duration-300">
-                <PieChart className="w-6 h-6 text-purple-600 group-hover:text-white" />
+              <div className="p-3 bg-white/20 rounded-xl group-hover:bg-purple-400/30 transition-colors duration-300">
+                <PieChart className="w-6 h-6 text-white" />
               </div>
-              <span className="text-2xl font-bold text-gray-800 group-hover:text-white transition-colors duration-300">
+              <span className="text-2xl font-bold text-white">
                 {currency(stats.totalExpenditure)}
               </span>
             </div>
-            <p className="text-sm font-medium text-gray-600 group-hover:text-white/90 transition-colors duration-300">
+            <p className="text-sm font-medium text-white/90">
               Actual Expenditure
+            </p>
+          </div>
+        </div>
+
+        {/* Variance */}
+        <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
+          <div className="relative p-6 z-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-white/20 rounded-xl group-hover:bg-amber-400/30 transition-colors duration-300">
+                <Wallet className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-2xl font-bold text-white">
+                {currency(Math.max(totalBudgetSum - stats.totalExpenditure, 0))}
+              </span>
+            </div>
+            <p className="text-sm font-medium text-white/90">
+              Remaining Variance
             </p>
           </div>
         </div>
