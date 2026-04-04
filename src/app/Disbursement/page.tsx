@@ -434,7 +434,7 @@ const startCamera = async () => {
     // This is most reliable because it has explicit context
     let amountMatch = raw.match(/(?:amount|total)[:\s]+(?:₱\s*)?([0-9,.\s]+?)(?:\s+(?:pesos?|php|only|budget|fund|the|for)\b|[\n]|$)/i);
     if (amountMatch) {
-      let extracted = amountMatch[1].replace(/[\s,]/g, "").trim();
+      const extracted = amountMatch[1].replace(/[\s,]/g, "").trim();
       // Validate it's not just "5" or other single digit - must be >= 1000 for disbursement
       if (parseInt(extracted, 10) >= 1000 || parseInt(extracted, 10) >= 100) {
         amount = extracted;
@@ -445,7 +445,7 @@ const startCamera = async () => {
     if (!amount) {
       amountMatch = raw.match(/[₱P$]\s*([0-9,.\s]+?)(?:\s+(?:pesos?|php|only)\b|[\n]|$)/i);
       if (amountMatch) {
-        let extracted = amountMatch[1].replace(/[\s,]/g, "").trim();
+        const extracted = amountMatch[1].replace(/[\s,]/g, "").trim();
         if (parseInt(extracted, 10) >= 100) {
           amount = extracted;
         }
@@ -456,7 +456,7 @@ const startCamera = async () => {
     if (!amount) {
       amountMatch = raw.match(/([0-9,.\s]+?)\s+(?:pesos?|php|philippine\s+pesos?)/i);
       if (amountMatch) {
-        let extracted = amountMatch[1].replace(/[\s,]/g, "").trim();
+        const extracted = amountMatch[1].replace(/[\s,]/g, "").trim();
         if (parseInt(extracted, 10) >= 100) {
           amount = extracted;
         }
