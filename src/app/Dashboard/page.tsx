@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { Suspense } from "react";
-import { Building2, Wallet, BarChart3, PieChart } from "lucide-react";
+import { Building2, Wallet, BarChart3, PieChart, ScanEye } from "lucide-react";
 import { ChartSkeleton, CardGridSkeleton, TableSkeleton } from "@/components/LoadingFallback";
 import { PieChartComponent, BarChartComponent } from "@/components/DashboardCharts";
 
@@ -273,7 +273,7 @@ const fetchRecentLogs = async () => {
               </span>
             </div>
             <p className="text-sm font-medium text-white/90">
-              Remaining Variance
+               Variance
             </p>
           </div>
         </div>
@@ -345,8 +345,28 @@ const fetchRecentLogs = async () => {
     />
   </Suspense>
 
+</div>
 
-
+{/* === SCAN DISBURSEMENT CARD === */}
+<div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl shadow-lg p-8 mt-6">
+  <div className="flex flex-col items-center justify-center space-y-6">
+    <div>
+      <h3 className="text-2xl font-bold text-white text-center mb-2">
+        Scan Disbursement
+      </h3>
+      <p className="text-blue-100 text-center">
+        Quickly scan and process disbursement documents
+      </p>
+    </div>
+    <a
+      href="/Disbursement"
+      className="inline-flex items-center space-x-2 bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors duration-200 shadow-md hover:shadow-lg"
+    >
+      <ScanEye className="w-5 h-5" />
+      <span>Open Scanner</span>
+    </a>
+  </div>
+</div>
 
 {/* === RECENT LOGS FULL-WIDTH CARD === */}
 

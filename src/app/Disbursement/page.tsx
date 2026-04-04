@@ -16,7 +16,7 @@ const FloatingScanButton: React.FC<FloatingScanButtonProps> = ({
   return (
     <button
       onClick={onClick}
-      className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-40 bg-white border-2 border-blue-500 rounded-full p-4 shadow-2xl cursor-pointer hover:scale-110 hover:shadow-3xl transition-all duration-200 flex items-center justify-center"
+      className="fixed bottom-8 right-8 z-40 bg-white border-2 border-blue-500 rounded-full p-4 shadow-2xl cursor-pointer hover:scale-110 hover:shadow-3xl transition-all duration-200 flex items-center justify-center"
       title="Open OCR Scanner"
     >
       <ScanEye className="w-8 h-8 text-blue-600" />
