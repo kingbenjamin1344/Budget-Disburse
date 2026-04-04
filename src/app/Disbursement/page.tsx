@@ -5,25 +5,6 @@ import { toast } from "react-toastify";
 import { Search, Plus, Edit, Trash2, X, ScanEye, Camera, Upload, Loader, Wifi, WifiOff, Building2, Calendar, Clock, DollarSign, FileText, User, Tag, FolderOpen, Receipt, CreditCard } from "lucide-react";
 import { performOCR, initTesseractWorker, terminateTesseractWorker, getOCRStatus, isNetworkOnline, preprocessImage, type OCRResult } from "@/lib/offlineTesseract";
 
-// =================== Floating Scan Button ===================
-interface FloatingScanButtonProps {
-  onClick?: () => void;
-}
-
-const FloatingScanButton: React.FC<FloatingScanButtonProps> = ({
-  onClick,
-}) => {
-  return (
-    <button
-      onClick={onClick}
-      className="fixed bottom-8 right-8 z-40 bg-white border-2 border-blue-500 rounded-full p-4 shadow-2xl cursor-pointer hover:scale-110 hover:shadow-3xl transition-all duration-200 flex items-center justify-center"
-      title="Open OCR Scanner"
-    >
-      <ScanEye className="w-8 h-8 text-blue-600" />
-    </button>
-  );
-};
-
 // =================== Main Page ===================
 export default function DisbursementPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -936,25 +917,6 @@ const isBudgetEnough = () => {
       </div>
       <hr className="border-gray-300 mb-6" />
 
-      {/* =================== Scan Disbursement Card =================== */}
-      <div className="mb-6 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl shadow-lg p-8 flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-white mb-2">Scan Disbursement</h2>
-          <p className="text-blue-100">Use OCR to quickly extract disbursement details from documents</p>
-        </div>
-        <button
-          onClick={() => {
-            setShowScanModal(true);
-            setScanMode("camera");
-          }}
-          className="flex items-center justify-center gap-2 bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors duration-200 shadow-md"
-          title="Open OCR Scanner"
-        >
-          <ScanEye className="w-5 h-5" />
-          Scan Now
-        </button>
-      </div>
-
       {/* =================== Table =================== */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[600px]">
         <div className="flex-grow overflow-y-auto relative">
@@ -1036,13 +998,24 @@ const isBudgetEnough = () => {
         </div>
       </div>
 
-      {/* =================== Floating Scan Button =================== */}
-      <FloatingScanButton
-        onClick={() => {
-          setShowScanModal(true);
-          setScanMode("camera");
-        }}
-      />
+      {/* =================== Scan Disbursement Card =================== */}
+      <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-40">
+        <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg shadow-2xl p-6 w-48 flex flex-col items-center justify-center gap-4 hover:shadow-3xl transition-all duration-200">
+          <h3 className="text-white font-semibold text-lg text-center">
+            Scan Disbursement
+          </h3>
+          <button
+            onClick={() => {
+              setShowScanModal(true);
+              setScanMode("camera");
+            }}
+            className="bg-white text-blue-600 px-6 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-all duration-200 flex items-center justify-center gap-2 w-full"
+          >
+            <ScanEye className="w-5 h-5" />
+            Scan
+          </button>
+        </div>
+      </div>
 
 {/* =================== Add/Edit Disbursement Modal =================== */}
 {showModal && (
