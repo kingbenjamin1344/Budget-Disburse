@@ -428,15 +428,28 @@ const startCamera = async () => {
 
     // ============ Enhanced Amount Detection (Philippine Peso Format) ============
     // Supports various formats: ₱1,234.50, ₱1234.5, Amount: 1234, $5000.25, etc.
-    const amountMatch = 
+    // First priority: Currency symbols followed by amount
+    let amount = "";
+    let amountMatch = 
       raw.match(/₱\s*([\d,]+(?:\.\d{1,2})?)/) ||
-      raw.match(/(?:amount|total)[:\s]*(?:₱\s*)?([\d,]+(?:\.\d{1,2})?)/i) ||
-      raw.match(/([\d,]+(?:\.\d{1,2})?)\s*(?:pesos?|php)/i) ||
-      raw.match(/(?:p\.?|\$)\s*([\d,]+(?:\.\d{1,2})?)/i);
+      raw.match(/(?:p\.?|\$)\s*([\d,]+(?:\.\d{1,2})?)/i) ||
+      raw.match(/(?:amount|total)[:\s]*(?:₱\s*)?([\d,]+(?:\.\d{1,2})?)/i);
     
-    const amount = amountMatch 
-      ? amountMatch[1].replace(/,/g, "")
-      : "";
+    if (amountMatch) {
+      amount = amountMatch[1].replace(/,/g, "");
+    } else {
+      // Fallback: Look for large comma-separated numbers (e.g., "15,000", "1,234,567")
+      const largeNumberMatch = raw.match(/\b(\d{1,3}(?:,\d{3})+)\b/);
+      if (largeNumberMatch) {
+        amount = largeNumberMatch[1].replace(/,/g, "");
+      } else {
+        // Last fallback: Look for numbers with "peso" or "php" suffix
+        const pesoMatch = raw.match(/([\d,]+(?:\.\d{1,2})?)\s*(?:pesos?|php)/i);
+        if (pesoMatch) {
+          amount = pesoMatch[1].replace(/,/g, "");
+        }
+      }
+    }
 
     // ============ Enhanced Payee Extraction ============
     // Try multiple patterns to capture payee information
@@ -445,12 +458,31 @@ const startCamera = async () => {
     // First: Look for explicit payee labels
     const payeeExplicitMatch = raw.match(/(?:payee|received by|recipient|in favor of|payment to|pay to|issued to)[:\s]*([A-Za-z0-9 .,&';\-()]{3,100}?)(?:\n|$|(?:address|department|office))/i);
     if (payeeExplicitMatch) {
-      payee = payeeExplicitMatch[1].trim().substring(0, 100);
+      let extracted = payeeExplicitMatch[1].trim();
+      
+      // If it starts with a reference number pattern (e.g., "1111-900 to payment..."), extract the real payee
+      // Stop at keywords that indicate end of name: "to", "payment", "fund", "general", "under"
+      const refNumberMatch = extracted.match(/^\d+[-\s]\d+\s+to\s+(.+?)(?:\s+(?:payment|to|fund|under|general|above)\s+|\s{3,}|$)/i);
+      if (refNumberMatch) {
+        extracted = refNumberMatch[1].trim();
+      }
+      
+      // Take only the first meaningful phrase (before common separators)
+      extracted = extracted.split(/\s+(?:to|payment|fund|under|general|above)\s+/i)[0].trim();
+      
+      // Remove trailing non-name characters and limit length
+      extracted = extracted.replace(/[\d\-.,;]+\s*$/, '').trim();
+      payee = extracted.substring(0, 100);
     } else {
       // Second: Look for payee after common keywords with more flexibility
       const payeeFlexibleMatch = raw.match(/(?:payee|recipient)[:\s]*(.*?)(?:\n\n|date|amount|purpose)/i);
       if (payeeFlexibleMatch) {
-        payee = payeeFlexibleMatch[1].trim().split('\n')[0].substring(0, 100);
+        let extracted = payeeFlexibleMatch[1].trim().split('\n')[0];
+        // Remove reference numbers if they start the string
+        extracted = extracted.replace(/^\d+[-\s]\d+\s+to\s+/i, '').trim();
+        // Stop at separator keywords
+        extracted = extracted.split(/\s+(?:payment|fund|under|general|above)\s+/i)[0].trim();
+        payee = extracted.substring(0, 100);
       } else {
         // Third: Try to capture name-like patterns (all caps or title case names)
         // Look for a line that looks like a person/organization name
