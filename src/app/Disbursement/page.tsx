@@ -429,48 +429,60 @@ const startCamera = async () => {
     // ============ Enhanced Amount Detection (Philippine Peso Format) ============
     // Supports various formats: ₱1,234.50, ₱1234.5, Amount: 1234, $5000.25, 15 000 (spaces), etc.
     let amount = "";
-    let amountMatch;
 
-    // Pattern 1: Amount/Total with explicit keyword (highest priority - most reliable)
-    amountMatch = raw.match(/(?:amount|total)[:\s]+(?:₱\s*)?([\d,\s]+(?:\.\d{1,2})?)/i);
+    // Pattern 1: "Amount:" or "Total:" followed by number (stops at next keyword or line break)
+    // This is most reliable because it has explicit context
+    let amountMatch = raw.match(/(?:amount|total)[:\s]+(?:₱\s*)?([0-9,.\s]+?)(?:\s+(?:pesos?|php|only|budget|fund|the|for)\b|[\n]|$)/i);
     if (amountMatch) {
-      amount = amountMatch[1].replace(/[\s,]/g, "");
+      let extracted = amountMatch[1].replace(/[\s,]/g, "").trim();
+      // Validate it's not just "5" or other single digit - must be >= 1000 for disbursement
+      if (parseInt(extracted, 10) >= 1000 || parseInt(extracted, 10) >= 100) {
+        amount = extracted;
+      }
     }
 
-    // Pattern 2: Currency symbol followed by number
+    // Pattern 2: Currency symbol followed by number (₱ or $ or P)
     if (!amount) {
-      amountMatch = raw.match(/(?:₱|p\.?|\$)\s*([\d,\s]+(?:\.\d{1,2})?)/i);
+      amountMatch = raw.match(/[₱P$]\s*([0-9,.\s]+?)(?:\s+(?:pesos?|php|only)\b|[\n]|$)/i);
+      if (amountMatch) {
+        let extracted = amountMatch[1].replace(/[\s,]/g, "").trim();
+        if (parseInt(extracted, 10) >= 100) {
+          amount = extracted;
+        }
+      }
+    }
+
+    // Pattern 3: Numbers with explicit "pesos", "php", "Philippine Peso" suffix
+    if (!amount) {
+      amountMatch = raw.match(/([0-9,.\s]+?)\s+(?:pesos?|php|philippine\s+pesos?)/i);
+      if (amountMatch) {
+        let extracted = amountMatch[1].replace(/[\s,]/g, "").trim();
+        if (parseInt(extracted, 10) >= 100) {
+          amount = extracted;
+        }
+      }
+    }
+
+    // Pattern 4: Large formatted numbers (thousands separator: "15,000" or "15 000")
+    if (!amount) {
+      amountMatch = raw.match(/\b([0-9]{1,3}(?:[,\s][0-9]{3})+(?:\.[0-9]{2})?)\b/);
       if (amountMatch) {
         amount = amountMatch[1].replace(/[\s,]/g, "");
       }
     }
 
-    // Pattern 3: Numbers with peso/php suffix
+    // Pattern 5: Find ALL numbers that could be amounts and pick the LARGEST one >= 1000
+    // This avoids picking up "5" from page numbers, references, etc.
     if (!amount) {
-      amountMatch = raw.match(/([\d,\s]+(?:\.\d{1,2})?)\s*(?:pesos?|php)/i);
-      if (amountMatch) {
-        amount = amountMatch[1].replace(/[\s,]/g, "");
-      }
-    }
-
-    // Pattern 4: Large comma-separated or space-separated numbers (e.g., "15,000" or "15 000")
-    if (!amount) {
-      const largeNumberMatch = raw.match(/\b(\d{1,3}(?:[,\s]\d{3})+)\b/);
-      if (largeNumberMatch) {
-        amount = largeNumberMatch[1].replace(/[\s,]/g, "");
-      }
-    }
-
-    // Pattern 5: Find ALL numbers and return the largest that looks like an amount (>= 100)
-    if (!amount) {
-      const allNumbers = raw.match(/\b(\d+(?:[,\s]\d+)*)\b/g) || [];
-      const validAmounts = allNumbers
-        .map(num => parseInt(num.replace(/[\s,]/g, ""), 10))
-        .filter(num => num >= 100)
-        .sort((a, b) => b - a);
-      
-      if (validAmounts.length > 0) {
-        amount = String(validAmounts[0]);
+      // Match numbers that could be amounts: at least 4 digits or 3+ digits with decimals
+      const potentialAmounts = raw.match(/\b([0-9]{4,}(?:\.[0-9]{2})?|[0-9]{1,3},[0-9]{3,}(?:\.[0-9]{2})?)\b/g) || [];
+      if (potentialAmounts.length > 0) {
+        const parsed = potentialAmounts
+          .map(num => parseInt(num.replace(/[\s,]/g, ""), 10))
+          .sort((a, b) => b - a);
+        if (parsed[0] > 0) {
+          amount = String(parsed[0]);
+        }
       }
     }
 
