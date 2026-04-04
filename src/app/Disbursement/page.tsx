@@ -998,24 +998,17 @@ const isBudgetEnough = () => {
         </div>
       </div>
 
-      {/* =================== Scan Disbursement Card =================== */}
-      <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-40">
-        <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg shadow-2xl p-6 w-48 flex flex-col items-center justify-center gap-4 hover:shadow-3xl transition-all duration-200">
-          <h3 className="text-white font-semibold text-lg text-center">
-            Scan Disbursement
-          </h3>
-          <button
-            onClick={() => {
-              setShowScanModal(true);
-              setScanMode("camera");
-            }}
-            className="bg-white text-blue-600 px-6 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-all duration-200 flex items-center justify-center gap-2 w-full"
-          >
-            <ScanEye className="w-5 h-5" />
-            Scan
-          </button>
-        </div>
-      </div>
+      {/* =================== Floating Scan Button =================== */}
+      <button
+        onClick={() => {
+          setShowScanModal(true);
+          setScanMode("camera");
+        }}
+        className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-40 bg-blue-600 rounded-full p-4 shadow-2xl cursor-pointer hover:bg-blue-700 hover:scale-110 hover:shadow-3xl transition-all duration-200 flex items-center justify-center"
+        title="Open OCR Scanner"
+      >
+        <ScanEye className="w-8 h-8 text-white" />
+      </button>
 
 {/* =================== Add/Edit Disbursement Modal =================== */}
 {showModal && (
