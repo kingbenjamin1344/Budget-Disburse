@@ -427,27 +427,50 @@ const startCamera = async () => {
     }
 
     // ============ Enhanced Amount Detection (Philippine Peso Format) ============
-    // Supports various formats: ₱1,234.50, ₱1234.5, Amount: 1234, $5000.25, etc.
-    // First priority: Currency symbols followed by amount
+    // Supports various formats: ₱1,234.50, ₱1234.5, Amount: 1234, $5000.25, 15 000 (spaces), etc.
     let amount = "";
-    const amountMatch = 
-      raw.match(/₱\s*([\d,]+(?:\.\d{1,2})?)/) ||
-      raw.match(/(?:p\.?|\$)\s*([\d,]+(?:\.\d{1,2})?)/i) ||
-      raw.match(/(?:amount|total)[:\s]*(?:₱\s*)?([\d,]+(?:\.\d{1,2})?)/i);
-    
+    let amountMatch;
+
+    // Pattern 1: Amount/Total with explicit keyword (highest priority - most reliable)
+    amountMatch = raw.match(/(?:amount|total)[:\s]+(?:₱\s*)?([\d,\s]+(?:\.\d{1,2})?)/i);
     if (amountMatch) {
-      amount = amountMatch[1].replace(/,/g, "");
-    } else {
-      // Fallback: Look for large comma-separated numbers (e.g., "15,000", "1,234,567")
-      const largeNumberMatch = raw.match(/\b(\d{1,3}(?:,\d{3})+)\b/);
+      amount = amountMatch[1].replace(/[\s,]/g, "");
+    }
+
+    // Pattern 2: Currency symbol followed by number
+    if (!amount) {
+      amountMatch = raw.match(/(?:₱|p\.?|\$)\s*([\d,\s]+(?:\.\d{1,2})?)/i);
+      if (amountMatch) {
+        amount = amountMatch[1].replace(/[\s,]/g, "");
+      }
+    }
+
+    // Pattern 3: Numbers with peso/php suffix
+    if (!amount) {
+      amountMatch = raw.match(/([\d,\s]+(?:\.\d{1,2})?)\s*(?:pesos?|php)/i);
+      if (amountMatch) {
+        amount = amountMatch[1].replace(/[\s,]/g, "");
+      }
+    }
+
+    // Pattern 4: Large comma-separated or space-separated numbers (e.g., "15,000" or "15 000")
+    if (!amount) {
+      const largeNumberMatch = raw.match(/\b(\d{1,3}(?:[,\s]\d{3})+)\b/);
       if (largeNumberMatch) {
-        amount = largeNumberMatch[1].replace(/,/g, "");
-      } else {
-        // Last fallback: Look for numbers with "peso" or "php" suffix
-        const pesoMatch = raw.match(/([\d,]+(?:\.\d{1,2})?)\s*(?:pesos?|php)/i);
-        if (pesoMatch) {
-          amount = pesoMatch[1].replace(/,/g, "");
-        }
+        amount = largeNumberMatch[1].replace(/[\s,]/g, "");
+      }
+    }
+
+    // Pattern 5: Find ALL numbers and return the largest that looks like an amount (>= 100)
+    if (!amount) {
+      const allNumbers = raw.match(/\b(\d+(?:[,\s]\d+)*)\b/g) || [];
+      const validAmounts = allNumbers
+        .map(num => parseInt(num.replace(/[\s,]/g, ""), 10))
+        .filter(num => num >= 100)
+        .sort((a, b) => b - a);
+      
+      if (validAmounts.length > 0) {
+        amount = String(validAmounts[0]);
       }
     }
 
