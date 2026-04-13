@@ -11,6 +11,8 @@ export default function DisbursementPage() {
   const [filterOffice, setFilterOffice] = useState("");
   const [filterExpense, setFilterExpense] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
+  const [filterMonth, setFilterMonth] = useState("");
+  const [filterYear, setFilterYear] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -824,7 +826,24 @@ const isBudgetEnough = () => {
     const matchesOffice = filterOffice ? item.office === filterOffice : true;
     const matchesExpense = filterExpense ? item.expenseType === filterExpense : true;
     const matchesCategory = filterCategory ? item.expenseCategory === filterCategory : true;
-    return matchesSearch && matchesOffice && matchesExpense && matchesCategory;
+    
+    // Filter by month and year
+    let matchesDate = true;
+    if (filterMonth || filterYear) {
+      const itemDate = new Date(item.dateCreated);
+      const itemMonth = String(itemDate.getMonth() + 1).padStart(2, '0');
+      const itemYear = itemDate.getFullYear().toString();
+      
+      if (filterMonth && filterYear) {
+        matchesDate = itemMonth === filterMonth && itemYear === filterYear;
+      } else if (filterMonth) {
+        matchesDate = itemMonth === filterMonth;
+      } else if (filterYear) {
+        matchesDate = itemYear === filterYear;
+      }
+    }
+    
+    return matchesSearch && matchesOffice && matchesExpense && matchesCategory && matchesDate;
   });
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
@@ -906,6 +925,54 @@ const isBudgetEnough = () => {
               ))}
           </select>
 
+          {/* Month Filter */}
+          <select
+            value={filterMonth}
+            onChange={(e) => {
+              setFilterMonth(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="border border-gray-300 rounded-md px-3 py-2"
+          >
+            <option value="">Select Month</option>
+            {[
+              { value: '01', label: 'January' },
+              { value: '02', label: 'February' },
+              { value: '03', label: 'March' },
+              { value: '04', label: 'April' },
+              { value: '05', label: 'May' },
+              { value: '06', label: 'June' },
+              { value: '07', label: 'July' },
+              { value: '08', label: 'August' },
+              { value: '09', label: 'September' },
+              { value: '10', label: 'October' },
+              { value: '11', label: 'November' },
+              { value: '12', label: 'December' },
+            ].map((month) => (
+              <option key={month.value} value={month.value}>{month.label}</option>
+            ))}
+          </select>
+
+          {/* Year Filter */}
+          <select
+            value={filterYear}
+            onChange={(e) => {
+              setFilterYear(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="border border-gray-300 rounded-md px-3 py-2"
+          >
+            <option value="">Select Year</option>
+            {Array.from({ length: 10 }, (_, i) => {
+              const year = new Date().getFullYear() - i;
+              return (
+                <option key={year} value={year.toString()}>
+                  {year}
+                </option>
+              );
+            })}
+          </select>
+
           {/* Record Disbursement Button */}
           <button
             onClick={handleAdd}
@@ -916,6 +983,20 @@ const isBudgetEnough = () => {
         </div>
       </div>
       <hr className="border-gray-300 mb-6" />
+
+      {/* =================== Disbursement Count =================== */}
+      <div className="mb-4 flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
+        <div className="text-sm font-semibold text-gray-700">
+          Total Disbursements: <span className="text-blue-600 text-lg font-bold">{filtered.length}</span>
+        </div>
+        {(filterMonth || filterYear) && (
+          <div className="text-sm text-gray-500 ml-2">
+            {filterMonth && filterYear && `(${['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][parseInt(filterMonth)]} ${filterYear})`}
+            {filterMonth && !filterYear && `(Month: ${['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][parseInt(filterMonth)]})`}
+            {!filterMonth && filterYear && `(Year: ${filterYear})`}
+          </div>
+        )}
+      </div>
 
       {/* =================== Table =================== */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[600px]">
