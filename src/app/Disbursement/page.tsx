@@ -119,16 +119,16 @@ export default function DisbursementPage() {
   // ====== Auto-capture logic ======
   // Simple document detection: checks for a bright rectangle in the center
   const detectDocument = (imageData: ImageData) => {
-    // Heuristic: average brightness in center region
+    // Heuristic: average brightness in a larger center region
     const { data, width, height } = imageData;
     let total = 0, count = 0;
-    // Center box (40% of width/height)
-    const x0 = Math.floor(width * 0.3);
-    const x1 = Math.floor(width * 0.7);
-    const y0 = Math.floor(height * 0.3);
-    const y1 = Math.floor(height * 0.7);
-    for (let y = y0; y < y1; y += 4) {
-      for (let x = x0; x < x1; x += 4) {
+    // Center box (60% of width/height)
+    const x0 = Math.floor(width * 0.2);
+    const x1 = Math.floor(width * 0.8);
+    const y0 = Math.floor(height * 0.2);
+    const y1 = Math.floor(height * 0.8);
+    for (let y = y0; y < y1; y += 2) {
+      for (let x = x0; x < x1; x += 2) {
         const idx = (y * width + x) * 4;
         const r = data[idx], g = data[idx + 1], b = data[idx + 2];
         const brightness = (r + g + b) / 3;
@@ -137,11 +137,14 @@ export default function DisbursementPage() {
       }
     }
     const avg = total / count;
-    // If center is bright enough, assume document present
-    return avg > 180;
+    // Lowered threshold for better detection
+    return avg > 140;
   };
 
   // Auto-capture loop
+  // Visual feedback state
+  const [docDetected, setDocDetected] = useState(false);
+
   const autoCaptureLoop = async () => {
     if (!videoRef.current || !canvasRef.current || !autoCaptureActive) return;
     const video = videoRef.current;
@@ -152,17 +155,18 @@ export default function DisbursementPage() {
     canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    if (detectDocument(imageData)) {
-      // Auto-capture and stop loop
+    const detected = detectDocument(imageData);
+    setDocDetected(detected);
+    if (detected) {
       setAutoCaptureActive(false);
       setCameraActive(false);
+      toast.success("Document detected! Capturing...");
       const imgDataUrl = canvas.toDataURL("image/jpeg");
       await handlePerformOCR(imgDataUrl);
       stopCamera();
       return;
     }
-    // Continue loop
-    autoCaptureTimeout.current = setTimeout(autoCaptureLoop, 500);
+    autoCaptureTimeout.current = setTimeout(autoCaptureLoop, 400);
   };
 
   const startCamera = async () => {
@@ -1548,6 +1552,20 @@ const isBudgetEnough = () => {
           cameraActive ? "opacity-100" : "opacity-0"
         }`}
       />
+      {/* Overlay for document detection */}
+      {cameraActive && (
+        <div
+          className="absolute top-0 left-0 w-full h-full pointer-events-none flex items-center justify-center"
+          style={{ zIndex: 2 }}
+        >
+          <div
+            className={`border-4 rounded-2xl transition-all duration-200 ${
+              docDetected ? "border-green-500 shadow-lg" : "border-gray-400"
+            }"}
+            style={{ width: "60%", height: "60%" }}
+          ></div>
+        </div>
+      )}
     </div>
 
     {!cameraActive ? (
@@ -1561,7 +1579,9 @@ const isBudgetEnough = () => {
       <div className="flex flex-col gap-2 items-center">
         {autoCaptureActive && !ocrLoading && (
           <div className="text-blue-700 font-semibold text-center mt-2">
-            <span className="animate-pulse">Detecting document... Hold steady.</span>
+            <span className="animate-pulse">
+              {docDetected ? "Document detected! Capturing..." : "Detecting document... Hold steady in the green box."}
+            </span>
           </div>
         )}
         {ocrLoading && (
