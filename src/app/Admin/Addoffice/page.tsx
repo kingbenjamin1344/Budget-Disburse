@@ -252,8 +252,6 @@ export default function AddOfficePage() {
                 </li>
               </ul>
             </nav>
-              </ul>
-            </nav>
           </div>
         </div>
       </div>
