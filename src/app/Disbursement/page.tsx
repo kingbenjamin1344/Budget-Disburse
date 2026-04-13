@@ -50,16 +50,21 @@ export default function DisbursementPage() {
   const [isOnlineMode, setIsOnlineMode] = useState(true);
   const [ocrAvailable, setOcrAvailable] = useState(true);
   const [autoCapturingInProgress, setAutoCapturingInProgress] = useState(false);
-  const [detectedFields, setDetectedFields] = useState({
-    dvNo: false,
-    payee: false,
-    office: false,
-    expenseType: false,
-    expenseCategory: false,
-    date: false,
-    amount: false,
+  
+  // Sequential field scanning
+  const fieldsToScan = ["dvNo", "payee", "office", "date", "expenseType", "amount"];
+  const [currentScanFieldIndex, setCurrentScanFieldIndex] = useState(0);
+  const [extractedValues, setExtractedValues] = useState({
+    dvNo: "",
+    payee: "",
+    office: "",
+    expenseType: "",
+    expenseCategory: "",
+    date: "",
+    amount: "",
   });
   const [smartDetectionAttempts, setSmartDetectionAttempts] = useState(0);
+  
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -123,78 +128,120 @@ export default function DisbursementPage() {
     };
   }, []);
 
-  // ====== Smart Detection Function ======
-  // Check if extracted text contains all required fields
-  const checkAllFieldsDetected = (text: string): boolean => {
+  // ====== Extract Single Field Value ======
+  // Extracts a specific field value from OCR text
+  const extractFieldValue = (text: string, fieldName: string): string => {
     const raw = text || "";
-    const ltext = raw.toLowerCase();
     
-    // Check DV No
-    const dvNoPattern = /(?:dv[\s\-]?(?:no|number)?[\s:]+)?([0-9]{3,5}[-\/][0-9]{4,6}|[A-Z0-9\-]+)/i;
-    const hasDVNo = dvNoPattern.test(raw);
-    
-    // Check Payee
-    const payeePattern = /(?:payee|received by|recipient|in favor of|payment to|pay to|issued to)[:\s]*([A-Za-z0-9 .,&';\-()]{3,100}?)/i;
-    const hasPayee = payeePattern.test(raw);
-    
-    // Check Office
-    const officePattern = /(?:office|department|bureau)[:\s]*([A-Za-z0-9 \-()'.,]{2,50}?)/i;
-    const hasOffice = officePattern.test(raw);
-    
-    // Check Date (various formats)
-    const datePattern = /(\d{2}\/\d{2}\/\d{4}|\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4}|\d{4}-\d{2}-\d{2})/;
-    const hasDate = datePattern.test(raw);
-    
-    // Check Amount
-    const amountPattern = /(?:amount|total)[:\s]+(?:₱\s*)?([0-9,.\s]+)|[₱P$]\s*([0-9,.\s]+)/i;
-    const hasAmount = amountPattern.test(raw);
-    
-    // Check Expense Type or Category (look for common keywords)
-    const expensePattern = /(?:electricity|water|supplies|fuel|materials|wages|services|rent|maintenance|transport|communications|training|utilities|general)[:\s]*/i;
-    const hasExpense = expensePattern.test(raw);
-    
-    // All required fields must be detected
-    const allDetected = hasDVNo && hasPayee && hasOffice && hasDate && hasAmount && hasExpense;
-    
-    // Update detected fields state for UI display
-    setDetectedFields({
-      dvNo: hasDVNo,
-      payee: hasPayee,
-      office: hasOffice,
-      expenseType: hasExpense,
-      expenseCategory: hasExpense,
-      date: hasDate,
-      amount: hasAmount,
-    });
-    
-    return allDetected;
+    switch (fieldName) {
+      case "dvNo":
+        // DV Number extraction
+        const dvExplicitMatch = raw.match(/(?:dv[\s\-]?(?:no|number)?[\s:]+)?([0-9]{3,5}[-\/][0-9]{4,6}(?:[-\/][0-9]{2,4})?(?:[-\/][0-9]{2,6})?)/i);
+        if (dvExplicitMatch) return dvExplicitMatch[1].trim().substring(0, 50);
+        
+        const dvLabelMatch = raw.match(/dv[\s:\-]*no\.?[\s:\-]*([A-Z0-9\-\.\s]+?)(?:\n|$|[A-Z])/i);
+        if (dvLabelMatch) return dvLabelMatch[1].trim().substring(0, 50);
+        
+        const dvFormatMatch = raw.match(/\b(\d{3}-\d{4}-\d{2}-\d{4})\b/);
+        if (dvFormatMatch) return dvFormatMatch[1].trim().substring(0, 50);
+        return "";
+        
+      case "payee":
+        // Payee extraction
+        const payeeExplicitMatch = raw.match(/(?:payee|received by|recipient|in favor of|payment to|pay to|issued to)[:\s]*([A-Za-z0-9 .,&';\-()]{3,100}?)(?:\n|$|(?:address|department|office))/i);
+        if (payeeExplicitMatch) return payeeExplicitMatch[1].trim().substring(0, 100);
+        
+        const payeeFlexibleMatch = raw.match(/(?:payee|recipient)[:\s]*(.*?)(?:\n\n|date|amount|purpose)/i);
+        if (payeeFlexibleMatch) {
+          let extracted = payeeFlexibleMatch[1].trim().split('\n')[0];
+          extracted = extracted.replace(/^\d+[-\s]\d+\s+to\s+/i, '').trim();
+          extracted = extracted.split(/\s+(?:payment|fund|under|general|above)\s+/i)[0].trim();
+          return extracted.substring(0, 100);
+        }
+        return "";
+        
+      case "office":
+        // Office extraction
+        const officeMatch = raw.match(/(?:office|department|bureau|agency)[:\s]*([A-Za-z0-9 \-()'.,]{3,100}?)(?:\n|$|address|location)/i);
+        if (officeMatch) return officeMatch[1].trim().substring(0, 100);
+        return "";
+        
+      case "date":
+        // Date extraction
+        const datePatterns = [
+          /(\d{2}\/\d{2}\/\d{4})/,
+          /(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})/,
+          /(\d{1,2}[-\s][A-Za-z]{3,9}[-\s]\d{4})/,
+          /(\d{4}-\d{2}-\d{2})/,
+        ];
+        for (const p of datePatterns) {
+          const m = raw.match(p);
+          if (m) return m[1].trim();
+        }
+        return "";
+        
+      case "expenseType":
+      case "amount":
+        // These are handled in parseAndFillForm, so we just check if they exist
+        const expenseMatch = raw.match(/(?:electricity|water|supplies|fuel|materials|wages|services|rent|maintenance|transport|communications|training|utilities|general|office|contingency)[:\s]*([A-Za-z0-9 \-]{2,50})?/i);
+        if (expenseMatch && fieldName === "expenseType") {
+          return expenseMatch[0].split(':')[0].trim().substring(0, 50);
+        }
+        
+        const amountMatch = raw.match(/(?:amount|total)[:\s]+(?:₱\s*)?([0-9,.\s]+)|[₱P$]\s*([0-9,.\s]+)/i);
+        if (amountMatch && fieldName === "amount") {
+          const extracted = (amountMatch[1] || amountMatch[2]).replace(/[\s,]/g, "").trim();
+          return extracted.substring(0, 50);
+        }
+        return "";
+        
+      default:
+        return "";
+    }
   };
 
-  // ====== Smart Auto-Capture Detection ======
-  // Continuously analyze camera frames to detect when all required fields are visible
+  // ====== Sequential Smart Detection ======
+  // Scans one field at a time, displays value, then moves to next field
   useEffect(() => {
     if (!cameraActive || autoCapturingInProgress || smartDetectionIntervalRef.current) return;
+    
+    // Check if all fields have been collected
+    const allFieldsScanned = currentScanFieldIndex >= fieldsToScan.length;
+    if (allFieldsScanned) {
+      // All fields collected! Fill form and close scanner
+      if (smartDetectionIntervalRef.current) {
+        clearInterval(smartDetectionIntervalRef.current);
+        smartDetectionIntervalRef.current = null;
+      }
+      
+      // Build combined text from extracted values for form parsing
+      const combinedExtractedText = Object.entries(extractedValues)
+        .map(([key, val]) => val ? `${key}: ${val}` : "")
+        .filter(line => line)
+        .join("\n");
+      
+      setOcrResult(combinedExtractedText);
+      parseAndFillForm(combinedExtractedText);
+      
+      stopCamera();
+      toast.success("✅ All fields extracted! Filling form...", { autoClose: 2000 });
+      return;
+    }
 
     setSmartDetectionAttempts(0);
-    setDetectedFields({
-      dvNo: false,
-      payee: false,
-      office: false,
-      expenseType: false,
-      expenseCategory: false,
-      date: false,
-      amount: false,
-    });
 
     const smartDetectionInterval = setInterval(async () => {
       try {
         setSmartDetectionAttempts((prev) => prev + 1);
 
-        // Stop after 60 attempts (2 minutes at 2-second intervals)
-        if (smartDetectionAttempts >= 60) {
+        // Stop after 40 attempts per field (80 seconds at 2-second intervals)
+        if (smartDetectionAttempts >= 40) {
           clearInterval(smartDetectionInterval);
           smartDetectionIntervalRef.current = null;
-          toast.warning("⏱️ Auto-capture timeout. Please manually trigger capture or adjust the document.", { autoClose: 3000 });
+          toast.warning(`⏱️ Could not detect ${fieldsToScan[currentScanFieldIndex]}. Moving to next field...`, { autoClose: 2000 });
+          
+          // Move to next field even if not found
+          setCurrentScanFieldIndex((prev) => prev + 1);
           return;
         }
 
@@ -207,24 +254,31 @@ export default function DisbursementPage() {
           
           const imageData = canvasRef.current.toDataURL("image/jpeg");
 
-          // Run quick OCR check
+          // Run quick OCR check on current frame
           await initTesseractWorker();
           const result = await performOCR(imageData, { psm: 6 });
-          const combinedText = result.text || "";
+          const frameText = result.text || "";
 
-          // Check if all required fields are detected
-          if (checkAllFieldsDetected(combinedText)) {
-            // All fields found! Proceed with full capture
+          // Try to extract current field
+          const currentField = fieldsToScan[currentScanFieldIndex];
+          const extractedValue = extractFieldValue(frameText, currentField);
+
+          if (extractedValue && extractedValue.length > 2) {
+            // Field found! Update extracted values and move to next field
+            setExtractedValues((prev) => ({
+              ...prev,
+              [currentField]: extractedValue,
+            }));
+
             clearInterval(smartDetectionInterval);
             smartDetectionIntervalRef.current = null;
-            
-            setAutoCapturingInProgress(true);
-            toast.success("✓ All fields detected! Capturing...", { autoClose: 1500 });
 
-            // Use the current frame for final OCR with both PSM modes
-            await handlePerformOCR(imageData);
-            stopCamera();
-            setAutoCapturingInProgress(false);
+            toast.success(`✓ ${currentField}: ${extractedValue}`, { autoClose: 1500 });
+            
+            // Move to next field after short delay
+            setTimeout(() => {
+              setCurrentScanFieldIndex((prev) => prev + 1);
+            }, 800);
           }
         }
       } catch (err) {
@@ -240,7 +294,7 @@ export default function DisbursementPage() {
         smartDetectionIntervalRef.current = null;
       }
     };
-  }, [cameraActive, autoCapturingInProgress, smartDetectionAttempts]);
+  }, [cameraActive, autoCapturingInProgress, currentScanFieldIndex, smartDetectionAttempts]);
 
   // ====== OCR Functions ======
 const startCamera = async () => {
@@ -735,14 +789,15 @@ const startCamera = async () => {
     setOcrResult("");
     setAutoCapturingInProgress(false);
     setSmartDetectionAttempts(0);
-    setDetectedFields({
-      dvNo: false,
-      payee: false,
-      office: false,
-      expenseType: false,
-      expenseCategory: false,
-      date: false,
-      amount: false,
+    setCurrentScanFieldIndex(0);
+    setExtractedValues({
+      dvNo: "",
+      payee: "",
+      office: "",
+      expenseType: "",
+      expenseCategory: "",
+      date: "",
+      amount: "",
     });
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -1657,47 +1712,84 @@ const isBudgetEnough = () => {
       </button>
     ) : (
       <div className="space-y-3">
-        {/* Smart Detection Status */}
-        <div className="bg-gray-50 border-2 border-blue-300 rounded-lg p-4">
+        {/* Sequential Field Scanning Status */}
+        <div className="bg-gradient-to-b from-blue-50 to-blue-100 border-2 border-blue-400 rounded-lg p-4">
           <p className="text-sm font-semibold text-gray-800 mb-3">
-            🔍 Scanning for Required Fields...
+            📱 Scanning Fields Step-by-Step
           </p>
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className={`flex items-center gap-2 p-2 rounded ${detectedFields.dvNo ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
-              <span>{detectedFields.dvNo ? '✓' : '○'}</span> DV No.
-            </div>
-            <div className={`flex items-center gap-2 p-2 rounded ${detectedFields.payee ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
-              <span>{detectedFields.payee ? '✓' : '○'}</span> Payee
-            </div>
-            <div className={`flex items-center gap-2 p-2 rounded ${detectedFields.office ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
-              <span>{detectedFields.office ? '✓' : '○'}</span> Office
-            </div>
-            <div className={`flex items-center gap-2 p-2 rounded ${detectedFields.date ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
-              <span>{detectedFields.date ? '✓' : '○'}</span> Date
-            </div>
-            <div className={`flex items-center gap-2 p-2 rounded ${detectedFields.amount ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
-              <span>{detectedFields.amount ? '✓' : '○'}</span> Amount
-            </div>
-            <div className={`flex items-center gap-2 p-2 rounded ${detectedFields.expenseType ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
-              <span>{detectedFields.expenseType ? '✓' : '○'}</span> Expense
-            </div>
+          
+          {/* Field Progress List */}
+          <div className="space-y-2">
+            {fieldsToScan.map((field, index) => {
+              const isCurrentField = index === currentScanFieldIndex;
+              const isCompleted = index < currentScanFieldIndex;
+              const extractedVal = extractedValues[field as keyof typeof extractedValues];
+              
+              return (
+                <div
+                  key={field}
+                  className={`p-3 rounded-lg border-2 transition ${
+                    isCurrentField
+                      ? "border-blue-500 bg-blue-200 ring-2 ring-blue-400"
+                      : isCompleted
+                      ? "border-green-500 bg-green-50"
+                      : "border-gray-300 bg-gray-100"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-lg ${
+                        isCurrentField ? "🔍" : isCompleted ? "✅" : "⏳"
+                      }`}>
+                      </span>
+                      <span className={`font-semibold text-sm ${
+                        isCurrentField ? "text-blue-900" : isCompleted ? "text-green-900" : "text-gray-700"
+                      }`}>
+                        {field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, " $1")}
+                      </span>
+                    </div>
+                    {isCurrentField && smartDetectionAttempts > 0 && (
+                      <span className="text-xs font-mono text-blue-800">
+                        {smartDetectionAttempts}s
+                      </span>
+                    )}
+                  </div>
+                  
+                  {/* Extracted Value or Status */}
+                  {isCompleted && extractedVal ? (
+                    <div className="mt-1 ml-6 text-xs bg-white px-2 py-1 rounded text-green-900 font-mono border border-green-300">
+                      {extractedVal}
+                    </div>
+                  ) : isCurrentField ? (
+                    <div className="mt-1 ml-6 text-xs text-blue-900 animate-pulse">
+                      Searching camera frame...
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
-          <p className="text-xs text-gray-600 mt-3">
-            {smartDetectionAttempts > 0 ? `Scan attempt: ${smartDetectionAttempts}/60` : "Initializing..."}
-          </p>
+
+          <div className="mt-3 pt-3 border-t border-blue-300 text-xs text-blue-900 text-center">
+            Progress: {currentScanFieldIndex} of {fieldsToScan.length} fields
+          </div>
         </div>
 
         {autoCapturingInProgress ? (
           <div className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2">
-            <Loader className="w-5 h-5 animate-spin" /> All Fields Detected! Processing...
+            <Loader className="w-5 h-5 animate-spin" /> Processing Complete Fields...
+          </div>
+        ) : currentScanFieldIndex >= fieldsToScan.length ? (
+          <div className="w-full bg-green-500 text-white py-3 rounded-lg font-semibold text-center">
+            ✅ All Fields Collected!
           </div>
         ) : ocrLoading ? (
           <div className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2">
             <Loader className="w-5 h-5 animate-spin" /> Processing OCR...
           </div>
         ) : (
-          <div className="text-center text-sm text-gray-600 py-2">
-            Adjust document in camera frame...
+          <div className="text-center text-sm text-gray-600 py-2 bg-gray-50 rounded-lg">
+            📸 Move camera to document for next field...
           </div>
         )}
         
