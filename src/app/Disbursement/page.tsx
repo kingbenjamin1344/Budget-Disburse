@@ -74,10 +74,6 @@ export default function DisbursementPage() {
           </button>
         </div>
       )}
-        // Set keyword mapping for dynamic category detection
-        if (keywordData.keywords) {
-          setCategoryKeywords(keywordData.keywords);
-        }
       } catch (err) {
         console.error("Failed to fetch data:", err);
       } finally {
