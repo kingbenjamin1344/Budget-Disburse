@@ -984,18 +984,71 @@ const isBudgetEnough = () => {
       </div>
       <hr className="border-gray-300 mb-6" />
 
-      {/* =================== Disbursement Count =================== */}
-      <div className="mb-4 flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
-        <div className="text-sm font-semibold text-gray-700">
-          Total Disbursements: <span className="text-blue-600 text-lg font-bold">{filtered.length}</span>
-        </div>
-        {(filterMonth || filterYear) && (
-          <div className="text-sm text-gray-500 ml-2">
-            {filterMonth && filterYear && `(${['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][parseInt(filterMonth)]} ${filterYear})`}
-            {filterMonth && !filterYear && `(Month: ${['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][parseInt(filterMonth)]})`}
-            {!filterMonth && filterYear && `(Year: ${filterYear})`}
+      {/* =================== Disbursement Summary Card =================== */}
+      <div className="mb-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-md p-4 text-white">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          {/* Left side - Count and Amount */}
+          <div className="flex items-center gap-6">
+            {/* Disbursement Count */}
+            <div className="flex items-center gap-2">
+              <div className="bg-white/20 p-2 rounded-lg">
+                <Receipt className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs text-blue-100">Total Disbursements</p>
+                <p className="text-2xl font-bold">{filtered.length}</p>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="w-px h-12 bg-white/20"></div>
+
+            {/* Total Amount */}
+            <div className="flex items-center gap-2">
+              <div className="bg-white/20 p-2 rounded-lg">
+                <DollarSign className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs text-blue-100">Total Amount</p>
+                <p className="text-2xl font-bold">₱{filtered.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0).toLocaleString()}</p>
+              </div>
+            </div>
           </div>
-        )}
+
+          {/* Right side - Active Filters */}
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            {searchTerm && (
+              <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-medium">
+                Search: {searchTerm}
+              </span>
+            )}
+            {filterOffice && (
+              <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-medium">
+                Office: {filterOffice}
+              </span>
+            )}
+            {filterCategory && (
+              <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-medium">
+                Category: {filterCategory}
+              </span>
+            )}
+            {filterExpense && (
+              <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-medium">
+                Type: {filterExpense}
+              </span>
+            )}
+            {filterMonth && (
+              <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-medium">
+                {['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][parseInt(filterMonth)]}
+              </span>
+            )}
+            {filterYear && (
+              <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-medium">
+                {filterYear}
+              </span>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* =================== Table =================== */}
