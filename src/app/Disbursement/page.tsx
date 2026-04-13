@@ -45,7 +45,7 @@ export default function DisbursementPage() {
 
   // ====== OCR Scanner States ======
   const [showScanModal, setShowScanModal] = useState(false);
-  const [scanMode, setScanMode] = useState<"camera" | "upload">("camera");
+  const [scanMode, setScanMode] = useState<"upload">("upload");
   const [cameraActive, setCameraActive] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrResult, setOcrResult] = useState("");
@@ -598,7 +598,7 @@ const startCamera = async () => {
   const closeScanModal = () => {
     stopCamera();
     setShowScanModal(false);
-    setScanMode("camera");
+    setScanMode("upload");
     setOcrResult("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -1136,7 +1136,7 @@ const isBudgetEnough = () => {
       <button
         onClick={() => {
           setShowScanModal(true);
-          setScanMode("camera");
+          setScanMode("upload");
         }}
         className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-40 bg-blue-600 rounded-full p-4 shadow-2xl cursor-pointer hover:bg-blue-700 hover:scale-110 hover:shadow-3xl transition-all duration-200 flex items-center justify-center"
         title="Open OCR Scanner"
@@ -1595,117 +1595,37 @@ const isBudgetEnough = () => {
             </div>
 
             <div className="p-6 space-y-4">
-              {/* Mode Selection */}
-              <div className="flex gap-3 mb-4">
-                <button
-                  onClick={() => setScanMode("camera")}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition ${
-                    scanMode === "camera"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-300 hover:border-gray-400"
-                  }`}
-                >
-                  <Camera className="w-5 h-5" /> Camera
-                </button>
-                <button
-                  onClick={() => setScanMode("upload")}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition ${
-                    scanMode === "upload"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-300 hover:border-gray-400"
-                  }`}
-                >
-                  <Upload className="w-5 h-5" /> Upload
-                </button>
-              </div>
-
-                     {/* Camera Mode */}
-{scanMode === "camera" && (
-  <div className="space-y-3">
-    {/* Video Preview with Enhanced Contrast */}
-    <div className="relative w-full bg-black rounded-lg overflow-hidden">
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        muted
-        controlsList="nopictureinpicture"
-        className={`w-full max-h-96 bg-black rounded-lg object-cover mb-2 transition-opacity contrast-125 brightness-110 ${
-          cameraActive ? "opacity-100" : "opacity-0"
-        }`}
-      />
-    </div>
-
-    {!cameraActive ? (
-      <button
-        onClick={startCamera}
-        className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-semibold flex items-center justify-center gap-2"
-      >
-        <Camera className="w-5 h-5" /> Start Camera
-      </button>
-    ) : (
-      <div className="flex gap-2">
-        <button
-          onClick={capturePhoto}
-          disabled={ocrLoading}
-          className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-semibold disabled:bg-gray-400 flex items-center justify-center gap-2"
-        >
-          {ocrLoading ? (
-            <>
-              <Loader className="w-5 h-5 animate-spin" /> Processing...
-            </>
-          ) : (
-            <>
-              <Camera className="w-5 h-5" /> Capture Photo
-            </>
-          )}
-        </button>
-        <button
-          onClick={stopCamera}
-          className="flex-1 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 font-semibold"
-        >
-          Cancel
-        </button>
-      </div>
-    )}
-  </div>
-)}
-
-
-
               {/* Upload Mode */}
-              {scanMode === "upload" && (
-                <div className="space-y-3">
-                  <label className="block">
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition">
-                      <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                      <p className="font-semibold text-gray-700">Click to upload image or PDF</p>
-                      <p className="text-sm text-gray-500">Images (JPG, PNG) or PDFs</p>
-                    </div>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*,.pdf"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          if (file.type === "application/pdf") {
-                            handlePDFUpload(file);
-                          } else {
-                            handleImageUpload(file);
-                          }
+              <div className="space-y-3">
+                <label className="block">
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition">
+                    <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                    <p className="font-semibold text-gray-700">Click to upload image or PDF</p>
+                    <p className="text-sm text-gray-500">Images (JPG, PNG) or PDFs</p>
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        if (file.type === "application/pdf") {
+                          handlePDFUpload(file);
+                        } else {
+                          handleImageUpload(file);
                         }
-                      }}
-                      className="hidden"
-                    />
-                  </label>
-                  {ocrLoading && (
-                    <div className="flex items-center justify-center gap-2 text-blue-600 font-semibold py-4">
-                      <Loader className="w-5 h-5 animate-spin" /> Processing...
-                    </div>
-                  )}
-                </div>
-              )}
+                      }
+                    }}
+                    className="hidden"
+                  />
+                </label>
+                {ocrLoading && (
+                  <div className="flex items-center justify-center gap-2 text-blue-600 font-semibold py-4">
+                    <Loader className="w-5 h-5 animate-spin" /> Processing...
+                  </div>
+                )}
+              </div>
 
               {/* OCR Result Display */}
               {ocrResult && (

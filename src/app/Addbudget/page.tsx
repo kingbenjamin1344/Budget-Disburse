@@ -287,47 +287,30 @@ export default function AddBudgetPage() {
           </table>
         </div>
 
-        {/* Pagination */}
+        {/* Pagination - right bottom */}
         <div className="border-t border-gray-200 p-2 bg-gray-50">
-          <div className="flex justify-end">
+          <div className="flex justify-end items-end">
             <nav aria-label="Page navigation">
-              <ul className="inline-flex -space-x-px text-sm">
+              <ul className="inline-flex text-sm shadow-md rounded-lg overflow-hidden bg-white">
                 <li>
                   <button
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
-                    className={`px-3 py-2 border border-gray-300 rounded-l-lg hover:bg-gray-100 ${
-                      currentPage === 1 ? "opacity-50 cursor-not-allowed" : ""
-                    }`}
+                    className={`px-5 py-2 border-r border-gray-200 font-semibold text-gray-600 bg-white transition-all ${currentPage === 1 ? "opacity-50 cursor-not-allowed" : "hover:bg-blue-50 hover:text-blue-600"}`}
                   >
-                    Previous
+                    Prev
                   </button>
                 </li>
-
-                {[...Array(totalPages)].map((_, index) => (
-                  <li key={index}>
-                    <button
-                      onClick={() => handlePageChange(index + 1)}
-                      className={`px-3 py-2 border border-gray-300 hover:bg-gray-100 ${
-                        currentPage === index + 1
-                          ? "bg-blue-500 text-white"
-                          : "text-gray-700"
-                      }`}
-                    >
-                      {index + 1}
-                    </button>
-                  </li>
-                ))}
-
+                <li>
+                  <span className="px-5 py-2 font-bold text-blue-700 bg-white text-lg border-r border-gray-200 select-none">
+                    {currentPage}
+                  </span>
+                </li>
                 <li>
                   <button
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
-                    className={`px-3 py-2 border border-gray-300 rounded-r-lg hover:bg-gray-100 ${
-                      currentPage === totalPages
-                        ? "opacity-50 cursor-not-allowed"
-                        : ""
-                    }`}
+                    className={`px-5 py-2 font-semibold text-gray-600 bg-white transition-all ${currentPage === totalPages ? "opacity-50 cursor-not-allowed" : "hover:bg-blue-50 hover:text-blue-600"}`}
                   >
                     Next
                   </button>

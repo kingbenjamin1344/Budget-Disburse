@@ -44,6 +44,8 @@ export default function DashboardPage() {
     expenseTypes: 0,
     expenseCounts: { ps: 0, mooe: 0, co: 0 },
   });
+  const [budgetsData, setBudgetsData] = useState<any[]>([]);
+  const [selectedOffice, setSelectedOffice] = useState<string | null>(null);
 
   const [chartData, setChartData] = useState([
     { name: "Budget Appropriation", value: 0 },
@@ -114,6 +116,7 @@ const fetchRecentLogs = async () => {
 
         if (budgetsRes.ok) {
           const data = await budgetsRes.json();
+          setBudgetsData(data);
           const totalPS = data.reduce((sum: number, b: any) => sum + (b.ps || 0), 0);
           const totalMOOE = data.reduce((sum: number, b: any) => sum + (b.mooe || 0), 0);
           const totalCO = data.reduce((sum: number, b: any) => sum + (b.co || 0), 0);
@@ -173,6 +176,18 @@ const fetchRecentLogs = async () => {
   const maxTotal = Math.max(...officeBudgets.map((b) => b.total), 1);
   const totalBudgetSum =
     stats.totalBudget.ps + stats.totalBudget.mooe + stats.totalBudget.co;
+
+  // Get filtered categoryData based on selected office
+  const filteredCategoryData = selectedOffice
+    ? budgetsData
+        .filter((b) => b.office === selectedOffice)
+        .map((b) => [
+          { name: "PS", value: b.ps || 0 },
+          { name: "MOOE", value: b.mooe || 0 },
+          { name: "CO", value: b.co || 0 },
+        ])
+        .flat()
+    : categoryData;
 
   return (
     <div className="space-y-8">
@@ -291,15 +306,30 @@ const fetchRecentLogs = async () => {
     <div className="space-y-3 max-h-60 overflow-y-auto">
       {officeBudgets.map((b, index) => {
         const widthPercent = (b.total / maxTotal) * 100;
+        const isSelected = selectedOffice === b.office;
         return (
-          <div key={index}>
+          <div 
+            key={index}
+            onClick={() => setSelectedOffice(isSelected ? null : b.office)}
+            className={`cursor-pointer p-3 rounded-lg transition-all duration-300 ${
+              isSelected
+                ? "bg-purple-100 border-2 border-purple-600 shadow-md"
+                : "hover:bg-gray-100 border-2 border-transparent"
+            }`}
+          >
             <div className="flex justify-between mb-1 text-sm">
-              <span className="font-medium text-gray-700">{b.office}</span>
-              <span className="text-gray-500">{currency(b.total)}</span>
+              <span className={`font-medium ${isSelected ? "text-purple-700" : "text-gray-700"}`}>
+                {b.office}
+              </span>
+              <span className={isSelected ? "text-purple-600 font-semibold" : "text-gray-500"}>
+                {currency(b.total)}
+              </span>
             </div>
             <div className="bg-gray-200 rounded-full h-3">
               <div
-                className="bg-purple-600 h-3 rounded-full transition-all duration-500"
+                className={`h-3 rounded-full transition-all duration-500 ${
+                  isSelected ? "bg-purple-600" : "bg-purple-500"
+                }`}
                 style={{ width: `${widthPercent}%` }}
               />
             </div>
@@ -326,10 +356,11 @@ const fetchRecentLogs = async () => {
 {/* === BUDGET ALLOCATION BY CATEGORY (VERTICAL BAR CHART WITH LABELS) === */}
 <Suspense fallback={<ChartSkeleton />}>
   <BarChartComponent 
-    categoryData={categoryData} 
+    categoryData={filteredCategoryData} 
     chartData={chartData}
     COLORS={COLORS}
     currency={currency}
+    selectedOffice={selectedOffice}
   />
 </Suspense>
 

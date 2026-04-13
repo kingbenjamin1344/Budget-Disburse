@@ -21,6 +21,7 @@ interface Props {
   categoryData: any[];
   COLORS: string[];
   currency: (val: number) => string;
+  selectedOffice?: string | null;
 }
 
 export function PieChartComponent({ chartData, COLORS, currency }: Props) {
@@ -106,7 +107,7 @@ export function PieChartComponent({ chartData, COLORS, currency }: Props) {
   );
 }
 
-export function BarChartComponent({ categoryData, currency }: Props) {
+export function BarChartComponent({ categoryData, currency, selectedOffice }: Props) {
   const totalBudgetSum = useMemo(
     () => categoryData.reduce((sum, d) => sum + d.value, 0),
     [categoryData]
@@ -116,7 +117,7 @@ export function BarChartComponent({ categoryData, currency }: Props) {
     return (
       <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
         <h3 className="text-lg font-semibold mb-4 text-gray-700">
-          Budget Allocation by Category
+          Budget Allocation by Category {selectedOffice && `- ${selectedOffice}`}
         </h3>
         <div className="py-6 text-gray-500 italic flex flex-col items-center justify-center">
           <img
@@ -124,7 +125,7 @@ export function BarChartComponent({ categoryData, currency }: Props) {
             alt="No data"
             className="mb-2 max-w-[200px] h-auto object-contain"
           />
-          <span>No budget data available.</span>
+          <span>{selectedOffice ? "No budget data available for this office." : "No budget data available."}</span>
         </div>
       </div>
     );
@@ -133,7 +134,7 @@ export function BarChartComponent({ categoryData, currency }: Props) {
   return (
     <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
       <h3 className="text-lg font-semibold mb-4 text-gray-700">
-        Budget Allocation by Category
+        Budget Allocation by Category {selectedOffice && `- ${selectedOffice}`}
       </h3>
 
       <div className="h-64">
