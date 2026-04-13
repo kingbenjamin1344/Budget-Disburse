@@ -50,9 +50,20 @@ export default function DisbursementPage() {
   const [isOnlineMode, setIsOnlineMode] = useState(true);
   const [ocrAvailable, setOcrAvailable] = useState(true);
   const [autoCapturingInProgress, setAutoCapturingInProgress] = useState(false);
+  const [detectedFields, setDetectedFields] = useState({
+    dvNo: false,
+    payee: false,
+    office: false,
+    expenseType: false,
+    expenseCategory: false,
+    date: false,
+    amount: false,
+  });
+  const [smartDetectionAttempts, setSmartDetectionAttempts] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const smartDetectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
 
 
@@ -112,23 +123,124 @@ export default function DisbursementPage() {
     };
   }, []);
 
-  // ====== Auto-Capture Effect ======
-  // Automatically capture photo when camera becomes active and video stream is ready
+  // ====== Smart Detection Function ======
+  // Check if extracted text contains all required fields
+  const checkAllFieldsDetected = (text: string): boolean => {
+    const raw = text || "";
+    const ltext = raw.toLowerCase();
+    
+    // Check DV No
+    const dvNoPattern = /(?:dv[\s\-]?(?:no|number)?[\s:]+)?([0-9]{3,5}[-\/][0-9]{4,6}|[A-Z0-9\-]+)/i;
+    const hasDVNo = dvNoPattern.test(raw);
+    
+    // Check Payee
+    const payeePattern = /(?:payee|received by|recipient|in favor of|payment to|pay to|issued to)[:\s]*([A-Za-z0-9 .,&';\-()]{3,100}?)/i;
+    const hasPayee = payeePattern.test(raw);
+    
+    // Check Office
+    const officePattern = /(?:office|department|bureau)[:\s]*([A-Za-z0-9 \-()'.,]{2,50}?)/i;
+    const hasOffice = officePattern.test(raw);
+    
+    // Check Date (various formats)
+    const datePattern = /(\d{2}\/\d{2}\/\d{4}|\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4}|\d{4}-\d{2}-\d{2})/;
+    const hasDate = datePattern.test(raw);
+    
+    // Check Amount
+    const amountPattern = /(?:amount|total)[:\s]+(?:₱\s*)?([0-9,.\s]+)|[₱P$]\s*([0-9,.\s]+)/i;
+    const hasAmount = amountPattern.test(raw);
+    
+    // Check Expense Type or Category (look for common keywords)
+    const expensePattern = /(?:electricity|water|supplies|fuel|materials|wages|services|rent|maintenance|transport|communications|training|utilities|general)[:\s]*/i;
+    const hasExpense = expensePattern.test(raw);
+    
+    // All required fields must be detected
+    const allDetected = hasDVNo && hasPayee && hasOffice && hasDate && hasAmount && hasExpense;
+    
+    // Update detected fields state for UI display
+    setDetectedFields({
+      dvNo: hasDVNo,
+      payee: hasPayee,
+      office: hasOffice,
+      expenseType: hasExpense,
+      expenseCategory: hasExpense,
+      date: hasDate,
+      amount: hasAmount,
+    });
+    
+    return allDetected;
+  };
+
+  // ====== Smart Auto-Capture Detection ======
+  // Continuously analyze camera frames to detect when all required fields are visible
   useEffect(() => {
-    if (!cameraActive || autoCapturingInProgress) return;
+    if (!cameraActive || autoCapturingInProgress || smartDetectionIntervalRef.current) return;
 
-    const autoCaptureTimer = setTimeout(() => {
-      if (videoRef.current && videoRef.current.readyState === 4) {
-        // readyState === 4 means HAVE_ENOUGH_DATA
-        setAutoCapturingInProgress(true);
-        capturePhoto().finally(() => {
-          setAutoCapturingInProgress(false);
-        });
+    setSmartDetectionAttempts(0);
+    setDetectedFields({
+      dvNo: false,
+      payee: false,
+      office: false,
+      expenseType: false,
+      expenseCategory: false,
+      date: false,
+      amount: false,
+    });
+
+    const smartDetectionInterval = setInterval(async () => {
+      try {
+        setSmartDetectionAttempts((prev) => prev + 1);
+
+        // Stop after 60 attempts (2 minutes at 2-second intervals)
+        if (smartDetectionAttempts >= 60) {
+          clearInterval(smartDetectionInterval);
+          smartDetectionIntervalRef.current = null;
+          toast.warning("⏱️ Auto-capture timeout. Please manually trigger capture or adjust the document.", { autoClose: 3000 });
+          return;
+        }
+
+        // Capture current frame for analysis
+        if (videoRef.current && canvasRef.current && videoRef.current.readyState === 4) {
+          const context = canvasRef.current.getContext("2d");
+          canvasRef.current.width = videoRef.current.videoWidth;
+          canvasRef.current.height = videoRef.current.videoHeight;
+          context?.drawImage(videoRef.current, 0, 0);
+          
+          const imageData = canvasRef.current.toDataURL("image/jpeg");
+
+          // Run quick OCR check
+          await initTesseractWorker();
+          const result = await performOCR(imageData, { psm: 6 });
+          const combinedText = result.text || "";
+
+          // Check if all required fields are detected
+          if (checkAllFieldsDetected(combinedText)) {
+            // All fields found! Proceed with full capture
+            clearInterval(smartDetectionInterval);
+            smartDetectionIntervalRef.current = null;
+            
+            setAutoCapturingInProgress(true);
+            toast.success("✓ All fields detected! Capturing...", { autoClose: 1500 });
+
+            // Use the current frame for final OCR with both PSM modes
+            await handlePerformOCR(imageData);
+            stopCamera();
+            setAutoCapturingInProgress(false);
+          }
+        }
+      } catch (err) {
+        console.warn("Smart detection frame analysis error:", err);
       }
-    }, 500); // 500ms delay to ensure video stream is ready
+    }, 2000); // Check every 2 seconds
 
-    return () => clearTimeout(autoCaptureTimer);
-  }, [cameraActive, autoCapturingInProgress]);
+    smartDetectionIntervalRef.current = smartDetectionInterval;
+
+    return () => {
+      if (smartDetectionIntervalRef.current) {
+        clearInterval(smartDetectionIntervalRef.current);
+        smartDetectionIntervalRef.current = null;
+      }
+    };
+  }, [cameraActive, autoCapturingInProgress, smartDetectionAttempts]);
 
   // ====== OCR Functions ======
 const startCamera = async () => {
@@ -614,10 +726,24 @@ const startCamera = async () => {
 
   const closeScanModal = () => {
     stopCamera();
+    if (smartDetectionIntervalRef.current) {
+      clearInterval(smartDetectionIntervalRef.current);
+      smartDetectionIntervalRef.current = null;
+    }
     setShowScanModal(false);
     setScanMode("camera");
     setOcrResult("");
     setAutoCapturingInProgress(false);
+    setSmartDetectionAttempts(0);
+    setDetectedFields({
+      dvNo: false,
+      payee: false,
+      office: false,
+      expenseType: false,
+      expenseCategory: false,
+      date: false,
+      amount: false,
+    });
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -1530,20 +1656,51 @@ const isBudgetEnough = () => {
         <Camera className="w-5 h-5" /> Start Camera
       </button>
     ) : (
-      <div className="space-y-2">
+      <div className="space-y-3">
+        {/* Smart Detection Status */}
+        <div className="bg-gray-50 border-2 border-blue-300 rounded-lg p-4">
+          <p className="text-sm font-semibold text-gray-800 mb-3">
+            🔍 Scanning for Required Fields...
+          </p>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className={`flex items-center gap-2 p-2 rounded ${detectedFields.dvNo ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+              <span>{detectedFields.dvNo ? '✓' : '○'}</span> DV No.
+            </div>
+            <div className={`flex items-center gap-2 p-2 rounded ${detectedFields.payee ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+              <span>{detectedFields.payee ? '✓' : '○'}</span> Payee
+            </div>
+            <div className={`flex items-center gap-2 p-2 rounded ${detectedFields.office ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+              <span>{detectedFields.office ? '✓' : '○'}</span> Office
+            </div>
+            <div className={`flex items-center gap-2 p-2 rounded ${detectedFields.date ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+              <span>{detectedFields.date ? '✓' : '○'}</span> Date
+            </div>
+            <div className={`flex items-center gap-2 p-2 rounded ${detectedFields.amount ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+              <span>{detectedFields.amount ? '✓' : '○'}</span> Amount
+            </div>
+            <div className={`flex items-center gap-2 p-2 rounded ${detectedFields.expenseType ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+              <span>{detectedFields.expenseType ? '✓' : '○'}</span> Expense
+            </div>
+          </div>
+          <p className="text-xs text-gray-600 mt-3">
+            {smartDetectionAttempts > 0 ? `Scan attempt: ${smartDetectionAttempts}/60` : "Initializing..."}
+          </p>
+        </div>
+
         {autoCapturingInProgress ? (
           <div className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2">
-            <Loader className="w-5 h-5 animate-spin" /> Auto-Capturing...
+            <Loader className="w-5 h-5 animate-spin" /> All Fields Detected! Processing...
           </div>
         ) : ocrLoading ? (
           <div className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2">
-            <Loader className="w-5 h-5 animate-spin" /> Processing...
+            <Loader className="w-5 h-5 animate-spin" /> Processing OCR...
           </div>
         ) : (
-          <div className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold text-center">
-            ✓ Photo Captured - Processing...
+          <div className="text-center text-sm text-gray-600 py-2">
+            Adjust document in camera frame...
           </div>
         )}
+        
         <button
           onClick={stopCamera}
           className="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 font-semibold"
