@@ -49,6 +49,7 @@ export default function DisbursementPage() {
   const [ocrResult, setOcrResult] = useState("");
   const [isOnlineMode, setIsOnlineMode] = useState(true);
   const [ocrAvailable, setOcrAvailable] = useState(true);
+  const [autoCapturingInProgress, setAutoCapturingInProgress] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -110,6 +111,24 @@ export default function DisbursementPage() {
       terminateTesseractWorker().catch(console.error);
     };
   }, []);
+
+  // ====== Auto-Capture Effect ======
+  // Automatically capture photo when camera becomes active and video stream is ready
+  useEffect(() => {
+    if (!cameraActive || autoCapturingInProgress) return;
+
+    const autoCaptureTimer = setTimeout(() => {
+      if (videoRef.current && videoRef.current.readyState === 4) {
+        // readyState === 4 means HAVE_ENOUGH_DATA
+        setAutoCapturingInProgress(true);
+        capturePhoto().finally(() => {
+          setAutoCapturingInProgress(false);
+        });
+      }
+    }, 500); // 500ms delay to ensure video stream is ready
+
+    return () => clearTimeout(autoCaptureTimer);
+  }, [cameraActive, autoCapturingInProgress]);
 
   // ====== OCR Functions ======
 const startCamera = async () => {
@@ -598,6 +617,7 @@ const startCamera = async () => {
     setShowScanModal(false);
     setScanMode("camera");
     setOcrResult("");
+    setAutoCapturingInProgress(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -1485,7 +1505,7 @@ const isBudgetEnough = () => {
                 </button>
               </div>
 
-                     {/* Camera Mode */}
+                {/* Camera Mode */}
 {scanMode === "camera" && (
   <div className="space-y-3">
     {/* Video Preview with Enhanced Contrast */}
@@ -1510,27 +1530,25 @@ const isBudgetEnough = () => {
         <Camera className="w-5 h-5" /> Start Camera
       </button>
     ) : (
-      <div className="flex gap-2">
-        <button
-          onClick={capturePhoto}
-          disabled={ocrLoading}
-          className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-semibold disabled:bg-gray-400 flex items-center justify-center gap-2"
-        >
-          {ocrLoading ? (
-            <>
-              <Loader className="w-5 h-5 animate-spin" /> Processing...
-            </>
-          ) : (
-            <>
-              <Camera className="w-5 h-5" /> Capture Photo
-            </>
-          )}
-        </button>
+      <div className="space-y-2">
+        {autoCapturingInProgress ? (
+          <div className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2">
+            <Loader className="w-5 h-5 animate-spin" /> Auto-Capturing...
+          </div>
+        ) : ocrLoading ? (
+          <div className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2">
+            <Loader className="w-5 h-5 animate-spin" /> Processing...
+          </div>
+        ) : (
+          <div className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold text-center">
+            ✓ Photo Captured - Processing...
+          </div>
+        )}
         <button
           onClick={stopCamera}
-          className="flex-1 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 font-semibold"
+          className="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 font-semibold"
         >
-          Cancel
+          Cancel & Close
         </button>
       </div>
     )}
