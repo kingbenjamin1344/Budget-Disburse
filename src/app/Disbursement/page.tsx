@@ -54,26 +54,30 @@ export default function DisbursementPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
 
-      {!cameraActive ? (
-        <button
-          onClick={startCamera}
-          className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-semibold flex items-center justify-center gap-2"
-        >
-          <Camera className="w-5 h-5" /> Start Camera
-        </button>
-      ) : (
-        <div className="flex gap-2">
-          <div className="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2 opacity-70 cursor-not-allowed select-none">
-            <Loader className="w-5 h-5 animate-spin" /> Auto-capturing...
-          </div>
-          <button
-            onClick={stopCamera}
-            className="flex-1 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 font-semibold"
-          >
-            Cancel
-          </button>
-        </div>
-      )}
+
+  // ====== Fetch Offices, Expenses, Budgets & Check Network Status ======
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [officeRes, expenseRes, budgetRes, keywordRes] = await Promise.all([
+          fetch("/api/offices"),
+          fetch("/api/expenses"),
+          fetch("/api/addbudget"),
+          fetch("/api/expense-keywords"),
+        ]);
+        const officeData = await officeRes.json();
+        const expenseData = await expenseRes.json();
+        const budgetData = await budgetRes.json();
+        const keywordData = await keywordRes.json();
+
+        setOffices(officeData.map((o: any) => o.name));
+        setExpenses(expenseData.map((e: any) => ({ type: e.type, category: e.category })));
+        setBudgets(budgetData);
+        
+        // Set keyword mapping for dynamic category detection
+        if (keywordData.keywords) {
+          setCategoryKeywords(keywordData.keywords);
+        }
       } catch (err) {
         console.error("Failed to fetch data:", err);
       } finally {
@@ -107,15 +111,6 @@ export default function DisbursementPage() {
     };
   }, []);
 
-    // Auto-capture logic: when cameraActive becomes true, trigger capturePhoto after 2s
-    useEffect(() => {
-      if (cameraActive) {
-        const timer = setTimeout(() => {
-          capturePhoto();
-        }, 2000); // 2 seconds
-        return () => clearTimeout(timer);
-      }
-    }, [cameraActive]);
   // ====== OCR Functions ======
 const startCamera = async () => {
   try {
@@ -1516,9 +1511,21 @@ const isBudgetEnough = () => {
       </button>
     ) : (
       <div className="flex gap-2">
-        <div className="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2 opacity-70 cursor-not-allowed select-none">
-          <Loader className="w-5 h-5 animate-spin" /> Auto-capturing...
-        </div>
+        <button
+          onClick={capturePhoto}
+          disabled={ocrLoading}
+          className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-semibold disabled:bg-gray-400 flex items-center justify-center gap-2"
+        >
+          {ocrLoading ? (
+            <>
+              <Loader className="w-5 h-5 animate-spin" /> Processing...
+            </>
+          ) : (
+            <>
+              <Camera className="w-5 h-5" /> Capture Photo
+            </>
+          )}
+        </button>
         <button
           onClick={stopCamera}
           className="flex-1 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 font-semibold"
@@ -1527,15 +1534,6 @@ const isBudgetEnough = () => {
         </button>
       </div>
     )}
-    // Auto-capture logic: when cameraActive becomes true, trigger capturePhoto after 2s
-    useEffect(() => {
-      if (cameraActive) {
-        const timer = setTimeout(() => {
-          capturePhoto();
-        }, 2000); // 2 seconds
-        return () => clearTimeout(timer);
-      }
-    }, [cameraActive]);
   </div>
 )}
 
