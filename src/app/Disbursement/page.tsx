@@ -52,9 +52,6 @@ export default function DisbursementPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  // Auto-capture state
-  const [autoCaptureActive, setAutoCaptureActive] = useState(false);
-  const autoCaptureTimeout = useRef<any>(null);
 
 
 
@@ -115,98 +112,38 @@ export default function DisbursementPage() {
   }, []);
 
   // ====== OCR Functions ======
+const startCamera = async () => {
+  try {
+    let stream;
 
-  // ====== Auto-capture logic ======
-  // Simple document detection: checks for a bright rectangle in the center
-  const detectDocument = (imageData: ImageData) => {
-    // Heuristic: average brightness in a larger center region
-    const { data, width, height } = imageData;
-    let total = 0, count = 0;
-    // Center box (60% of width/height)
-    const x0 = Math.floor(width * 0.2);
-    const x1 = Math.floor(width * 0.8);
-    const y0 = Math.floor(height * 0.2);
-    const y1 = Math.floor(height * 0.8);
-    for (let y = y0; y < y1; y += 2) {
-      for (let x = x0; x < x1; x += 2) {
-        const idx = (y * width + x) * 4;
-        const r = data[idx], g = data[idx + 1], b = data[idx + 2];
-        const brightness = (r + g + b) / 3;
-        total += brightness;
-        count++;
-      }
-    }
-    const avg = total / count;
-    // Lowered threshold for better detection
-    return avg > 140;
-  };
-
-  // Auto-capture loop
-  // Visual feedback state
-  const [docDetected, setDocDetected] = useState(false);
-
-  const autoCaptureLoop = async () => {
-    if (!videoRef.current || !canvasRef.current || !autoCaptureActive) return;
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const detected = detectDocument(imageData);
-    setDocDetected(detected);
-    if (detected) {
-      setAutoCaptureActive(false);
-      setCameraActive(false);
-      toast.success("Document detected! Capturing...");
-      const imgDataUrl = canvas.toDataURL("image/jpeg");
-      await handlePerformOCR(imgDataUrl);
-      stopCamera();
-      return;
-    }
-    autoCaptureTimeout.current = setTimeout(autoCaptureLoop, 400);
-  };
-
-  const startCamera = async () => {
+    // Try back camera first (mobile)
     try {
-      let stream;
-      // Try back camera first (mobile)
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "environment" } },
-          audio: false,
-        });
-      } catch {
-        // Fallback to ANY camera
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: false,
-        });
-      }
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        setCameraActive(true);
-        setAutoCaptureActive(true);
-        // Start auto-capture loop after video is ready
-        setTimeout(autoCaptureLoop, 800);
-      }
-    } catch (err) {
-      toast.error("Camera error: " + String(err));
-      console.error("Camera start error:", err);
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false,
+      });
+    } catch {
+      // Fallback to ANY camera
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: false,
+      });
     }
-  };
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play();
+      setCameraActive(true);
+    }
+  } catch (err) {
+    toast.error("Camera error: " + String(err));
+    console.error("Camera start error:", err);
+  }
+};
 
 
 
   const stopCamera = () => {
-    if (autoCaptureTimeout.current) {
-      clearTimeout(autoCaptureTimeout.current);
-      autoCaptureTimeout.current = null;
-    }
-    setAutoCaptureActive(false);
     if (videoRef.current?.srcObject) {
       const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
       tracks.forEach((track) => track.stop());
@@ -214,7 +151,18 @@ export default function DisbursementPage() {
     }
   };
 
-  // Removed manual capturePhoto (auto-capture only)
+  const capturePhoto = async () => {
+    if (videoRef.current && canvasRef.current) {
+      const context = canvasRef.current.getContext("2d");
+      canvasRef.current.width = videoRef.current.videoWidth;
+      canvasRef.current.height = videoRef.current.videoHeight;
+      context?.drawImage(videoRef.current, 0, 0);
+      
+      const imageData = canvasRef.current.toDataURL("image/jpeg");
+      await handlePerformOCR(imageData);
+      stopCamera();
+    }
+  };
 
   const handleImageUpload = async (file: File) => {
     const reader = new FileReader();
@@ -1537,69 +1485,57 @@ const isBudgetEnough = () => {
                 </button>
               </div>
 
-                    {/* Camera Mode */}
-                    {scanMode === "camera" && (
-                      <div className="space-y-3">
-                        {/* Video Preview with Enhanced Contrast */}
-                        <div className="relative w-full bg-black rounded-lg overflow-hidden">
-                          <video
-                            ref={videoRef}
-                            autoPlay
-                            playsInline
-                            muted
-                            controlsList="nopictureinpicture"
-                            className={`w-full max-h-96 bg-black rounded-lg object-cover mb-2 transition-opacity contrast-125 brightness-110 ${
-                              cameraActive ? "opacity-100" : "opacity-0"
-                            }`}
-                          />
-                          {/* Overlay for document detection */}
-                          {cameraActive && (
-                            <div
-                              className="absolute top-0 left-0 w-full h-full pointer-events-none flex items-center justify-center"
-                              style={{ zIndex: 2 }}
-                            >
-                              <div
-                                className={`border-4 rounded-2xl transition-all duration-200 ${
-                                  docDetected ? "border-green-500 shadow-lg" : "border-gray-400"
-                                }`}
-                                style={{ width: "60%", height: "60%" }}
-                              ></div>
-                            </div>
-                          )}
-                        </div>
+                     {/* Camera Mode */}
+{scanMode === "camera" && (
+  <div className="space-y-3">
+    {/* Video Preview with Enhanced Contrast */}
+    <div className="relative w-full bg-black rounded-lg overflow-hidden">
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        controlsList="nopictureinpicture"
+        className={`w-full max-h-96 bg-black rounded-lg object-cover mb-2 transition-opacity contrast-125 brightness-110 ${
+          cameraActive ? "opacity-100" : "opacity-0"
+        }`}
+      />
+    </div>
 
-                        {!cameraActive ? (
-                          <button
-                            onClick={startCamera}
-                            className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-semibold flex items-center justify-center gap-2"
-                          >
-                            <Camera className="w-5 h-5" /> Start Camera
-                          </button>
-                        ) : (
-                          <div className="flex flex-col gap-2 items-center">
-                            {autoCaptureActive && !ocrLoading && (
-                              <div className="text-blue-700 font-semibold text-center mt-2">
-                                <span className="animate-pulse">
-                                  {docDetected ? "Document detected! Capturing..." : "Detecting document... Hold steady in the green box."}
-                                </span>
-                              </div>
-                            )}
-                            {ocrLoading && (
-                              <div className="text-blue-700 font-semibold text-center mt-2">
-                                <Loader className="w-5 h-5 animate-spin inline-block mr-2" /> Processing image...
-                              </div>
-                            )}
-                            <button
-                              onClick={stopCamera}
-                              className="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 font-semibold mt-2"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        )}
-                        <canvas ref={canvasRef} className="hidden" />
-                      </div>
-                    )}
+    {!cameraActive ? (
+      <button
+        onClick={startCamera}
+        className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-semibold flex items-center justify-center gap-2"
+      >
+        <Camera className="w-5 h-5" /> Start Camera
+      </button>
+    ) : (
+      <div className="flex gap-2">
+        <button
+          onClick={capturePhoto}
+          disabled={ocrLoading}
+          className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-semibold disabled:bg-gray-400 flex items-center justify-center gap-2"
+        >
+          {ocrLoading ? (
+            <>
+              <Loader className="w-5 h-5 animate-spin" /> Processing...
+            </>
+          ) : (
+            <>
+              <Camera className="w-5 h-5" /> Capture Photo
+            </>
+          )}
+        </button>
+        <button
+          onClick={stopCamera}
+          className="flex-1 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 font-semibold"
+        >
+          Cancel
+        </button>
+      </div>
+    )}
+  </div>
+)}
 
 
 
