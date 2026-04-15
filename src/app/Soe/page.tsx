@@ -155,7 +155,7 @@ export default function SoePage() {
       // Divider line
       const divider = document.createElement('hr');
       divider.style.margin = '15px 0';
-      divider.style.borderNone = 'none';
+      divider.style.border = 'none';
       divider.style.borderTop = '2px solid #000';
       containerEl.appendChild(divider);
 
