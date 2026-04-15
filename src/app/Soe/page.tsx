@@ -207,7 +207,7 @@ export default function SoePage() {
       actualHeader.colSpan = 4;
       actualHeader.style.border = '1px solid #000';
       actualHeader.style.padding = '8px';
-      actualHeader.style.background = '#4B5DBAF';
+      actualHeader.style.background = '#4B5DBF';
       actualHeader.style.color = 'white';
       actualHeader.style.fontWeight = '700';
       actualHeader.style.textAlign = 'center';
@@ -219,7 +219,7 @@ export default function SoePage() {
       varianceHeader.colSpan = 4;
       varianceHeader.style.border = '1px solid #000';
       varianceHeader.style.padding = '8px';
-      varianceHeader.style.background = '#4B5DBAF';
+      varianceHeader.style.background = '#4B5DBF';
       varianceHeader.style.color = 'white';
       varianceHeader.style.fontWeight = '700';
       varianceHeader.style.textAlign = 'center';
