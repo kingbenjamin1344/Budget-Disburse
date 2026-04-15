@@ -98,114 +98,148 @@ export default function SoePage() {
   // Generate a PDF Blob from the SOE data by building a sanitized table (no site CSS)
   const generatePdfBlob = async (): Promise<Blob | null> => {
     try {
+      // Create a container for the entire document
+      const containerEl = document.createElement('div');
+      containerEl.style.fontFamily = 'Arial, sans-serif';
+      containerEl.style.width = '100%';
+      containerEl.style.padding = '20px';
+      containerEl.style.backgroundColor = '#ffffff';
+
+      // Add header section
+      const headerDiv = document.createElement('div');
+      headerDiv.style.textAlign = 'center';
+      headerDiv.style.marginBottom = '30px';
+
+      // Title
+      const titleEl = document.createElement('h1');
+      titleEl.textContent = 'STATEMENT OF EXPENDITURE';
+      titleEl.style.fontSize = '18px';
+      titleEl.style.fontWeight = 'bold';
+      titleEl.style.margin = '0 0 10px 0';
+      headerDiv.appendChild(titleEl);
+
+      // Municipality info
+      const municipalityEl = document.createElement('p');
+      municipalityEl.textContent = 'Municipality: Magallanes, Agusan Del Norte';
+      municipalityEl.style.fontSize = '12px';
+      municipalityEl.style.margin = '5px 0';
+      headerDiv.appendChild(municipalityEl);
+
+      // Period Covered
+      const periodEl = document.createElement('p');
+      let periodText = 'Period Covered: ';
+      if (filterApplied && monthFilterFrom && monthFilterTo) {
+        const monthNames: { [key: string]: string } = {
+          '01': 'January', '02': 'February', '03': 'March', '04': 'April', 
+          '05': 'May', '06': 'June', '07': 'July', '08': 'August', 
+          '09': 'September', '10': 'October', '11': 'November', '12': 'December'
+        };
+        const fromMonth = monthNames[monthFilterFrom] || monthFilterFrom;
+        const toMonth = monthNames[monthFilterTo] || monthFilterTo;
+        periodText += `${fromMonth} - ${toMonth} ${yearFilterTo}`;
+      } else {
+        periodText += 'Full Period';
+      }
+      periodEl.textContent = periodText;
+      periodEl.style.fontSize = '12px';
+      periodEl.style.margin = '5px 0';
+      headerDiv.appendChild(periodEl);
+
+      containerEl.appendChild(headerDiv);
+
+      // Add table
       const tableEl = document.createElement('table');
       tableEl.style.borderCollapse = 'collapse';
       tableEl.style.width = '100%';
-      tableEl.style.fontFamily = 'Arial, sans-serif';
-      tableEl.style.fontSize = '12px';
+      tableEl.style.fontSize = '11px';
 
-      // header
+      // Simplified header: Particulars, PS, MOOE, CO, Total
       const thead = document.createElement('thead');
       const headerRow = document.createElement('tr');
-      const headers = [
-        'Particulars',
-        'Budget PS',
-        'Budget MOOE',
-        'Budget CO',
-        'Budget Total',
-        'Actual PS',
-        'Actual MOOE',
-        'Actual CO',
-        'Actual Total',
-        'Variance PS',
-        'Variance MOOE',
-        'Variance CO',
-        'Variance Total',
-      ];
+      const headers = ['Particulars', 'PS', 'MOOE', 'CO', 'Total'];
       for (const h of headers) {
         const th = document.createElement('th');
         th.textContent = h;
-        th.style.border = '1px solid #d1d5db';
-        th.style.padding = '6px 8px';
-        th.style.background = '#f3f4f6';
+        th.style.border = '1px solid #000';
+        th.style.padding = '8px 10px';
+        th.style.background = '#e0e0e0';
         th.style.fontWeight = '700';
+        th.style.textAlign = h === 'Particulars' ? 'left' : 'right';
         headerRow.appendChild(th);
       }
       thead.appendChild(headerRow);
       tableEl.appendChild(thead);
 
-      // body
+      // Body rows
       const tbody = document.createElement('tbody');
       for (const row of data) {
         const tr = document.createElement('tr');
-        tr.style.border = '1px solid #e5e7eb';
+        tr.style.borderBottom = '1px solid #000';
 
+        // Particulars cell
+        const particularsTd = document.createElement('td');
+        particularsTd.textContent = row.office;
+        particularsTd.style.border = '1px solid #000';
+        particularsTd.style.padding = '8px 10px';
+        particularsTd.style.textAlign = 'left';
+        particularsTd.style.fontWeight = '500';
+        tr.appendChild(particularsTd);
+
+        // PS, MOOE, CO, Total cells
         const cells = [
-          row.office,
-          formatPeso(row.budget.ps),
-          formatPeso(row.budget.mooe),
-          formatPeso(row.budget.co),
-          formatPeso(row.budget.total),
-          formatPeso(row.actual.ps),
-          formatPeso(row.actual.mooe),
-          formatPeso(row.actual.co),
-          formatPeso(row.actual.total),
-          formatPeso(row.variance.ps),
-          formatPeso(row.variance.mooe),
-          formatPeso(row.variance.co),
-          formatPeso(row.variance.total),
+          row.actual.ps,
+          row.actual.mooe,
+          row.actual.co,
+          row.actual.total,
         ];
 
-        for (const c of cells) {
+        for (const cellValue of cells) {
           const td = document.createElement('td');
-          td.textContent = String(c ?? '');
-          td.style.border = '1px solid #e5e7eb';
-          td.style.padding = '6px 8px';
+          td.textContent = formatPeso(cellValue);
+          td.style.border = '1px solid #000';
+          td.style.padding = '8px 10px';
           td.style.textAlign = 'right';
+          td.style.fontSize = '11px';
           tr.appendChild(td);
         }
 
-        if (tr.firstChild) (tr.firstChild as HTMLElement).style.textAlign = 'left';
         tbody.appendChild(tr);
       }
 
-      // totals row
+      // Totals row
       const totalsRow = document.createElement('tr');
       totalsRow.style.fontWeight = '700';
-      totalsRow.style.backgroundColor = '#e0d5ff';
-      const totals = [
-        'Overall Total',
-        formatPeso(data.reduce((sum, r) => sum + r.budget.ps, 0)),
-        formatPeso(data.reduce((sum, r) => sum + r.budget.mooe, 0)),
-        formatPeso(data.reduce((sum, r) => sum + r.budget.co, 0)),
-        formatPeso(data.reduce((sum, r) => sum + r.budget.total, 0)),
-        formatPeso(data.reduce((sum, r) => sum + r.actual.ps, 0)),
-        formatPeso(data.reduce((sum, r) => sum + r.actual.mooe, 0)),
-        formatPeso(data.reduce((sum, r) => sum + r.actual.co, 0)),
-        formatPeso(data.reduce((sum, r) => sum + r.actual.total, 0)),
-        formatPeso(data.reduce((sum, r) => sum + r.variance.ps, 0)),
-        formatPeso(data.reduce((sum, r) => sum + r.variance.mooe, 0)),
-        formatPeso(data.reduce((sum, r) => sum + r.variance.co, 0)),
-        formatPeso(data.reduce((sum, r) => sum + r.variance.total, 0)),
+      totalsRow.style.backgroundColor = '#d3d3d3';
+
+      const totalLabelTd = document.createElement('td');
+      totalLabelTd.textContent = 'TOTAL';
+      totalLabelTd.style.border = '1px solid #000';
+      totalLabelTd.style.padding = '8px 10px';
+      totalLabelTd.style.textAlign = 'left';
+      totalLabelTd.style.fontWeight = '700';
+      totalsRow.appendChild(totalLabelTd);
+
+      const totalValues = [
+        data.reduce((sum, r) => sum + r.actual.ps, 0),
+        data.reduce((sum, r) => sum + r.actual.mooe, 0),
+        data.reduce((sum, r) => sum + r.actual.co, 0),
+        data.reduce((sum, r) => sum + r.actual.total, 0),
       ];
-      for (let idx = 0; idx < totals.length; idx++) {
-        const c = totals[idx];
+
+      for (const totalValue of totalValues) {
         const td = document.createElement('td');
-        td.textContent = String(c ?? '');
-        td.style.border = '1px solid #e5e7eb';
-        td.style.padding = '6px 8px';
+        td.textContent = formatPeso(totalValue);
+        td.style.border = '1px solid #000';
+        td.style.padding = '8px 10px';
         td.style.textAlign = 'right';
-        // Highlight total columns (indices 4, 8, 12 are the "Total" columns)
-        if (idx === 4 || idx === 8 || idx === 12) {
-          td.style.backgroundColor = '#a78bfa';
-          td.style.fontWeight = '700';
-        }
+        td.style.fontWeight = '700';
+        td.style.backgroundColor = '#d3d3d3';
         totalsRow.appendChild(td);
       }
-      if (totalsRow.firstChild) (totalsRow.firstChild as HTMLElement).style.textAlign = 'left';
-      tbody.appendChild(totalsRow);
 
+      tbody.appendChild(totalsRow);
       tableEl.appendChild(tbody);
+      containerEl.appendChild(tableEl);
 
       // Render off-screen
       const wrapper = document.createElement('div');
@@ -213,19 +247,19 @@ export default function SoePage() {
       wrapper.style.left = '-99999px';
       wrapper.style.top = '0';
       wrapper.style.pointerEvents = 'none';
-      wrapper.appendChild(tableEl);
+      wrapper.appendChild(containerEl);
       document.body.appendChild(wrapper);
 
-      const canvas = await html2canvas(tableEl as HTMLElement, {
+      const canvas = await html2canvas(containerEl as HTMLElement, {
         scale: 2,
         useCORS: true,
         backgroundColor: '#ffffff',
       });
 
       const imgData = canvas.toDataURL('image/png');
-      // Use landscape orientation for better data visibility
+      // Use portrait orientation for cleaner layout
       const pdf = new jsPDF({
-        orientation: 'landscape',
+        orientation: 'portrait',
         unit: 'pt',
         format: 'a4',
         compress: true
