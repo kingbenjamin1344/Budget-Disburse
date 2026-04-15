@@ -873,8 +873,6 @@ export default function SoePage() {
                 toast.error('Please select month from, year from, month to, and year to');
                 return;
               }
-                return;
-              }
               // Apply filter - data will recompute via useEffect
               setFilterApplied(true);
             }}
