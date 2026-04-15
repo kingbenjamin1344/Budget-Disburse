@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "react-toastify";
-import { Search, Plus, Edit, Trash2, X, ScanEye, Camera, Upload, Loader, Wifi, WifiOff, Building2, Calendar, Clock, DollarSign, FileText, User, Tag, FolderOpen, Receipt, CreditCard } from "lucide-react";
+import { Search, Plus, Edit, Trash2, X, ScanEye, Camera, Upload, Loader, Wifi, WifiOff, Building2, Calendar, Clock, DollarSign, FileText, User, Tag, FolderOpen, Receipt, CreditCard, RefreshCw } from "lucide-react";
 import { performOCR, initTesseractWorker, terminateTesseractWorker, getOCRStatus, isNetworkOnline, preprocessImage, type OCRResult } from "@/lib/offlineTesseract";
 
 // =================== Main Page ===================
@@ -51,6 +51,9 @@ export default function DisbursementPage() {
   const [ocrResult, setOcrResult] = useState("");
   const [isOnlineMode, setIsOnlineMode] = useState(true);
   const [ocrAvailable, setOcrAvailable] = useState(true);
+  const [uploadedPdfUrl, setUploadedPdfUrl] = useState<string>("");
+  const [showPdfViewer, setShowPdfViewer] = useState(false);
+  const [showDuplicateDvModal, setShowDuplicateDvModal] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -179,6 +182,12 @@ const startCamera = async () => {
     try {
       setOcrLoading(true);
       const arrayBuffer = await file.arrayBuffer();
+      
+      // Store the PDF as a blob URL for viewing
+      const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      setUploadedPdfUrl(url);
+      setShowPdfViewer(true);
       
       // Dynamic import of PDF.js
       const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
@@ -600,6 +609,11 @@ const startCamera = async () => {
     setShowScanModal(false);
     setScanMode("upload");
     setOcrResult("");
+    setShowPdfViewer(false);
+    if (uploadedPdfUrl) {
+      URL.revokeObjectURL(uploadedPdfUrl);
+      setUploadedPdfUrl("");
+    }
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -722,6 +736,13 @@ const isBudgetEnough = () => {
   const handleSave = async () => {
     if (!formData.dvNo || !formData.payee || !formData.office || !formData.expenseType || !formData.amount) {
       toast.error("Please fill all required fields");
+      return;
+    }
+    
+    // Check for duplicate DV No (only if not editing the same record)
+    const isDuplicate = disbursements.some(d => d.dvNo.toString().toLowerCase() === formData.dvNo.toString().toLowerCase() && d.id !== editingId);
+    if (isDuplicate) {
+      setShowDuplicateDvModal(true);
       return;
     }
     const budget = budgets.find((b) => b.office?.toLowerCase() === formData.office.toLowerCase());
@@ -972,6 +993,24 @@ const isBudgetEnough = () => {
               );
             })}
           </select>
+
+          {/* Refresh/Reset Filters Button */}
+          <button
+            onClick={() => {
+              setSearchTerm("");
+              setFilterOffice("");
+              setFilterExpense("");
+              setFilterCategory("");
+              setFilterMonth("");
+              setFilterYear("");
+              setCurrentPage(1);
+              toast.info("Filters reset");
+            }}
+            className="flex items-center bg-blue-500 text-white px-3 py-2 rounded-md hover:bg-blue-600 transition"
+            title="Reset all filters"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
 
           {/* Record Disbursement Button */}
           <button
@@ -1627,13 +1666,20 @@ const isBudgetEnough = () => {
                 )}
               </div>
 
-              {/* OCR Result Display */}
-              {ocrResult && (
-                <div className="bg-gray-50 border rounded-lg p-4 space-y-3">
-                  <h3 className="font-semibold text-gray-800">Extracted Data</h3>
-                  <div className="max-h-32 overflow-y-auto bg-white p-3 border rounded text-sm text-gray-700 font-mono whitespace-pre-wrap">
-                    {ocrResult}
+              {/* PDF Viewer Button */}
+              {uploadedPdfUrl && (
+                <div className="bg-blue-50 border border-blue-300 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-gray-800">Document Uploaded</h3>
+                    <span className="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded-full">PDF Ready</span>
                   </div>
+                  <button
+                    onClick={() => setShowPdfViewer(true)}
+                    className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-semibold transition flex items-center justify-center gap-2"
+                  >
+                    <FileText className="w-4 h-4" />
+                    View Document
+                  </button>
                 </div>
               )}
 
@@ -1711,6 +1757,66 @@ const isBudgetEnough = () => {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* =================== Duplicate DV Modal =================== */}
+      {showDuplicateDvModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg shadow-xl w-96 p-6 text-center space-y-4">
+            <div className="flex justify-center mb-4">
+              <div className="bg-red-100 p-3 rounded-full">
+                <X className="w-8 h-8 text-red-600" />
+              </div>
+            </div>
+            <h2 className="text-xl font-bold text-gray-800">Duplicate DV Number</h2>
+            <p className="text-gray-600">
+              This Disbursement Voucher is already recorded
+            </p>
+            <button
+              onClick={() => setShowDuplicateDvModal(false)}
+              className="w-full px-4 py-2.5 rounded-lg bg-red-600 text-white hover:bg-red-700 font-semibold transition"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* =================== PDF Viewer Modal =================== */}
+      {showPdfViewer && uploadedPdfUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="relative w-11/12 h-5/6 max-w-6xl bg-white rounded-lg shadow-2xl overflow-hidden">
+            {/* Close Button */}
+            <button
+              onClick={() => {
+                setShowPdfViewer(false);
+                URL.revokeObjectURL(uploadedPdfUrl);
+                setUploadedPdfUrl("");
+              }}
+              className="absolute top-4 right-4 z-10 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transition"
+              title="Close PDF viewer"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            {/* PDF Viewer */}
+            <iframe
+              src={uploadedPdfUrl}
+              className="w-full h-full border-none"
+              title="Uploaded PDF Document"
+            />
+          </div>
+
+          {/* Click outside to close */}
+          <div
+            className="absolute inset-0 -z-10"
+            onClick={() => {
+              setShowPdfViewer(false);
+              URL.revokeObjectURL(uploadedPdfUrl);
+              setUploadedPdfUrl("");
+            }}
+          />
         </div>
       )}
 
