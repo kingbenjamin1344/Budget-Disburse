@@ -733,9 +733,21 @@ const isBudgetEnough = () => {
   return true;
 };
 
+  // Helper function to validate DV No. format
+  const isValidDVFormat = (dvNo: string): boolean => {
+    const dvPattern = /^(\d{3})-(\d{4})-(\d{2})-(\d{4})$/;
+    return dvPattern.test(dvNo);
+  };
+
   const handleSave = async () => {
     if (!formData.dvNo || !formData.payee || !formData.office || !formData.expenseType || !formData.amount) {
       toast.error("Please fill all required fields");
+      return;
+    }
+    
+    // Validate DV No. format
+    if (!isValidDVFormat(formData.dvNo)) {
+      toast.error("Invalid DV No. format. Must be: 000-0000-00-0000");
       return;
     }
     
@@ -984,14 +996,14 @@ const isBudgetEnough = () => {
             className="border border-gray-300 rounded-md px-3 py-2"
           >
             <option value="">Select Year</option>
-            {Array.from({ length: 10 }, (_, i) => {
-              const year = new Date().getFullYear() - i;
-              return (
-                <option key={year} value={year.toString()}>
-                  {year}
-                </option>
-              );
-            })}
+            {[...new Set(disbursements.map(d => {
+              try { return new Date(d.dateCreated).getFullYear(); } catch { return null; }
+            })).values()]
+              .filter(Boolean)
+              .sort((a: any, b: any) => b - a)
+              .map((y: any) => (
+                <option key={y} value={y.toString()}>{y}</option>
+              ))}
           </select>
 
           {/* Refresh/Reset Filters Button */}
@@ -1221,14 +1233,15 @@ const isBudgetEnough = () => {
         <div className="grid grid-cols-2 gap-3">
           {/* DV No */}
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-600 mb-1">DV No.</label>
+            <label className="text-xs font-medium text-gray-600 mb-1">DV No. <span className="text-red-500">*</span></label>
             <input
               type="text"
-              placeholder="DV No."
+              placeholder="000-0000-00-0000"
               value={formData.dvNo}
               onChange={(e) => setFormData({ ...formData, dvNo: e.target.value })}
               className="w-full rounded-md border border-gray-300 px-3 py-2 bg-white text-gray-700 font-semibold focus:border-blue-500 focus:ring-1 focus:ring-blue-200 transition"
             />
+            <p className="text-xs text-gray-500 mt-1">Format: 000-0000-00-0000</p>
           </div>
 
           {/* Date */}
