@@ -1669,16 +1669,12 @@ const isBudgetEnough = () => {
               {/* PDF Viewer Button */}
               {uploadedPdfUrl && (
                 <div className="bg-blue-50 border border-blue-300 rounded-lg p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-gray-800">Document Uploaded</h3>
-                    <span className="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded-full">PDF Ready</span>
-                  </div>
                   <button
                     onClick={() => setShowPdfViewer(true)}
                     className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-semibold transition flex items-center justify-center gap-2"
                   >
                     <FileText className="w-4 h-4" />
-                    View Document
+                    View PDF
                   </button>
                 </div>
               )}
