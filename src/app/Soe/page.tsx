@@ -97,18 +97,24 @@ export default function SoePage() {
 
   // Helper function to format period covered
   const getPeriodCovered = (): string => {
-    if (!filterApplied || !monthFilterFrom || !monthFilterTo || !yearFilterFrom || !yearFilterTo) {
-      return 'January 1, ' + currentYear + ' - ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    if (!filterApplied) {
+      return 'All Periods';
+    }
+
+    if (!monthFilterFrom || !monthFilterTo || !yearFilterFrom || !yearFilterTo) {
+      return 'All Periods';
     }
 
     const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     const startMonth = monthNames[parseInt(monthFilterFrom)];
     const endMonth = monthNames[parseInt(monthFilterTo)];
     
+    // If same year
     if (yearFilterFrom === yearFilterTo) {
-      return `${startMonth} 1 - ${endMonth} 30, ${yearFilterTo}`;
+      return `${startMonth} - ${endMonth}, ${yearFilterFrom}`;
     } else {
-      return `${startMonth} 1, ${yearFilterFrom} - ${endMonth} 30, ${yearFilterTo}`;
+      // Different years
+      return `${startMonth} ${yearFilterFrom} - ${endMonth} ${yearFilterTo}`;
     }
   };
 
@@ -801,13 +807,30 @@ export default function SoePage() {
             onChange={(e) => setMonthFilterFrom(e.target.value)}
             className="border border-gray-300 rounded px-3 py-2 text-sm flex-1 sm:flex-none w-full sm:w-auto"
           >
-            <option value="" disabled>Select Month</option>
+            <option value="" disabled>Select Month From</option>
             {[
               ['01','January'],['02','February'],['03','March'],['04','April'],['05','May'],['06','June'],
               ['07','July'],['08','August'],['09','September'],['10','October'],['11','November'],['12','December']
             ].map(([val, label]) => (
               <option key={val} value={val}>{label}</option>
             ))}
+          </select>
+
+          {/* Year From Dropdown */}
+          <select
+            value={yearFilterFrom}
+            onChange={(e) => setYearFilterFrom(e.target.value)}
+            className="border border-gray-300 rounded px-3 py-2 text-sm flex-1 sm:flex-none w-full sm:w-auto"
+          >
+            <option value="" disabled>Year From</option>
+            {[...new Set(rawDisbData.map(d => {
+              try { return new Date(d.dateCreated).getFullYear(); } catch { return null; }
+            })).values()]
+              .filter(Boolean)
+              .sort((a: any, b: any) => b - a)
+              .map((y: any) => (
+                <option key={y} value={String(y)}>{String(y)}</option>
+              ))}
           </select>
 
           {/* Second Month Dropdown */}
@@ -816,7 +839,7 @@ export default function SoePage() {
             onChange={(e) => setMonthFilterTo(e.target.value)}
             className="border border-gray-300 rounded px-3 py-2 text-sm flex-1 sm:flex-none w-full sm:w-auto"
           >
-            <option value="" disabled>Select Month</option>
+            <option value="" disabled>Select Month To</option>
             {[
               ['01','January'],['02','February'],['03','March'],['04','April'],['05','May'],['06','June'],
               ['07','July'],['08','August'],['09','September'],['10','October'],['11','November'],['12','December']
@@ -825,13 +848,13 @@ export default function SoePage() {
             ))}
           </select>
 
-          {/* Year Dropdown */}
+          {/* Year To Dropdown */}
           <select
             value={yearFilterTo}
             onChange={(e) => setYearFilterTo(e.target.value)}
             className="border border-gray-300 rounded px-3 py-2 text-sm flex-1 sm:flex-none w-full sm:w-auto"
           >
-            <option value="" disabled>Select Year</option>
+            <option value="" disabled>Year To</option>
             {[...new Set(rawDisbData.map(d => {
               try { return new Date(d.dateCreated).getFullYear(); } catch { return null; }
             })).values()]
@@ -846,8 +869,10 @@ export default function SoePage() {
           <button
             onClick={() => {
               // Validate all fields are selected
-              if (!monthFilterFrom || !monthFilterTo || !yearFilterTo) {
-                toast.error('Please select both months and year');
+              if (!monthFilterFrom || !monthFilterTo || !yearFilterFrom || !yearFilterTo) {
+                toast.error('Please select month from, year from, month to, and year to');
+                return;
+              }
                 return;
               }
               // Apply filter - data will recompute via useEffect
