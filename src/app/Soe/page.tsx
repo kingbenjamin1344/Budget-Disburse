@@ -95,117 +95,269 @@ export default function SoePage() {
     }
   };
 
+  // Helper function to format period covered
+  const getPeriodCovered = (): string => {
+    if (!filterApplied || !monthFilterFrom || !monthFilterTo || !yearFilterFrom || !yearFilterTo) {
+      return 'January 1, ' + currentYear + ' - ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    }
+
+    const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const startMonth = monthNames[parseInt(monthFilterFrom)];
+    const endMonth = monthNames[parseInt(monthFilterTo)];
+    
+    if (yearFilterFrom === yearFilterTo) {
+      return `${startMonth} 1 - ${endMonth} 30, ${yearFilterTo}`;
+    } else {
+      return `${startMonth} 1, ${yearFilterFrom} - ${endMonth} 30, ${yearFilterTo}`;
+    }
+  };
+
   // Generate a PDF Blob from the SOE data by building a sanitized table (no site CSS)
   const generatePdfBlob = async (): Promise<Blob | null> => {
     try {
+      // Create a container for header and table
+      const containerEl = document.createElement('div');
+      containerEl.style.fontFamily = 'Arial, sans-serif';
+      containerEl.style.background = 'white';
+      containerEl.style.padding = '20px';
+      containerEl.style.width = '100%';
+
+      // Header section
+      const headerEl = document.createElement('div');
+      headerEl.style.textAlign = 'center';
+      headerEl.style.marginBottom = '20px';
+      headerEl.style.fontFamily = 'Arial, sans-serif';
+
+      const titleEl = document.createElement('h2');
+      titleEl.textContent = 'STATEMENT OF EXPENDITURE';
+      titleEl.style.margin = '0 0 8px 0';
+      titleEl.style.fontSize = '16px';
+      titleEl.style.fontWeight = 'bold';
+      titleEl.style.letterSpacing = '1px';
+      headerEl.appendChild(titleEl);
+
+      const municipalityEl = document.createElement('p');
+      municipalityEl.textContent = 'Municipality: Magallanes, Agusan del Norte';
+      municipalityEl.style.margin = '0 0 5px 0';
+      municipalityEl.style.fontSize = '12px';
+      municipalityEl.style.fontWeight = '600';
+      headerEl.appendChild(municipalityEl);
+
+      const periodEl = document.createElement('p');
+      periodEl.textContent = 'Period Covered: ' + getPeriodCovered();
+      periodEl.style.margin = '0';
+      periodEl.style.fontSize = '12px';
+      periodEl.style.fontWeight = '600';
+      headerEl.appendChild(periodEl);
+
+      containerEl.appendChild(headerEl);
+
+      // Divider line
+      const divider = document.createElement('hr');
+      divider.style.margin = '15px 0';
+      divider.style.borderNone = 'none';
+      divider.style.borderTop = '2px solid #000';
+      containerEl.appendChild(divider);
+
+      // Table element
       const tableEl = document.createElement('table');
       tableEl.style.borderCollapse = 'collapse';
       tableEl.style.width = '100%';
       tableEl.style.fontFamily = 'Arial, sans-serif';
-      tableEl.style.fontSize = '12px';
+      tableEl.style.fontSize = '11px';
 
-      // header
+      // Create header rows with colspan for main sections
       const thead = document.createElement('thead');
-      const headerRow = document.createElement('tr');
-      const headers = [
-        'Particulars',
-        'Budget PS',
-        'Budget MOOE',
-        'Budget CO',
-        'Budget Total',
-        'Actual PS',
-        'Actual MOOE',
-        'Actual CO',
-        'Actual Total',
-        'Variance PS',
-        'Variance MOOE',
-        'Variance CO',
-        'Variance Total',
-      ];
-      for (const h of headers) {
-        const th = document.createElement('th');
-        th.textContent = h;
-        th.style.border = '1px solid #d1d5db';
-        th.style.padding = '6px 8px';
-        th.style.background = '#f3f4f6';
-        th.style.fontWeight = '700';
-        headerRow.appendChild(th);
+      
+      // First header row - Main sections
+      const headerRow1 = document.createElement('tr');
+      headerRow1.style.border = '1px solid #000';
+      
+      const th1 = document.createElement('th');
+      th1.textContent = 'Particulars';
+      th1.style.border = '1px solid #000';
+      th1.style.padding = '8px';
+      th1.style.background = '#f5f5f5';
+      th1.style.fontWeight = '700';
+      th1.style.textAlign = 'center';
+      th1.rowSpan = 2;
+      headerRow1.appendChild(th1);
+
+      // Budget Appropriation
+      const budgetHeader = document.createElement('th');
+      budgetHeader.textContent = 'BUDGET APPROPRIATION';
+      budgetHeader.colSpan = 4;
+      budgetHeader.style.border = '1px solid #000';
+      budgetHeader.style.padding = '8px';
+      budgetHeader.style.background = '#4B5DBF';
+      budgetHeader.style.color = 'white';
+      budgetHeader.style.fontWeight = '700';
+      budgetHeader.style.textAlign = 'center';
+      headerRow1.appendChild(budgetHeader);
+
+      // Actual Expenditure
+      const actualHeader = document.createElement('th');
+      actualHeader.textContent = 'ACTUAL EXPENDITURE';
+      actualHeader.colSpan = 4;
+      actualHeader.style.border = '1px solid #000';
+      actualHeader.style.padding = '8px';
+      actualHeader.style.background = '#4B5DBAF';
+      actualHeader.style.color = 'white';
+      actualHeader.style.fontWeight = '700';
+      actualHeader.style.textAlign = 'center';
+      headerRow1.appendChild(actualHeader);
+
+      // Variance
+      const varianceHeader = document.createElement('th');
+      varianceHeader.textContent = 'VARIANCE';
+      varianceHeader.colSpan = 4;
+      varianceHeader.style.border = '1px solid #000';
+      varianceHeader.style.padding = '8px';
+      varianceHeader.style.background = '#4B5DBAF';
+      varianceHeader.style.color = 'white';
+      varianceHeader.style.fontWeight = '700';
+      varianceHeader.style.textAlign = 'center';
+      headerRow1.appendChild(varianceHeader);
+
+      thead.appendChild(headerRow1);
+
+      // Second header row - Sub-columns (PS, MOOE, CO, Total) x 3
+      const headerRow2 = document.createElement('tr');
+      const subHeaders = ['PS', 'MOOE', 'CO', 'Total'];
+      for (let i = 0; i < 3; i++) {
+        for (const sub of subHeaders) {
+          const th = document.createElement('th');
+          th.textContent = sub;
+          th.style.border = '1px solid #000';
+          th.style.padding = '6px';
+          th.style.background = '#e0e0e0';
+          th.style.fontWeight = '600';
+          th.style.textAlign = 'center';
+          th.style.fontSize = '10px';
+          headerRow2.appendChild(th);
+        }
       }
-      thead.appendChild(headerRow);
+      thead.appendChild(headerRow2);
       tableEl.appendChild(thead);
 
-      // body
+      // Table body
       const tbody = document.createElement('tbody');
       for (const row of data) {
         const tr = document.createElement('tr');
-        tr.style.border = '1px solid #e5e7eb';
 
-        const cells = [
-          row.office,
-          formatPeso(row.budget.ps),
-          formatPeso(row.budget.mooe),
-          formatPeso(row.budget.co),
-          formatPeso(row.budget.total),
-          formatPeso(row.actual.ps),
-          formatPeso(row.actual.mooe),
-          formatPeso(row.actual.co),
-          formatPeso(row.actual.total),
-          formatPeso(row.variance.ps),
-          formatPeso(row.variance.mooe),
-          formatPeso(row.variance.co),
-          formatPeso(row.variance.total),
-        ];
+        // Particulars (left-aligned)
+        const tdParticular = document.createElement('td');
+        tdParticular.textContent = row.office;
+        tdParticular.style.border = '1px solid #ccc';
+        tdParticular.style.padding = '6px 8px';
+        tdParticular.style.textAlign = 'left';
+        tdParticular.style.fontWeight = '500';
+        tr.appendChild(tdParticular);
 
-        for (const c of cells) {
+        // Budget Appropriation cells
+        const budgetValues = [row.budget.ps, row.budget.mooe, row.budget.co, row.budget.total];
+        for (const val of budgetValues) {
           const td = document.createElement('td');
-          td.textContent = String(c ?? '');
-          td.style.border = '1px solid #e5e7eb';
-          td.style.padding = '6px 8px';
+          td.textContent = formatPeso(val);
+          td.style.border = '1px solid #ccc';
+          td.style.padding = '6px 4px';
           td.style.textAlign = 'right';
           tr.appendChild(td);
         }
 
-        if (tr.firstChild) (tr.firstChild as HTMLElement).style.textAlign = 'left';
+        // Actual Expenditure cells
+        const actualValues = [row.actual.ps, row.actual.mooe, row.actual.co, row.actual.total];
+        for (const val of actualValues) {
+          const td = document.createElement('td');
+          td.textContent = formatPeso(val);
+          td.style.border = '1px solid #ccc';
+          td.style.padding = '6px 4px';
+          td.style.textAlign = 'right';
+          tr.appendChild(td);
+        }
+
+        // Variance cells
+        const varianceValues = [row.variance.ps, row.variance.mooe, row.variance.co, row.variance.total];
+        for (const val of varianceValues) {
+          const td = document.createElement('td');
+          td.textContent = formatPeso(val);
+          td.style.border = '1px solid #ccc';
+          td.style.padding = '6px 4px';
+          td.style.textAlign = 'right';
+          tr.appendChild(td);
+        }
+
         tbody.appendChild(tr);
       }
 
-      // totals row
+      // Totals row
       const totalsRow = document.createElement('tr');
       totalsRow.style.fontWeight = '700';
-      totalsRow.style.backgroundColor = '#e0d5ff';
-      const totals = [
-        'Overall Total',
-        formatPeso(data.reduce((sum, r) => sum + r.budget.ps, 0)),
-        formatPeso(data.reduce((sum, r) => sum + r.budget.mooe, 0)),
-        formatPeso(data.reduce((sum, r) => sum + r.budget.co, 0)),
-        formatPeso(data.reduce((sum, r) => sum + r.budget.total, 0)),
-        formatPeso(data.reduce((sum, r) => sum + r.actual.ps, 0)),
-        formatPeso(data.reduce((sum, r) => sum + r.actual.mooe, 0)),
-        formatPeso(data.reduce((sum, r) => sum + r.actual.co, 0)),
-        formatPeso(data.reduce((sum, r) => sum + r.actual.total, 0)),
-        formatPeso(data.reduce((sum, r) => sum + r.variance.ps, 0)),
-        formatPeso(data.reduce((sum, r) => sum + r.variance.mooe, 0)),
-        formatPeso(data.reduce((sum, r) => sum + r.variance.co, 0)),
-        formatPeso(data.reduce((sum, r) => sum + r.variance.total, 0)),
+      totalsRow.style.backgroundColor = '#d4d4d4';
+
+      const tdTotalLabel = document.createElement('td');
+      tdTotalLabel.textContent = 'OVERALL TOTAL';
+      tdTotalLabel.style.border = '1px solid #000';
+      tdTotalLabel.style.padding = '8px';
+      tdTotalLabel.style.textAlign = 'left';
+      tdTotalLabel.style.fontWeight = 'bold';
+      totalsRow.appendChild(tdTotalLabel);
+
+      // Budget total values
+      const budgetTotals = [
+        data.reduce((sum, r) => sum + r.budget.ps, 0),
+        data.reduce((sum, r) => sum + r.budget.mooe, 0),
+        data.reduce((sum, r) => sum + r.budget.co, 0),
+        data.reduce((sum, r) => sum + r.budget.total, 0),
       ];
-      for (let idx = 0; idx < totals.length; idx++) {
-        const c = totals[idx];
+      for (const val of budgetTotals) {
         const td = document.createElement('td');
-        td.textContent = String(c ?? '');
-        td.style.border = '1px solid #e5e7eb';
-        td.style.padding = '6px 8px';
+        td.textContent = formatPeso(val);
+        td.style.border = '1px solid #000';
+        td.style.padding = '6px 4px';
         td.style.textAlign = 'right';
-        // Highlight total columns (indices 4, 8, 12 are the "Total" columns)
-        if (idx === 4 || idx === 8 || idx === 12) {
-          td.style.backgroundColor = '#a78bfa';
-          td.style.fontWeight = '700';
-        }
+        td.style.fontWeight = '700';
         totalsRow.appendChild(td);
       }
-      if (totalsRow.firstChild) (totalsRow.firstChild as HTMLElement).style.textAlign = 'left';
-      tbody.appendChild(totalsRow);
 
+      // Actual total values
+      const actualTotals = [
+        data.reduce((sum, r) => sum + r.actual.ps, 0),
+        data.reduce((sum, r) => sum + r.actual.mooe, 0),
+        data.reduce((sum, r) => sum + r.actual.co, 0),
+        data.reduce((sum, r) => sum + r.actual.total, 0),
+      ];
+      for (const val of actualTotals) {
+        const td = document.createElement('td');
+        td.textContent = formatPeso(val);
+        td.style.border = '1px solid #000';
+        td.style.padding = '6px 4px';
+        td.style.textAlign = 'right';
+        td.style.fontWeight = '700';
+        totalsRow.appendChild(td);
+      }
+
+      // Variance total values
+      const varianceTotals = [
+        data.reduce((sum, r) => sum + r.variance.ps, 0),
+        data.reduce((sum, r) => sum + r.variance.mooe, 0),
+        data.reduce((sum, r) => sum + r.variance.co, 0),
+        data.reduce((sum, r) => sum + r.variance.total, 0),
+      ];
+      for (const val of varianceTotals) {
+        const td = document.createElement('td');
+        td.textContent = formatPeso(val);
+        td.style.border = '1px solid #000';
+        td.style.padding = '6px 4px';
+        td.style.textAlign = 'right';
+        td.style.fontWeight = '700';
+        totalsRow.appendChild(td);
+      }
+
+      tbody.appendChild(totalsRow);
       tableEl.appendChild(tbody);
+
+      containerEl.appendChild(tableEl);
 
       // Render off-screen
       const wrapper = document.createElement('div');
@@ -213,10 +365,10 @@ export default function SoePage() {
       wrapper.style.left = '-99999px';
       wrapper.style.top = '0';
       wrapper.style.pointerEvents = 'none';
-      wrapper.appendChild(tableEl);
+      wrapper.appendChild(containerEl);
       document.body.appendChild(wrapper);
 
-      const canvas = await html2canvas(tableEl as HTMLElement, {
+      const canvas = await html2canvas(containerEl as HTMLElement, {
         scale: 2,
         useCORS: true,
         backgroundColor: '#ffffff',
