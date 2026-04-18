@@ -1029,7 +1029,7 @@ const isBudgetEnough = () => {
             onClick={handleAdd}
             className="flex items-center bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition"
           >
-            <Plus className="w-4 h-4 mr-2" /> Record Disbursement
+            <Plus className="w-4 h-4 mr-2" /> 
           </button>
         </div>
       </div>
